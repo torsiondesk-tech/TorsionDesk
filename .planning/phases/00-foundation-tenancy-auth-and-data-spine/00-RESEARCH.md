@@ -462,7 +462,7 @@ export async function saveProfile(data: ProfileInput) {
 
 **If unsure, the planner should surface A2 and A4 to the user** — they are structural and hard to change later.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact Clerk org role keys**
    - What we know: Clerk supports custom org roles beyond default `org:admin`/`org:member`; middleware must match them.
