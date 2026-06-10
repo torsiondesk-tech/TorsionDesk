@@ -20,7 +20,7 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 - [ ] **CUST-01**: User can create a customer with name, account number, VIP flag, service agreement flag, active status, and parent account (for commercial hierarchies)
 - [ ] **CUST-02**: Customer has multiple contacts, each with name, phone(s), email(s), SMS consent, billing/booking contact flags, birthday, anniversary, job title
 - [ ] **CUST-03**: Customer has multiple service locations, each with name, address, gated property flag
-- [ ] **CUST-04**: Each service location has equipment records: door specs (brand, size, material, style), opener (brand, model, HP, serial), springs (type, size, coil count), install and warranty dates
+- [ ] **CUST-04**: Each service location has equipment records: door specs (brand, size, material, style, **color, model/series** for panel reordering), opener (brand, model, HP, serial), springs (**wire size, inside diameter, length, wind direction left/right, cycle rating**), install and warranty dates per component
 - [ ] **CUST-05**: Customer profile has a live Activity Feed on the right — chronological timeline of every job, estimate, invoice, payment, and email for that customer
 - [ ] **CUST-06**: Customer record has internal/private notes, public/work order notes, customer tags, referral source, taxable flag, tax item, assigned agent/rep
 - [ ] **CUST-07**: User can search customers by name, phone, email, or address from any job/estimate form (type-ahead search)
@@ -149,14 +149,14 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 
 **Key domain specifics:**
 - Equipment is tracked per service location, not per customer (commercial clients have multiple properties each with different equipment)
-- Spring specs (type, size, coil count) are critical — wrong specs = wrong parts ordered
+- Spring specs (wire size, inside diameter, length, wind direction left/right, cycle rating) are critical — wrong specs = wrong parts ordered. Confirmed by owner 2026-06-10.
 - Job tags are part-type based (Springs, Bottom Seal, Rollers, LHR, etc.) for filtering history by repair type
 - Job status "On The Way" triggers the customer SMS notification
 - "Close & Invoice" from the dispatch board is a primary daily action — must be one click
 
 ## Constraints
 
-- **Tech Stack**: Next.js 14 (App Router), PostgreSQL via Supabase (RLS + Storage + Realtime), Prisma ORM, Clerk (auth — multi-tenant org support), shadcn/ui + Tailwind CSS v4, Vercel hosting
+- **Tech Stack**: Next.js 15 (App Router), PostgreSQL via Supabase (RLS + Storage + Realtime), **Drizzle ORM** (Prisma bypasses RLS by default — Drizzle has first-class RLS support), Clerk native Supabase auth (JWT template deprecated April 2025), shadcn/ui + Tailwind CSS v4, **Serwist** (PWA service worker — next-pwa unmaintained), Vercel hosting
 - **Integrations**: Resend (email), Stripe (online payments), Square (on-site card), Twilio (SMS)
 - **Multi-tenancy**: Supabase Row Level Security from day one — every table scoped by tenant. Required for eventual SaaS path.
 - **Mobile**: PWA for technician view — offline-capable, no App Store, photo upload from phone camera
@@ -169,7 +169,8 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Clerk over NextAuth | NextAuth requires painful multi-tenant retrofit later; Clerk has org/team management built in | — Pending |
+| Clerk native Supabase auth over JWT template | JWT template deprecated April 1, 2025; native integration is required for RLS policies using org_id | — Pending |
+| Drizzle over Prisma | Prisma connects as a privileged role that bypasses RLS by default — silent multi-tenant data leak. Drizzle has first-class RLS support and faster cold starts. | — Pending |
 | Supabase over plain Postgres | RLS handles multi-tenancy cleanly, Storage for photos, Realtime for dispatch board — three problems solved by one platform | — Pending |
 | PWA over native app | No App Store overhead, works offline, deployable same day as the web app | — Pending |
 | Estimates as separate module | Estimates have their own pipeline (Requested→Won/Lost), own dashboard, own templates — not just a job status | — Pending |
