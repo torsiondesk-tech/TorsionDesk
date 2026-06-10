@@ -165,6 +165,7 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 ## Constraints
 
 - **Tech Stack**: Next.js 15 (App Router), PostgreSQL via Supabase (RLS + Storage + Realtime), **Drizzle ORM** (Prisma bypasses RLS by default — Drizzle has first-class RLS support), Clerk native Supabase auth (JWT template deprecated April 2025), shadcn/ui + Tailwind CSS v4, **Serwist** (PWA service worker — next-pwa unmaintained), Vercel hosting
+- **Package Manager**: **pnpm** exclusively — no npm, npx, or yarn (owner preference for security reasons)
 - **Integrations**: Resend (email), Stripe (online payments), Square (on-site card), Twilio (SMS)
 - **Multi-tenancy**: Supabase Row Level Security from day one — every table scoped by tenant. Required for eventual SaaS path.
 - **Mobile**: PWA for technician view — offline-capable, no App Store, photo upload from phone camera
@@ -186,6 +187,7 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 | Inline product creation from job form | Reduces context switching — tech or office staff adds a new part to catalog without leaving the job | — Pending |
 | Inventory management as dedicated phase | Catalog (prices/costs) ships first in MVP; full stock tracking and purchase orders follow as a separate phase | — Pending |
 | Drive & Labor Times tab is v2 | SF export shows $0 labor on all 61 reviewed jobs — labor is bundled into pricing, not tracked separately. Tab can be placeholder in v1. | — Pending |
+| pnpm over npm/yarn | Owner security preference — use pnpm for all installs, scripts, and tooling; never npm, npx, or yarn | — Pending |
 | Progress Billing is a billing pattern, not a toggle | Confirmed from SF export: large jobs split into multiple job records (deposit job, 40% job, balance job), each with their own invoice. No single-job partial-billing workflow needed for v1. | — Pending |
 
 ## Evolution
