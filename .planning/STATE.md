@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-06-10T17:52:20.472Z"
+progress:
+  total_phases: 11
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
 # GarageOS — Project State
 
 ## Project Reference
@@ -10,6 +24,7 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 ## Current Phase
 
 **Phase 0: Foundation — Tenancy, Auth, and Data Spine**
+
 - Status: Not started
 - Started: —
 - Plan: Not created yet
@@ -43,6 +58,7 @@ Phase 10 [          ] Not started
 (see .planning/PROJECT.md Key Decisions section)
 
 Decisions to lock during Phase 0 (flagged by research):
+
 - ORM final call: Drizzle vs Prisma + app-layer tenancy — decide before any table is created.
 - Clerk native Supabase third-party auth wiring (JWT template deprecated April 1, 2025); RLS policies key on org_id, not auth.uid().
 - PgBouncer / connection config for RLS-scoped roles.
@@ -57,6 +73,7 @@ Decisions to lock during Phase 0 (flagged by research):
 **Last action:** Roadmap created (11 phases, 97 requirements, 100% coverage) — 2026-06-10.
 **Next action:** `/gsd-plan-phase 0` to decompose Phase 0 into executable plans.
 **Watch items:**
+
 - Two owner-confirmation data questions resolved in REQUIREMENTS.md (spring specs + door color/model captured in CUST-04) — no longer open.
 - Phase 0, Phase 5 (PWA), and Phase 7 (Invoicing) are flagged for deeper research before planning.
 - Phases 4 and 5 are parallelizable once Phase 3 is complete.
