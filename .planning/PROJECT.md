@@ -42,7 +42,7 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 - [ ] **JOB-01**: Job form — two-panel layout (Details left, Job Info right): customer, contact, service location, job category (hierarchical, admin-configurable), description, PO#, job source, agent/rep, tags
 - [ ] **JOB-02**: Job Info panel: status (full dropdown), start/end dates, arrival time window, estimated duration, multi-day job flag, job priority, assigned techs with notify-all checkbox, notes for techs, completion notes, requires follow-up flag
 - [ ] **JOB-03**: Job status machine — Open Jobs: Unscheduled, Scheduled, Dispatched, Cancelled; In Progress: Delayed, On The Way, On Site, Started, Paused, Resumed, Partially Completed, Completed; Closed: Invoiced, Paid in Full, Job Closed
-- [ ] **JOB-04**: Line items with three tabs: Products & Services | Drive & Labor Times | Expenses — all with description, qty/hrs, rate, total, cost, margin, tax columns
+- [ ] **JOB-04**: Line items with three tabs: Products & Services | Drive & Labor Times | Expenses — all with description, qty/hrs, rate, total, cost, margin, tax columns. Line item types include Product, Service, and **Discount** (a separate negative line item, not a per-line % reduction — confirmed from SF export data).
 - [ ] **JOB-05**: Billing type selector: Single Invoice / Progress Billing / No Charge
 - [ ] **JOB-06**: Job totals panel: Products/Services/Taxes/Fees, Total Drive & Labor Time, Total Billable Expenses, Job Total, Payments/Deposits, Total Due, Job Cost, Gross Profit %
 - [ ] **JOB-07**: Job templates — user can save and reuse job structures with pre-filled line items and task lists; heavily used
@@ -83,7 +83,7 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 - [ ] **INV-09**: Invoice email to customer with PDF attachment
 
 #### Module 7: Product & Service Catalog
-- [ ] **CAT-01**: Products have: category, name, model, SKU, UPC, part number, unit price, unit cost, type, active flag, inventory item flag, description
+- [ ] **CAT-01**: Products have: category, name, model, SKU, UPC, part number, unit price, unit cost, type, active flag, inventory item flag, **sales description** (customer-facing, appears on invoices), **purchase description** (internal, for ordering), **primary/secondary/tertiary vendor with purchase price per vendor**
 - [ ] **CAT-02**: Services have: category, name, unit price, unit cost, description, active flag
 - [ ] **CAT-03**: Catalog management page — filterable by category, name, price range, cost range, inventory item flag; sortable; bulk export
 - [ ] **CAT-04**: Inline product/service creation from job/estimate form — "Add Line Item" → "Create New Service" / "Create New Product" opens modal, saves to catalog and immediately adds as line item
@@ -147,6 +147,14 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 
 **Workflow familiarity:** Operator is deeply familiar with Service Fusion's layout and interaction patterns. Minimizing workflow change is a hard requirement — screens should feel nearly identical to SF in layout, terminology, and interaction flow. Every screen shown during discovery was captured as a design reference.
 
+**SF export analysis (2026-06-10):** Three exports reviewed: Sales by Customer (61 jobs, $158k revenue), Customer List (~75 customers), Inventory (~150 products). Key findings:
+- **Labor column $0 on all jobs** — labor is bundled into product/service pricing, not tracked separately. Drive & Labor Times tab is present in SF UI but unused in practice. Can be simplified in v1.
+- **Discounts are a separate line item type** — not a % reduction per line. A "5% Discount" or flat "Discount" appears as its own negative-total line item.
+- **Progress Billing is a multi-job invoicing pattern** — one large commercial project is split across multiple job records (each job = one billing milestone: deposit, 40%, remaining balance). Not a single-job partial-billing toggle.
+- **Address-as-customer-name pattern** — some customers are named by address (e.g., "128 Asbury Ave") for rental properties where no personal name is on file. Migration must preserve this.
+- **Products have two description fields** — a sales description (customer-facing, used on invoices) and a purchase description (internal, for ordering). Both are in SF and must carry over.
+- **Vendor tracking** — products track up to 3 vendors with individual purchase prices per vendor.
+
 **Key domain specifics:**
 - Equipment is tracked per service location, not per customer (commercial clients have multiple properties each with different equipment)
 - Spring specs (wire size, inside diameter, length, wind direction left/right, cycle rating) are critical — wrong specs = wrong parts ordered. Confirmed by owner 2026-06-10.
@@ -177,6 +185,8 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 | Equipment scoped to service location | Commercial clients have multiple properties; equipment belongs to the property not the customer | — Pending |
 | Inline product creation from job form | Reduces context switching — tech or office staff adds a new part to catalog without leaving the job | — Pending |
 | Inventory management as dedicated phase | Catalog (prices/costs) ships first in MVP; full stock tracking and purchase orders follow as a separate phase | — Pending |
+| Drive & Labor Times tab is v2 | SF export shows $0 labor on all 61 reviewed jobs — labor is bundled into pricing, not tracked separately. Tab can be placeholder in v1. | — Pending |
+| Progress Billing is a billing pattern, not a toggle | Confirmed from SF export: large jobs split into multiple job records (deposit job, 40% job, balance job), each with their own invoice. No single-job partial-billing workflow needed for v1. | — Pending |
 
 ## Evolution
 
@@ -196,4 +206,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-10 after initial discovery — all screens reviewed with owner*
+*Last updated: 2026-06-10 after SF data export analysis — catalog, customer list, and sales history reviewed*
