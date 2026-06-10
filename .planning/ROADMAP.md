@@ -51,7 +51,13 @@
   3. A logged-in session survives a browser refresh and tab close, and a user can reset a forgotten password via email link.
   4. A user in Tenant A cannot read or write any Tenant B record — verified by an automated cross-tenant test that confirms RLS denies access.
   5. The tenant's business profile (company name, address, phone, email, logo) can be set and is persisted for use on later invoices and email headers.
-**Plans:** TBD
+**Plans:** 5 plans (Walking Skeleton — 5 waves)
+Plans:
+- [ ] 00-01-PLAN.md — Wave 0: vitest setup + five failing tests (cross-tenant RLS, withTenant, roles, webhook, profile)
+- [ ] 00-02-PLAN.md — Wave 1: Next 15 scaffold + Clerk + Drizzle client/schema/withTenant + roles map + org.created webhook
+- [ ] 00-03-PLAN.md — Wave 2: middleware role gates + public sign-up/sign-in + onboarding + app shell sidebar + dashboard
+- [ ] 00-04-PLAN.md — Wave 3: Settings (company profile + logo + users/invites + stub tabs) + [BLOCKING] drizzle-kit push
+- [ ] 00-05-PLAN.md — Wave 4: cross-tenant RLS test green against real Supabase + full suite green
 
 ### Phase 1: Customers, Locations, and Equipment
 **Goal:** The office can manage the complete customer book — customers with contacts, multiple service locations, and per-location door/opener/spring equipment specs — and find any customer fast.
@@ -194,7 +200,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation — Tenancy, Auth, and Data Spine | 0/0 | Not started | - |
+| 0. Foundation — Tenancy, Auth, and Data Spine | 0/5 | Planned | - |
 | 1. Customers, Locations, and Equipment | 0/0 | Not started | - |
 | 2. Catalog and Settings | 0/0 | Not started | - |
 | 3. Jobs Core and Status FSM | 0/0 | Not started | - |
@@ -208,3 +214,4 @@
 
 ---
 *Roadmap generated: 2026-06-10 | 11 phases, 97 v1 requirements, 100% coverage*
+*Phase 0 planned: 2026-06-10 — 5 plans across 5 waves (Walking Skeleton)*
