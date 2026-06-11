@@ -1,4 +1,4 @@
-# Walking Skeleton — GarageOS
+# Walking Skeleton — TorsionDesk
 
 **Phase:** 0 (Foundation — Tenancy, Auth, and Data Spine)
 **Generated:** 2026-06-10

@@ -1,7 +1,7 @@
 # Domain Pitfalls
 
 **Domain:** Field Service Management (FSM) CRM — garage door service, multi-tenant SaaS path
-**Project:** GarageOS (Service Fusion replacement)
+**Project:** TorsionDesk (Service Fusion replacement)
 **Researched:** 2026-06-10
 **Stack under review:** Next.js 14 App Router · Supabase (Postgres + RLS + Realtime + Storage) · Prisma · Clerk · Vercel · Stripe · Square · Twilio · Resend
 

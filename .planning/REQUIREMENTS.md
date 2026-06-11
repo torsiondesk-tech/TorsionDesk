@@ -1,4 +1,4 @@
-# Requirements: GarageOS — FSM CRM for Infantino's Garage Door Service
+# Requirements: TorsionDesk — FSM CRM for Infantino's Garage Door Service
 
 **Defined:** 2026-06-10
 **Core Value:** A tech gets dispatched from the board, completes the job on their phone, and the customer has a paid invoice with a receipt in their inbox — without the owner touching anything twice.
@@ -86,12 +86,17 @@
 - [ ] **INV-01**: Invoice is created from a job and carries over all line items, customer, and contact details; invoice number auto-increments per tenant
 - [ ] **INV-02**: Invoicing dashboard has AR aging sidebar: Grand Total Unpaid, Grand Total Past Due, aging buckets (1–30 / 31–60 / 61–90 / 91+ days) with color-coded totals
 - [ ] **INV-03**: Invoice list has three views: Unpaid | Paid | All Invoices — each with search, sort, and pagination
-- [ ] **INV-04**: Payment is recorded directly on the invoice — no separate batch payment screen; user selects method and amount applied
-- [ ] **INV-05**: Payment record stores full transaction detail: method, card last 4, expiry, transaction token, authorization #, billing address, amount applied to invoice(s), remaining balance
+- [ ] **INV-04**: Payments are recorded via a dedicated "Receive a Payment" page, scoped to a customer; the page lists all open invoices for that customer with an "Amount To Apply" field per invoice row; user enters: Payment Method, Check/Reference#, Received By, Received On date, Payment Memo, and total Amount; a running totals panel shows Total Outstanding, Amount Of Payment, Total To Be Applied, and Owed After Payment; submitting posts payment allocations for all selected invoices to the canonical payment ledger; accessible from the invoice action bar or from the customer record
+- [ ] **INV-05**: Payment record stores: Method (from admin-configured list — see SET-08), Check/Reference#, Received By, Received On date, Payment Memo, Amount, and per-invoice allocation amounts; card-specific fields (last 4, expiry, transaction token, authorization #, billing address) stored only for Credit Card (Stripe) and On-Site Card (Square) methods; all payments record an audit entry of entered-at timestamp and entered-by user
 - [ ] **INV-06**: Stripe integration — payment link in invoice email; Stripe webhook creates payment record and fires receipt email automatically; webhook is idempotent (deduplication by event.id)
 - [ ] **INV-07**: Square integration — tech can process on-site card payment via Square Mobile Payments SDK from their phone; payment syncs to the canonical payment ledger
 - [ ] **INV-08**: Invoice PDF generation with toggle to include work order (line items, completion notes, signature); PDF downloadable and email-attachable
 - [ ] **INV-09**: Invoice can be emailed to customer with PDF attachment directly from the invoice view
+- [ ] **INV-10**: "Invoice" button appears on the job detail action bar when job status is Completed; clicking it creates an invoice carrying all line items, customer, and contact details, and transitions the job to Invoiced — same outcome as "Close & Invoice" from the dispatch popup but initiated from the job detail page
+- [ ] **INV-11**: After invoice creation, the job's Current Status row displays the linked invoice number and creation date as a clickable link to the invoice page; the invoice page sidebar shows: Invoice#, Invoice Date, Payment Terms, Sent By, Sent On, and Email Opened
+- [ ] **INV-12**: Invoice email delivery is tracked via Resend webhooks; invoice sidebar shows Sent By, Sent On, and Email Opened (date/time); a "(log)" link opens a modal with the full timestamped email event log (send and open events); tracking applies to both manually sent and auto-triggered invoice emails
+- [ ] **INV-13**: Deposits can be recorded against a job before an invoice exists; deposit entry requires: amount, payment method, Check/Reference#, Received By, Received On date, and memo; deposits are accessible as a quick action from the dispatch popup and from the job detail action bar; recorded deposits appear as DEPOSITS (−) on the resulting invoice and reduce TOTAL DUE
+- [ ] **INV-14**: Every payment (manual or webhook-created) is a first-class record with a unique payment number and its own view page; the view page shows: payment#, From Customer, Transaction Details, an audit line ("Entered [datetime] by [user]"), and an invoice allocation table with clickable links to Invoice#, Customer, and Job# (Description column auto-populates as "For Job(s): [job#]"); an Edit Payment button allows post-submission corrections
 
 ### Catalog
 
@@ -134,6 +139,7 @@
 - [ ] **SET-05**: Email automation settings — per-trigger enable/disable toggles for all outbound email types; editable email body templates
 - [ ] **SET-06**: Lookup lists — admin can add, edit, and remove referral sources, job sources, and other configurable dropdown values
 - [ ] **SET-07**: Tax items — admin can create and configure tax rates (name, percentage); tax items are assigned per customer (taxable flag) and overridable per line item
+- [ ] **SET-08**: Payment Methods settings panel — admin can add, rename, reorder, and deactivate custom payment methods (e.g., Cash, Check, Zelle, Venmo, ACH, Wire); system-linked methods (Credit Card/Stripe, On-Site Card/Square) are displayed but locked from edit/delete; active methods populate the Method dropdown on the Receive a Payment page and on deposit entry forms
 
 ### Data Migration
 
@@ -209,6 +215,7 @@
 | SET-05 | Phase 2 | Pending |
 | SET-06 | Phase 2 | Pending |
 | SET-07 | Phase 2 | Pending |
+| SET-08 | Phase 2 | Pending |
 | JOB-01 | Phase 3 | Pending |
 | JOB-02 | Phase 3 | Pending |
 | JOB-03 | Phase 3 | Pending |
@@ -256,6 +263,11 @@
 | INV-07 | Phase 7 | Pending |
 | INV-08 | Phase 7 | Pending |
 | INV-09 | Phase 7 | Pending |
+| INV-10 | Phase 7 | Pending |
+| INV-11 | Phase 7 | Pending |
+| INV-12 | Phase 7 | Pending |
+| INV-13 | Phase 7 | Pending |
+| INV-14 | Phase 7 | Pending |
 | COMM-01 | Phase 8 | Pending |
 | COMM-02 | Phase 8 | Pending |
 | COMM-03 | Phase 8 | Pending |
@@ -279,10 +291,10 @@
 | MIGR-03 | Phase 10 | Pending |
 
 **Coverage:**
-- v1 requirements: 97 total
-- Mapped to phases: 97
+- v1 requirements: 103 total
+- Mapped to phases: 103
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-10*
-*Last updated: 2026-06-10 after roadmap creation — 11 phases (Phase 0–10), traceability confirmed against ROADMAP.md, 100% coverage*
+*Last updated: 2026-06-10 — added INV-10 through INV-14 (invoice button, job↔invoice linking, email tracking, deposits, payment view page), revised INV-04/INV-05 (Receive a Payment page, payment method fields), added SET-08 (configurable payment methods); 103 requirements total*

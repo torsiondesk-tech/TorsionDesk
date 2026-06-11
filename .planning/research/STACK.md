@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Project:** GarageOS — Custom FSM CRM (Service Fusion replacement)
+**Project:** TorsionDesk — Custom FSM CRM (Service Fusion replacement)
 **Researched:** 2026-06-10
 **Overall confidence:** HIGH (verified against official docs + 2025/2026 sources)
 
@@ -221,7 +221,7 @@ Confidence: HIGH on tooling/patterns; the *implementation* is genuinely hard —
 
 ```bash
 # Core (Next 15 + React 19)
-npx create-next-app@latest garageos --typescript --tailwind --app
+npx create-next-app@latest torsiondesk --typescript --tailwind --app
 
 # UI
 npx shadcn@latest init            # Tailwind v4 + tw-animate-css

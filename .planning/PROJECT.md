@@ -1,4 +1,4 @@
-# GarageOS — Custom FSM CRM for Infantino's Garage Door Service
+# TorsionDesk — Custom FSM CRM for Infantino's Garage Door Service
 
 ## What This Is
 
@@ -147,7 +147,8 @@ A tech gets dispatched from the board, completes the job on their phone, and the
 
 **Workflow familiarity:** Operator is deeply familiar with Service Fusion's layout and interaction patterns. Minimizing workflow change is a hard requirement — screens should feel nearly identical to SF in layout, terminology, and interaction flow. Every screen shown during discovery was captured as a design reference.
 
-**SF export analysis (2026-06-10):** Three exports reviewed: Sales by Customer (61 jobs, $158k revenue), Customer List (~75 customers), Inventory (~150 products). Key findings:
+**SF export analysis (2026-06-10):** Three exports reviewed: Sales by Customer (sample export), Customer List (~1,000+ customers), Inventory (~150 products). Key findings:
+- **Migration scale:** ~1,000+ customers and thousands of historical jobs to migrate.
 - **Labor column $0 on all jobs** — labor is bundled into product/service pricing, not tracked separately. Drive & Labor Times tab is present in SF UI but unused in practice. Can be simplified in v1.
 - **Discounts are a separate line item type** — not a % reduction per line. A "5% Discount" or flat "Discount" appears as its own negative-total line item.
 - **Progress Billing is a multi-job invoicing pattern** — one large commercial project is split across multiple job records (each job = one billing milestone: deposit, 40%, remaining balance). Not a single-job partial-billing toggle.

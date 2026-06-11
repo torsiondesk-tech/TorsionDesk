@@ -1,6 +1,6 @@
-# GarageOS — Project Instructions
+# TorsionDesk — Project Instructions
 
-**Project:** GarageOS — FSM CRM for Infantino's Garage Door Service
+**Project:** TorsionDesk — FSM CRM for Infantino's Garage Door Service
 **Purpose:** Service Fusion replacement, custom-built for a garage door service business. Multi-tenant from day one for future SaaS path.
 
 ---
@@ -121,7 +121,8 @@ This app must feel nearly identical to Service Fusion in layout, terminology, an
 
 ## Data Model Insights (from SF export analysis, 2026-06-10)
 
-- ~75 customers; some named by address (rental property pattern) — migration must preserve this
+- ~1,000+ customers; some named by address (rental property pattern) — migration must preserve this
+- Thousands of historical jobs to migrate
 - ~150 catalog items in 9 categories; extension springs are color-coded by # weight
 - Products have TWO description fields: **sales description** (customer-facing) and **purchase description** (internal/ordering)
 - Products have up to 3 vendors with individual purchase prices per vendor

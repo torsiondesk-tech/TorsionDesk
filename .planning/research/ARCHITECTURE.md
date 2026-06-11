@@ -1,4 +1,4 @@
-# Architecture Patterns — GarageOS (Multi-Tenant FSM CRM)
+# Architecture Patterns — TorsionDesk (Multi-Tenant FSM CRM)
 
 **Domain:** Field Service Management CRM (multi-tenant SaaS path)
 **Researched:** 2026-06-10
@@ -53,7 +53,7 @@
 
 This is the question that causes the most churn if you get it wrong. Decision rules:
 
-| Use a... | When | Examples in GarageOS |
+| Use a... | When | Examples in TorsionDesk |
 |----------|------|----------------------|
 | **Server Action** | User-initiated mutation tied to the authed session; you want progressive enhancement, revalidation, and type-safe args | Create/edit customer, job, estimate; change job status; add line item; convert estimate→job; record manual payment; apply template; "Close & Invoice" |
 | **Route Handler (API route)** | Caller is **not** your authed UI, or you need raw request/response control, streaming, or a stable URL | Stripe webhook, Square webhook, Twilio status callbacks; PWA sync endpoint (batched offline mutations); file upload signed-URL minting; PDF generation; CSV/PDF report export; cron-style jobs |
