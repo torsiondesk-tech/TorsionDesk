@@ -2,24 +2,24 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-06-10T18:21:37.723Z"
+status: Executing Phase 00
+last_updated: "2026-06-11T02:03:36.164Z"
 progress:
   total_phases: 11
   completed_phases: 0
-  total_plans: 0
+  total_plans: 5
   completed_plans: 0
   percent: 0
 ---
 
-# GarageOS — Project State
+# TorsionDesk — Project State
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Core value:** A tech gets dispatched from the board, completes the job on their phone, and the customer has a paid invoice with a receipt in their inbox — without the owner touching anything twice.
-**Current focus:** Phase 0 — Foundation: Tenancy, Auth, and Data Spine
+**Current focus:** Phase 00 — foundation-tenancy-auth-and-data-spine
 
 ## Current Phase
 

@@ -1,6 +1,6 @@
-# GarageOS Roadmap
+# TorsionDesk Roadmap
 
-**Project:** GarageOS — FSM CRM for Infantino's Garage Door Service
+**Project:** TorsionDesk — FSM CRM for Infantino's Garage Door Service
 **Generated:** 2026-06-10
 **Requirements:** 97 v1 requirements
 **Phases:** 11
@@ -10,7 +10,7 @@
 
 | Phase | Name | Goal | Requirements |
 |-------|------|------|-------------|
-| 0 | Foundation — Tenancy, Auth, and Data Spine | A team member can create a workspace, log in, and be confined to their own tenant's data by RLS | AUTH-01 through AUTH-06, TENANT-01, TENANT-02 |
+| 0 | 1/5 | In Progress|  |
 | 1 | Customers, Locations, and Equipment | The office can manage the full customer book — contacts, properties, and spring/door equipment specs | CUST-01 through CUST-09 |
 | 2 | Catalog and Settings | Admins configure the catalog, categories, tags, templates, users, and lookups everything downstream depends on | CAT-01 through CAT-05, SET-01 through SET-07 |
 | 3 | Jobs Core and Status FSM | A job can be created, priced, and moved through a server-enforced status machine — the hub all other surfaces consume | JOB-01 through JOB-14 |
@@ -54,10 +54,10 @@
   4. A user in Tenant A cannot read or write any Tenant B record — verified by an automated cross-tenant test that confirms RLS denies access.
   5. The tenant's business profile (company name, address, phone, email, logo) can be set and is persisted for use on later invoices and email headers.
 
-**Plans:** 5 plans (Walking Skeleton — 5 waves)Plans:
+**Plans:** 1/5 plans executed
 **Wave 1**
 
-- [ ] 00-01-PLAN.md — Wave 0: vitest setup + five failing tests (cross-tenant RLS, withTenant, roles, webhook, profile)
+- [x] 00-01-PLAN.md — Wave 0: vitest setup + five failing tests (cross-tenant RLS, withTenant, roles, webhook, profile)
 - [ ] 00-02-PLAN.md — Wave 1: Next 15 scaffold + Clerk + Drizzle client/schema/withTenant + roles map + org.created webhook
 
 **Wave 2** *(blocked on Wave 1 completion)*
