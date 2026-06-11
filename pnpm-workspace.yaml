@@ -1,0 +1,9 @@
+# pnpm 11 build-script allowlist (moved here from package.json#pnpm).
+# These are well-known native deps that require post-install build steps:
+#   sharp         — Next.js image optimization (optional)
+#   esbuild       — used by vitest / drizzle-kit tooling
+#   unrs-resolver — eslint module resolver native binding
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
