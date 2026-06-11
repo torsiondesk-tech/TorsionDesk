@@ -200,3 +200,8 @@ None. All security-relevant surface introduced (the webhook endpoint, the RLS po
 - The architectural contract is locked: `withTenant`, the `tenants` RLS shape, `prepare:false`, and the webhook provisioning pattern are reused unchanged by Plan 03+ (auth routes, middleware, shell, settings) and every future tenant-scoped table.
 - Plan 03 must: add `middleware.ts` (`clerkMiddleware`, public-matcher `/api/webhooks(.*)` — Pitfall 4), build `/sign-in`, `/sign-up`, `/onboarding`, the role-filtered shell (consuming `visibleModules`), the dashboard, and Settings → Company Profile (consuming `saveProfile`/`getProfile`).
 - Before any real run / the phase gate: complete Task 1's external setup and run the `rls-cross-tenant` test against the test project to flip it from skipped to GREEN (success criterion #4).
+
+## Self-Check: PASSED
+- Files: all 14 spot-checked artifacts (scaffold config, db spine, lib, webhook, SUMMARY) present on disk.
+- Commits: `f09f802` (scaffold), `9fb23a8` (spine), `1fb9329` (webhook), `418bf27` (summary) all present in git log.
+- Verification: `pnpm why next` → 15.5.19; `pnpm build` exit 0; `tsc --noEmit` clean; four Wave-0 implementation tests GREEN (9 passed, cross-tenant skipped pending TEST_DATABASE_URL).
