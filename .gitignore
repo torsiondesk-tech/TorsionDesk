@@ -1,0 +1,24 @@
+# Dependencies
+/node_modules
+.pnpm-store/
+
+# Test / local env (never commit real secrets; .env.test.example is the template)
+.env
+.env.local
+.env.test
+.env*.local
+
+# Build output (Next.js — populated by the Wave 1 scaffold)
+/.next/
+/out/
+/build
+/dist
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+*.pem
