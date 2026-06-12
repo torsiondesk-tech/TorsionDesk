@@ -1,5 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { Sidebar } from '@/components/shell/sidebar'
+import { CreateNewButton } from '@/components/header/create-new-button'
 
 /**
  * Protected app shell (D-07/D-16; RESEARCH Pattern 5).
@@ -23,7 +25,15 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar role={orgRole ?? ''} />
-      <main className="flex-1 overflow-y-auto p-8">{children}</main>
+      <div className="flex flex-1 flex-col">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
+          <div />
+          <CreateNewButton />
+        </header>
+        <main className="flex-1 overflow-y-auto p-8">
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </main>
+      </div>
     </div>
   )
 }

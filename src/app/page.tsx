@@ -1,14 +1,13 @@
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
+
 /**
- * Placeholder root page for the walking skeleton. The real app shell, dashboard,
- * onboarding, and auth routes are delivered by Plan 03.
+ * Root redirect — send signed-in users to the dashboard, everyone else to sign-in.
  */
-export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-4xl font-bold">TorsionDesk</h1>
-      <p className="text-sm text-muted-foreground">
-        Field service CRM — walking skeleton.
-      </p>
-    </main>
-  )
+export default async function Home() {
+  const { userId } = await auth()
+  if (userId) {
+    redirect('/dashboard')
+  }
+  redirect('/sign-in')
 }
