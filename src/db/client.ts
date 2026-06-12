@@ -16,7 +16,18 @@ const connectionString = process.env.DATABASE_URL!
 
 // A single shared postgres-js client. In serverless the module is reused per
 // warm invocation; postgres-js manages its own pool.
-const client = postgres(connectionString, { prepare: false })
+//
+// `max` limits the pool size. Supabase free tier = ~60 connections total.
+// In serverless (Vercel), each warm invocation holds this module; set max
+// conservatively so concurrent invocations don't exhaust the pool.
+// `idle_timeout` closes idle connections quickly to free slots.
+// `connect_timeout` fails fast if Supabase is unreachable.
+const client = postgres(connectionString, {
+  prepare: false,
+  max: 5,
+  idle_timeout: 20,
+  connect_timeout: 10,
+})
 
 export const db = drizzle({ client, schema })
 

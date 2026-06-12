@@ -1,4 +1,16 @@
-import { pgTable, text, pgPolicy } from 'drizzle-orm/pg-core'
+import {
+  pgTable,
+  text,
+  pgPolicy,
+  pgEnum,
+  integer,
+  numeric,
+  boolean,
+  date,
+  timestamp,
+  unique,
+  type AnyPgColumn,
+} from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 /**
@@ -35,3 +47,312 @@ export const tenants = pgTable(
 
 export type Tenant = typeof tenants.$inferSelect
 export type NewTenant = typeof tenants.$inferInsert
+
+// ── Phase 1: Customers, Locations, and Equipment ───────────────────────────
+
+export const equipmentKind = pgEnum('equipment_kind', ['door', 'opener', 'spring'])
+export const windDirection = pgEnum('wind_direction', ['left', 'right', 'pair'])
+
+export const referralSources = pgTable(
+  'referral_sources',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+  },
+  (t) => [
+    unique('referral_sources_tenant_name_unique').on(t.tenantId, t.name),
+    pgPolicy('referral_sources_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type ReferralSource = typeof referralSources.$inferSelect
+export type NewReferralSource = typeof referralSources.$inferInsert
+
+export const customers = pgTable(
+  'customers',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    accountNo: integer('account_no').notNull(),
+    name: text('name').notNull(),
+    active: boolean('active').default(true),
+    vip: boolean('vip').default(false),
+    parentCustomerId: text('parent_customer_id').references((): AnyPgColumn => customers.id, {
+      onDelete: 'set null',
+    }),
+    assignedAgentId: text('assigned_agent_id'),
+    referralSourceId: text('referral_source_id').references(() => referralSources.id, {
+      onDelete: 'set null',
+    }),
+    taxable: boolean('taxable').default(true),
+    taxItemId: text('tax_item_id'),
+    internalNotes: text('internal_notes'),
+    publicNotes: text('public_notes'),
+    archivedAt: timestamp('archived_at'),
+    mergedInto: text('merged_into').references((): AnyPgColumn => customers.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('customers_tenant_account_unique').on(t.tenantId, t.accountNo),
+    pgPolicy('customers_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Customer = typeof customers.$inferSelect
+export type NewCustomer = typeof customers.$inferInsert
+
+export const contacts = pgTable(
+  'contacts',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    smsConsent: boolean('sms_consent').default(false),
+    billingContact: boolean('billing_contact').default(false),
+    bookingContact: boolean('booking_contact').default(false),
+    jobTitle: text('job_title'),
+    birthday: date('birthday'),
+    anniversary: date('anniversary'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    pgPolicy('contacts_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Contact = typeof contacts.$inferSelect
+export type NewContact = typeof contacts.$inferInsert
+
+export const contactPhones = pgTable(
+  'contact_phones',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    contactId: text('contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    number: text('number').notNull(),
+    type: text('type').notNull().default('cell'), // cell, home, work
+    isPrimary: boolean('is_primary').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    pgPolicy('contact_phones_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type ContactPhone = typeof contactPhones.$inferSelect
+export type NewContactPhone = typeof contactPhones.$inferInsert
+
+export const contactEmails = pgTable(
+  'contact_emails',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    contactId: text('contact_id')
+      .notNull()
+      .references(() => contacts.id, { onDelete: 'cascade' }),
+    address: text('address').notNull(),
+    type: text('type').notNull().default('work'), // work, personal
+    isPrimary: boolean('is_primary').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    pgPolicy('contact_emails_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type ContactEmail = typeof contactEmails.$inferSelect
+export type NewContactEmail = typeof contactEmails.$inferInsert
+
+export const serviceLocations = pgTable(
+  'service_locations',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    addressLine1: text('address_line1'),
+    addressLine2: text('address_line2'),
+    city: text('city'),
+    state: text('state'),
+    postalCode: text('postal_code'),
+    country: text('country').default('USA'),
+    gated: boolean('gated').default(false),
+    latitude: numeric('latitude'),
+    longitude: numeric('longitude'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    pgPolicy('service_locations_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type ServiceLocation = typeof serviceLocations.$inferSelect
+export type NewServiceLocation = typeof serviceLocations.$inferInsert
+
+export const equipment = pgTable(
+  'equipment',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    serviceLocationId: text('service_location_id')
+      .notNull()
+      .references(() => serviceLocations.id, { onDelete: 'cascade' }),
+    kind: equipmentKind('kind').notNull(),
+    brand: text('brand'),
+    installDate: date('install_date'),
+    warrantyExpires: date('warranty_expires'),
+    notes: text('notes'),
+    // door
+    widthFt: numeric('width_ft'),
+    heightFt: numeric('height_ft'),
+    material: text('material'),
+    style: text('style'),
+    color: text('color'),
+    modelSeries: text('model_series'),
+    // opener
+    model: text('model'),
+    hp: numeric('hp'),
+    serial: text('serial'),
+    // spring
+    wireSize: numeric('wire_size'),
+    insideDiameter: numeric('inside_diameter'),
+    length: numeric('length'),
+    windDirection: windDirection('wind_direction'),
+    cycleRating: integer('cycle_rating'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    pgPolicy('equipment_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Equipment = typeof equipment.$inferSelect
+export type NewEquipment = typeof equipment.$inferInsert
+
+export const tags = pgTable(
+  'tags',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    color: text('color').default('#6366f1'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('tags_tenant_name_unique').on(t.tenantId, t.name),
+    pgPolicy('tags_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Tag = typeof tags.$inferSelect
+export type NewTag = typeof tags.$inferInsert
+
+export const customerTags = pgTable(
+  'customer_tags',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    unique('customer_tags_tenant_customer_tag_unique').on(t.tenantId, t.customerId, t.tagId),
+    pgPolicy('customer_tags_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type CustomerTag = typeof customerTags.$inferSelect
+export type NewCustomerTag = typeof customerTags.$inferInsert
+
+export const customerEvents = pgTable(
+  'customer_events',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(), // job | estimate | invoice | payment | email | note
+    title: text('title'),
+    body: text('body'),
+    refId: text('ref_id'),
+    occurredAt: timestamp('occurred_at').defaultNow(),
+    actor: text('actor'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    pgPolicy('customer_events_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type CustomerEvent = typeof customerEvents.$inferSelect
+export type NewCustomerEvent = typeof customerEvents.$inferInsert
