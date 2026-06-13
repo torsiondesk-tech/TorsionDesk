@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,6 +38,8 @@ const createInitial: TagActionState = {}
 const updateInitial: TagActionState = {}
 
 export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
+  const router = useRouter()
+
   const [tags, setTags] = useState<TagWithUsage[]>(initialTags)
   const [createState, createAction, createPending] = useActionState(
     createTagAction,
@@ -56,34 +59,28 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
   const [editing, setEditing] = useState<TagWithUsage | null>(null)
   const [deleting, setDeleting] = useState<TagWithUsage | null>(null)
 
+  // Close dialogs and refresh data on success
   useEffect(() => {
-    if (createState.success && createState.id && createState.name) {
-      setTags((prev) => [
-        ...prev,
-        { id: createState.id!, name: createState.name!, color: createState.color ?? '#3b82f6', usageCount: 0 },
-      ])
+    if (createState.success) {
       setIsAddOpen(false)
+      router.refresh()
     }
-  }, [createState])
+  }, [createState, router])
 
   useEffect(() => {
-    if (updateState.success && updateState.id && editing) {
-      setTags((prev) =>
-        prev.map((t) =>
-          t.id === updateState.id ? { ...t, name: updateState.name ?? t.name, color: updateState.color ?? t.color } : t,
-        ),
-      )
+    if (updateState.success) {
       setEditing(null)
+      router.refresh()
     }
-  }, [updateState, editing])
+  }, [updateState, router])
 
   const handleDelete = useCallback(async (id: string) => {
     const result = await deleteTagAction(id)
     if (result.success) {
-      setTags((prev) => prev.filter((t) => t.id !== id))
       setDeleting(null)
+      router.refresh()
     }
-  }, [])
+  }, [router])
 
   const isEmpty = tags.length === 0
 
