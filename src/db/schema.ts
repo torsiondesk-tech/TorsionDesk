@@ -154,6 +154,12 @@ export const contacts = pgTable(
   },
   (t) => [
     index('contacts_customer_id_idx').on(t.customerId),
+    unique('contacts_tenant_id_unique').on(t.tenantId, t.id),
+    // Composite tenant-scoped FK so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
     pgPolicy('contacts_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -180,6 +186,11 @@ export const contactPhones = pgTable(
     createdAt: timestamp('created_at').defaultNow(),
   },
   (t) => [
+    // Composite tenant-scoped FK so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.contactId],
+      foreignColumns: [contacts.tenantId, contacts.id],
+    }).onDelete('cascade'),
     pgPolicy('contact_phones_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -206,6 +217,11 @@ export const contactEmails = pgTable(
     createdAt: timestamp('created_at').defaultNow(),
   },
   (t) => [
+    // Composite tenant-scoped FK so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.contactId],
+      foreignColumns: [contacts.tenantId, contacts.id],
+    }).onDelete('cascade'),
     pgPolicy('contact_emails_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -241,6 +257,12 @@ export const serviceLocations = pgTable(
   },
   (t) => [
     index('service_locations_customer_id_idx').on(t.customerId),
+    unique('service_locations_tenant_id_unique').on(t.tenantId, t.id),
+    // Composite tenant-scoped FK so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
     pgPolicy('service_locations_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -288,6 +310,11 @@ export const equipment = pgTable(
   },
   (t) => [
     index('equipment_service_location_id_idx').on(t.serviceLocationId),
+    // Composite tenant-scoped FK so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.serviceLocationId],
+      foreignColumns: [serviceLocations.tenantId, serviceLocations.id],
+    }).onDelete('cascade'),
     pgPolicy('equipment_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -312,6 +339,7 @@ export const tags = pgTable(
   },
   (t) => [
     unique('tags_tenant_name_unique').on(t.tenantId, t.name),
+    unique('tags_tenant_id_unique').on(t.tenantId, t.id),
     pgPolicy('tags_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -339,6 +367,15 @@ export const customerTags = pgTable(
   },
   (t) => [
     unique('customer_tags_tenant_customer_tag_unique').on(t.tenantId, t.customerId, t.tagId),
+    // Composite tenant-scoped FKs so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.tagId],
+      foreignColumns: [tags.tenantId, tags.id],
+    }).onDelete('cascade'),
     pgPolicy('customer_tags_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -370,6 +407,11 @@ export const customerEvents = pgTable(
   },
   (t) => [
     index('customer_events_customer_occurred_idx').on(t.customerId, t.occurredAt),
+    // Composite tenant-scoped FK so the DB enforces same-tenant references.
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
     pgPolicy('customer_events_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
