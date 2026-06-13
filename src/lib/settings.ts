@@ -20,25 +20,25 @@ export async function createTag(
 ): Promise<{ id: string; name: string; color: string }> {
   const { name, color } = input
   return withTenant(orgId, async (tx) => {
-    const inserted = await tx
-      .insert(tags)
-      .values({ tenantId: orgId, name, color })
-      .onConflictDoNothing({ target: [tags.tenantId, tags.name] })
-      .returning({ id: tags.id, name: tags.name, color: tags.color })
-
-    if (inserted.length > 0) {
-      return { id: inserted[0].id, name: inserted[0].name, color: inserted[0].color ?? '' }
-    }
-
-    // Duplicate — fetch existing.
-    const rows = await tx
+    // Check for duplicate first — avoids Drizzle onConflictDoNothing+returning bug
+    const existing = await tx
       .select({ id: tags.id, name: tags.name, color: tags.color })
       .from(tags)
       .where(and(eq(tags.tenantId, orgId), eq(tags.name, name)))
       .limit(1)
 
-    const row = rows[0]
-    return row ? { id: row.id, name: row.name, color: row.color ?? '' } : { id: '', name: '', color: '' }
+    if (existing.length > 0) {
+      return { id: existing[0].id, name: existing[0].name, color: existing[0].color ?? '' }
+    }
+
+    const inserted = await tx
+      .insert(tags)
+      .values({ tenantId: orgId, name, color })
+      .returning({ id: tags.id, name: tags.name, color: tags.color })
+
+    return inserted[0]
+      ? { id: inserted[0].id, name: inserted[0].name, color: inserted[0].color ?? '' }
+      : { id: '', name: '', color: '' }
   })
 }
 
@@ -172,21 +172,21 @@ export async function createJobSource(
   name: string,
 ): Promise<{ id: string; name: string }> {
   return withTenant(orgId, async (tx) => {
-    const inserted = await tx
-      .insert(jobSources)
-      .values({ tenantId: orgId, name })
-      .onConflictDoNothing({ target: [jobSources.tenantId, jobSources.name] })
-      .returning({ id: jobSources.id, name: jobSources.name })
-
-    if (inserted.length > 0) return inserted[0]
-
-    const rows = await tx
+    // Check for duplicate first — avoids Drizzle onConflictDoNothing+returning bug
+    const existing = await tx
       .select({ id: jobSources.id, name: jobSources.name })
       .from(jobSources)
       .where(and(eq(jobSources.tenantId, orgId), eq(jobSources.name, name)))
       .limit(1)
 
-    return rows[0] ?? { id: '', name: '' }
+    if (existing.length > 0) return existing[0]
+
+    const inserted = await tx
+      .insert(jobSources)
+      .values({ tenantId: orgId, name })
+      .returning({ id: jobSources.id, name: jobSources.name })
+
+    return inserted[0] ?? { id: '', name: '' }
   })
 }
 

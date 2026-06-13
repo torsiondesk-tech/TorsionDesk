@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState, useEffect, useRef, useCallback } from 'react'
+import { useActionState, useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,35 +47,30 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
     updateInitial,
   )
 
+  // Sync server data into local state
+  useEffect(() => {
+    setTags(initialTags)
+  }, [initialTags])
+
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editing, setEditing] = useState<TagWithUsage | null>(null)
   const [deleting, setDeleting] = useState<TagWithUsage | null>(null)
 
-  const createFormRef = useRef<HTMLFormElement>(null)
-  const editFormRef = useRef<HTMLFormElement>(null)
-
   useEffect(() => {
-    if (createState.success && createState.id && createFormRef.current) {
-      const fd = new FormData(createFormRef.current)
-      const name = fd.get('name') as string
-      const color = fd.get('color') as string
+    if (createState.success && createState.id && createState.name) {
       setTags((prev) => [
         ...prev,
-        { id: createState.id!, name, color, usageCount: 0 },
+        { id: createState.id!, name: createState.name!, color: createState.color ?? '#3b82f6', usageCount: 0 },
       ])
       setIsAddOpen(false)
-      createFormRef.current.reset()
     }
   }, [createState])
 
   useEffect(() => {
     if (updateState.success && updateState.id && editing) {
-      const fd = new FormData(editFormRef.current!)
-      const name = fd.get('name') as string
-      const color = fd.get('color') as string
       setTags((prev) =>
         prev.map((t) =>
-          t.id === updateState.id ? { ...t, name, color } : t,
+          t.id === updateState.id ? { ...t, name: updateState.name ?? t.name, color: updateState.color ?? t.color } : t,
         ),
       )
       setEditing(null)
@@ -110,7 +105,7 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
                 Create a new tag with a preset color.
               </DialogDescription>
             </DialogHeader>
-            <form ref={createFormRef} action={createAction} className="space-y-4">
+            <form action={createAction} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="add-name">Tag Name</Label>
                 <Input
@@ -243,7 +238,7 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
             <DialogDescription>Update the tag name or color.</DialogDescription>
           </DialogHeader>
           {editing ? (
-            <form ref={editFormRef} action={updateAction} className="space-y-4">
+            <form action={updateAction} className="space-y-4">
               <input type="hidden" name="id" value={editing.id} />
               <div className="space-y-2">
                 <Label htmlFor="edit-name">Tag Name</Label>

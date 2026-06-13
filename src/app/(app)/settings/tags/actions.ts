@@ -14,6 +14,8 @@ export type TagActionState = {
   error?: string
   success?: boolean
   id?: string
+  name?: string
+  color?: string
   usageCount?: number
 }
 
@@ -59,7 +61,7 @@ export async function createTagAction(
   try {
     const result = await createTag(orgId, parsed.data)
     revalidatePath('/settings/tags')
-    return { success: true, id: result.id }
+    return { success: true, id: result.id, name: result.name, color: result.color }
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Could not create tag.'
@@ -91,7 +93,7 @@ export async function updateTagAction(
   try {
     await updateTag(orgId, id, data)
     revalidatePath('/settings/tags')
-    return { success: true, id }
+    return { success: true, id, name: data.name, color: data.color }
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Could not update tag.'
