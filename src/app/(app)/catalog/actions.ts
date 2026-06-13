@@ -15,6 +15,8 @@ import {
   deleteService as deleteServiceLib,
   createCatalogItem,
   listAllForExport,
+  listProducts,
+  listServices,
 } from '@/lib/catalog'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -502,4 +504,50 @@ export async function exportCatalogCsv(kind: 'product' | 'service'): Promise<str
     )
   }
   return lines.join('\r\n')
+}
+
+// ── List actions (client-side refetch) ───────────────────────────────────────
+
+export async function listProductsAction(opts: {
+  page?: number
+  pageSize?: number
+  categoryId?: string
+  q?: string
+  minPrice?: string
+  maxPrice?: string
+  inventory?: string
+  sort?: string
+}) {
+  const { orgId } = await auth()
+  if (!orgId) throw new Error('No active organization')
+
+  return listProducts(orgId, {
+    page: opts.page,
+    pageSize: opts.pageSize ?? 25,
+    categoryId: opts.categoryId,
+    q: opts.q,
+    minPrice: opts.minPrice,
+    maxPrice: opts.maxPrice,
+    inventoryItem: opts.inventory === 'true' ? true : opts.inventory === 'false' ? false : undefined,
+    sort: opts.sort,
+  })
+}
+
+export async function listServicesAction(opts: {
+  page?: number
+  pageSize?: number
+  categoryId?: string
+  q?: string
+  sort?: string
+}) {
+  const { orgId } = await auth()
+  if (!orgId) throw new Error('No active organization')
+
+  return listServices(orgId, {
+    page: opts.page,
+    pageSize: opts.pageSize ?? 25,
+    categoryId: opts.categoryId,
+    q: opts.q,
+    sort: opts.sort,
+  })
 }
