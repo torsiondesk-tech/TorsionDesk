@@ -53,23 +53,29 @@ export function ServiceForm({
 
   const [active, setActive] = useState(initial?.active ?? true)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-
-  const [deleteState, deleteFormAction, deletePending] = useActionState<
-    ServiceActionState,
-    FormData
-  >(deleteService, {})
-
-  useEffect(() => {
-    if (deleteState.success) {
-      router.push('/catalog?tab=services')
-    }
-  }, [deleteState, router])
+  const [deletePending, setDeletePending] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (state.success) {
       router.push('/catalog?tab=services')
     }
   }, [state, router])
+
+  const handleDelete = async () => {
+    if (!initial?.id) return
+    setDeletePending(true)
+    setDeleteError(null)
+    const fd = new FormData()
+    fd.set('id', initial.id)
+    const result = await deleteService({}, fd)
+    setDeletePending(false)
+    if (result.success) {
+      router.push('/catalog?tab=services')
+    } else {
+      setDeleteError(result.error ?? 'Could not delete.')
+    }
+  }
 
   const title = mode === 'create' ? 'New Service' : 'Edit Service'
   const cta = 'Save Service'
@@ -210,10 +216,9 @@ export function ServiceForm({
               Are you sure you want to delete “{initial?.name}”? This cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <form action={deleteFormAction} className="space-y-4">
-            <input type="hidden" name="id" value={initial?.id} />
-            {deleteState.error && (
-              <p role="alert" className="text-sm text-destructive">{deleteState.error}</p>
+          <div className="space-y-4">
+            {deleteError && (
+              <p role="alert" className="text-sm text-destructive">{deleteError}</p>
             )}
             <DialogFooter>
               <Button
@@ -223,11 +228,16 @@ export function ServiceForm({
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="destructive" disabled={deletePending}>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deletePending}
+                onClick={handleDelete}
+              >
                 {deletePending ? 'Deleting…' : 'Delete'}
               </Button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
