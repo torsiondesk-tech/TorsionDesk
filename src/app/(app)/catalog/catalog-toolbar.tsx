@@ -28,7 +28,7 @@ export function CatalogToolbar({ categories }: CatalogToolbarProps) {
     <div className="flex flex-wrap items-center gap-3">
       <Input
         placeholder="Search by name or SKU…"
-        defaultValue={q ?? ''}
+        value={q ?? ''}
         onChange={(e) => {
           const v = e.currentTarget.value
           if (isPending) return
@@ -59,7 +59,7 @@ export function CatalogToolbar({ categories }: CatalogToolbarProps) {
       <Input
         placeholder="Min price"
         type="text"
-        defaultValue={minPrice ?? ''}
+        value={minPrice ?? ''}
         onChange={(e) => {
           const v = e.currentTarget.value
           startTransition(() => {
@@ -73,7 +73,7 @@ export function CatalogToolbar({ categories }: CatalogToolbarProps) {
       <Input
         placeholder="Max price"
         type="text"
-        defaultValue={maxPrice ?? ''}
+        value={maxPrice ?? ''}
         onChange={(e) => {
           const v = e.currentTarget.value
           startTransition(() => {
