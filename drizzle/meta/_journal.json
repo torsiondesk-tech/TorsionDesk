@@ -15,6 +15,20 @@
       "when": 1781324863622,
       "tag": "0001_flippant_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781327238335,
+      "tag": "0002_conscious_harpoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781371168867,
+      "tag": "0003_sturdy_masque",
+      "breakpoints": true
     }
   ]
 }
