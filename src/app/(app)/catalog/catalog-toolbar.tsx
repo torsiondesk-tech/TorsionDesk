@@ -6,9 +6,11 @@ import { useTransition } from 'react'
 
 interface CatalogToolbarProps {
   categories: Array<{ id: string; name: string }>
+  mode?: 'products' | 'services'
 }
 
-export function CatalogToolbar({ categories }: CatalogToolbarProps) {
+export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbarProps) {
+  const isServices = mode === 'services'
   const [q, setQ] = useQueryState('q')
   const [category, setCategory] = useQueryState('category')
   const [minPrice, setMinPrice] = useQueryState('minPrice')
@@ -27,7 +29,7 @@ export function CatalogToolbar({ categories }: CatalogToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Input
-        placeholder="Search by name or SKU…"
+        placeholder={isServices ? 'Search by name…' : 'Search by name or SKU…'}
         value={q ?? ''}
         onChange={(e) => {
           const v = e.currentTarget.value
@@ -56,49 +58,53 @@ export function CatalogToolbar({ categories }: CatalogToolbarProps) {
         ))}
       </select>
 
-      <Input
-        placeholder="Min price"
-        type="text"
-        value={minPrice ?? ''}
-        onChange={(e) => {
-          const v = e.currentTarget.value
-          startTransition(() => {
-            setMinPrice(v || null)
-            setPage(null)
-          })
-        }}
-        className="max-w-[120px]"
-      />
+      {!isServices && (
+        <>
+          <Input
+            placeholder="Min price"
+            type="text"
+            value={minPrice ?? ''}
+            onChange={(e) => {
+              const v = e.currentTarget.value
+              startTransition(() => {
+                setMinPrice(v || null)
+                setPage(null)
+              })
+            }}
+            className="max-w-[120px]"
+          />
 
-      <Input
-        placeholder="Max price"
-        type="text"
-        value={maxPrice ?? ''}
-        onChange={(e) => {
-          const v = e.currentTarget.value
-          startTransition(() => {
-            setMaxPrice(v || null)
-            setPage(null)
-          })
-        }}
-        className="max-w-[120px]"
-      />
+          <Input
+            placeholder="Max price"
+            type="text"
+            value={maxPrice ?? ''}
+            onChange={(e) => {
+              const v = e.currentTarget.value
+              startTransition(() => {
+                setMaxPrice(v || null)
+                setPage(null)
+              })
+            }}
+            className="max-w-[120px]"
+          />
 
-      <select
-        value={inventory ?? ''}
-        onChange={(e) => {
-          const v = e.target.value
-          startTransition(() => {
-            setInventory(v || null)
-            setPage(null)
-          })
-        }}
-        className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
-      >
-        <option value="">All items</option>
-        <option value="true">Inventory only</option>
-        <option value="false">Non-inventory</option>
-      </select>
+          <select
+            value={inventory ?? ''}
+            onChange={(e) => {
+              const v = e.target.value
+              startTransition(() => {
+                setInventory(v || null)
+                setPage(null)
+              })
+            }}
+            className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+          >
+            <option value="">All items</option>
+            <option value="true">Inventory only</option>
+            <option value="false">Non-inventory</option>
+          </select>
+        </>
+      )}
     </div>
   )
 }

@@ -11,9 +11,18 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   createProduct,
   updateProduct,
+  deleteProduct,
   type ProductActionState,
 } from '../actions'
 import { Trash, Plus } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export interface ProductFormData {
   id?: string
@@ -107,9 +116,22 @@ export function ProductForm({
 
   useEffect(() => {
     if (state.success) {
-      router.push('/catalog')
+      router.push('/catalog?tab=products')
     }
   }, [state, router])
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
+  const [deleteState, deleteFormAction, deletePending] = useActionState<
+    ProductActionState,
+    FormData
+  >(deleteProduct, {})
+
+  useEffect(() => {
+    if (deleteState.success) {
+      router.push('/catalog?tab=products')
+    }
+  }, [deleteState, router])
 
   const title = mode === 'create' ? 'New Product' : 'Edit Product'
   const cta = 'Save Product'
@@ -366,13 +388,53 @@ export function ProductForm({
           <Button type="submit" disabled={pending}>
             {pending ? 'Saving…' : cta}
           </Button>
-          <Link href="/catalog">
+          <Link href="/catalog?tab=products">
             <Button type="button" variant="outline">
               Cancel
             </Button>
           </Link>
+          {mode === 'edit' && initial?.id && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </form>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Product</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete “{initial?.name}”? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={deleteFormAction} className="space-y-4">
+            <input type="hidden" name="id" value={initial?.id} />
+            {deleteState.error && (
+              <p role="alert" className="text-sm text-destructive">{deleteState.error}</p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={deletePending}>
+                {deletePending ? 'Deleting…' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

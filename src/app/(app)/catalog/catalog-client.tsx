@@ -9,7 +9,12 @@ import { CatalogTabs } from './catalog-tabs'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import { listProductsAction, listServicesAction } from './actions'
+import {
+  listProductsAction,
+  listServicesAction,
+  deleteProduct,
+  deleteService,
+} from './actions'
 import type { ProductRow, ServiceRow } from '@/lib/catalog'
 
 interface CatalogClientProps {
@@ -50,8 +55,23 @@ export function CatalogClient({
   const [serviceRows, setServiceRows] = useState<ServiceRow[]>(initialServiceRows)
   const [servicePageCount, setServicePageCount] = useState(initialServicePageCount)
   const [isPending, startTransition] = useTransition()
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const currentPage = Math.max(0, parseInt(page ?? String(initialPage), 10) || 0)
+
+  const handleDeleteProduct = async (id: string) => {
+    const fd = new FormData()
+    fd.set('id', id)
+    await deleteProduct({}, fd)
+    setRefreshKey((k) => k + 1)
+  }
+
+  const handleDeleteService = async (id: string) => {
+    const fd = new FormData()
+    fd.set('id', id)
+    await deleteService({}, fd)
+    setRefreshKey((k) => k + 1)
+  }
 
   // Refetch products when filters change
   useEffect(() => {
@@ -71,7 +91,7 @@ export function CatalogClient({
         setProductPageCount(data.pageCount)
       })
     })
-  }, [q, category, minPrice, maxPrice, inventory, sort, page, isServices, currentPage])
+  }, [q, category, minPrice, maxPrice, inventory, sort, page, isServices, currentPage, refreshKey])
 
   // Refetch services when filters change
   useEffect(() => {
@@ -88,7 +108,7 @@ export function CatalogClient({
         setServicePageCount(data.pageCount)
       })
     })
-  }, [q, category, sort, page, isServices, currentPage])
+  }, [q, category, sort, page, isServices, currentPage, refreshKey])
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
@@ -109,7 +129,7 @@ export function CatalogClient({
 
       <CatalogTabs active={isServices ? 'services' : 'products'} />
 
-      {!isServices && <CatalogToolbar categories={categories} />}
+      <CatalogToolbar categories={categories} mode={isServices ? 'services' : 'products'} />
 
       <div data-pending={isPending}>
         {isServices ? (
@@ -118,6 +138,7 @@ export function CatalogClient({
             pageCount={servicePageCount}
             page={currentPage}
             pageSize={25}
+            onDelete={handleDeleteService}
           />
         ) : (
           <ProductsTable
@@ -125,6 +146,7 @@ export function CatalogClient({
             pageCount={productPageCount}
             page={currentPage}
             pageSize={25}
+            onDelete={handleDeleteProduct}
           />
         )}
       </div>

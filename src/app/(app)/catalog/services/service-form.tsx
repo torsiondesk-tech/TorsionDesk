@@ -9,8 +9,17 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   createService,
   updateService,
+  deleteService,
   type ServiceActionState,
 } from '../actions'
 
@@ -43,10 +52,22 @@ export function ServiceForm({
   >(action, {})
 
   const [active, setActive] = useState(initial?.active ?? true)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
+  const [deleteState, deleteFormAction, deletePending] = useActionState<
+    ServiceActionState,
+    FormData
+  >(deleteService, {})
+
+  useEffect(() => {
+    if (deleteState.success) {
+      router.push('/catalog?tab=services')
+    }
+  }, [deleteState, router])
 
   useEffect(() => {
     if (state.success) {
-      router.push('/catalog')
+      router.push('/catalog?tab=services')
     }
   }, [state, router])
 
@@ -162,13 +183,53 @@ export function ServiceForm({
           <Button type="submit" disabled={pending}>
             {pending ? 'Saving…' : cta}
           </Button>
-          <Link href="/catalog">
+          <Link href="/catalog?tab=services">
             <Button type="button" variant="outline">
               Cancel
             </Button>
           </Link>
+          {mode === 'edit' && initial?.id && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </form>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Service</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete “{initial?.name}”? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={deleteFormAction} className="space-y-4">
+            <input type="hidden" name="id" value={initial?.id} />
+            {deleteState.error && (
+              <p role="alert" className="text-sm text-destructive">{deleteState.error}</p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={deletePending}>
+                {deletePending ? 'Deleting…' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
