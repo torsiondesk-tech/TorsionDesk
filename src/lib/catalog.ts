@@ -42,6 +42,20 @@ export interface ServiceRow {
   active: boolean | null
 }
 
+export async function getProductById(
+  orgId: string,
+  id: string,
+): Promise<typeof products.$inferSelect | null> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(products)
+      .where(and(eq(products.tenantId, orgId), eq(products.id, id)))
+      .limit(1)
+    return rows[0] ?? null
+  })
+}
+
 /* ── List queries ─────────────────────────────────────────────────────────── */
 
 export async function listProducts(
@@ -174,7 +188,7 @@ export async function listProductCategories(
 
 export async function createProduct(
   orgId: string,
-  input: Partial<typeof products.$inferInsert>,
+  input: Omit<typeof products.$inferInsert, 'tenantId' | 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<{ id: string }> {
   return withTenant(orgId, async (tx) => {
     const [row] = await tx
@@ -188,7 +202,7 @@ export async function createProduct(
 export async function updateProduct(
   orgId: string,
   id: string,
-  input: Partial<typeof products.$inferInsert>,
+  input: Partial<Omit<typeof products.$inferInsert, 'tenantId' | 'id' | 'createdAt' | 'updatedAt'>>,
 ): Promise<{ id: string }> {
   return withTenant(orgId, async (tx) => {
     await tx
@@ -213,7 +227,7 @@ export async function deleteProduct(
 
 export async function createService(
   orgId: string,
-  input: Partial<typeof services.$inferInsert>,
+  input: Omit<typeof services.$inferInsert, 'tenantId' | 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<{ id: string }> {
   return withTenant(orgId, async (tx) => {
     const [row] = await tx
@@ -227,7 +241,7 @@ export async function createService(
 export async function updateService(
   orgId: string,
   id: string,
-  input: Partial<typeof services.$inferInsert>,
+  input: Partial<Omit<typeof services.$inferInsert, 'tenantId' | 'id' | 'createdAt' | 'updatedAt'>>,
 ): Promise<{ id: string }> {
   return withTenant(orgId, async (tx) => {
     await tx
