@@ -46,7 +46,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'dispatch', label: 'Dispatch', href: '/dispatch', icon: CalendarRange, enabled: false },
   { key: 'customers', label: 'Customers', href: '/customers', icon: Users, enabled: true },
   { key: 'estimates', label: 'Estimates', href: '/estimates', icon: FileText, enabled: false },
-  { key: 'catalog', label: 'Catalog', href: '/catalog', icon: Package, enabled: false },
+  { key: 'catalog', label: 'Catalog', href: '/catalog', icon: Package, enabled: true },
   { key: 'invoicing', label: 'Invoicing', href: '/invoicing', icon: Receipt, enabled: false },
   { key: 'reports', label: 'Reports', href: '/reports', icon: BarChart3, enabled: false },
   { key: 'settings', label: 'Settings', href: '/settings', icon: Settings, enabled: true },
