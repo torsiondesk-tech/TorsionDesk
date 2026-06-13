@@ -32,13 +32,13 @@ const TABS: SettingsTab[] = [
   { label: 'Users', href: '/settings/users' },
   { label: 'Job Categories', href: '/settings/job-categories' },
   { label: 'Product Categories', href: '/settings/product-categories' },
-  { label: 'Tags', phase: 2 },
+  { label: 'Tags', href: '/settings/tags' },
   { label: 'Templates', phase: 8 },
   { label: 'Email', phase: 8 },
   { label: 'SMS', phase: 8 },
   { label: 'Payment Methods', phase: 7 },
-  { label: 'Tax Items', phase: 2 },
-  { label: 'Lookup Lists', phase: 2 },
+  { label: 'Tax Items', href: '/settings/tax-items' },
+  { label: 'Lookup Lists', href: '/settings/lookup-lists' },
 ]
 
 export function SettingsTabs() {
