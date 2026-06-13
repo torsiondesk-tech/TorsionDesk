@@ -37,12 +37,20 @@ export async function submitMerge(
     return { error: 'One or both records were not found.' }
   }
 
-  // Parse field-level choices
+  // Parse field-level choices — whitelisted to prevent mass-assignment
+  const ALLOWED_MERGE_FIELDS = new Set([
+    'name',
+    'internalNotes',
+    'publicNotes',
+    'assignedAgentId',
+    'referralSourceId',
+    'taxable',
+  ])
   const fieldChoices: Record<string, 'left' | 'right'> = {}
   for (const [key, value] of formData.entries()) {
     if (key.startsWith('field_')) {
       const fieldName = key.slice('field_'.length)
-      if (value === 'left' || value === 'right') {
+      if (ALLOWED_MERGE_FIELDS.has(fieldName) && (value === 'left' || value === 'right')) {
         fieldChoices[fieldName] = value
       }
     }

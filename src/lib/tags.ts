@@ -1,25 +1,16 @@
-'use server'
-
 import { eq, and } from 'drizzle-orm'
-import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import { tags, referralSources } from '@/db/schema'
-
-async function activeOrgId(): Promise<string> {
-  const { orgId } = await auth()
-  if (!orgId) throw new Error('No active organization')
-  return orgId
-}
 
 export async function createTag(
   orgId: string,
   name: string,
 ): Promise<{ id: string; name: string }> {
   return withTenant(orgId, async (tx) => {
-    // Try insert; if unique constraint hits, select existing.
     const inserted = await tx
       .insert(tags)
       .values({ tenantId: orgId, name })
+      .onConflictDoNothing({ target: [tags.tenantId, tags.name] })
       .returning({ id: tags.id, name: tags.name })
 
     if (inserted.length > 0) return inserted[0]
@@ -43,6 +34,7 @@ export async function createReferralSource(
     const inserted = await tx
       .insert(referralSources)
       .values({ tenantId: orgId, name })
+      .onConflictDoNothing({ target: [referralSources.tenantId, referralSources.name] })
       .returning({ id: referralSources.id, name: referralSources.name })
 
     if (inserted.length > 0) return inserted[0]

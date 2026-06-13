@@ -22,6 +22,13 @@ vi.mock('@/db/with-tenant', () => ({
           returning: vi.fn(async () => [{ id: 'test-id' }]),
         })),
       })),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [{ id: 'cust_1' }]),
+          })),
+        })),
+      })),
     }
     return fn(tx)
   }),

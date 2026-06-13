@@ -1,0 +1,2 @@
+ALTER TABLE "customers" ADD CONSTRAINT "customers_tenant_id_unique" UNIQUE("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "referral_sources" ADD CONSTRAINT "referral_sources_tenant_id_unique" UNIQUE("tenant_id","id");

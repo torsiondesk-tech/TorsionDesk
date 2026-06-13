@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import {
   Save,
   X,
@@ -444,12 +443,15 @@ export function CustomerDetailForm({
             New Estimate
           </Button>
 
-          <Link href={`/customers/merge?a=${customer.id}`}>
-            <Button size="sm" variant="outline" className="gap-1">
-              <Merge className="size-3.5" />
-              Merge
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => router.push(`/customers/merge?a=${customer.id}`)}
+          >
+            <Merge className="size-3.5" />
+            Merge
+          </Button>
 
           <Button
             size="sm"

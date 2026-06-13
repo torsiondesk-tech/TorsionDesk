@@ -1,9 +1,12 @@
 import postgres from 'postgres'
 
-const sql = postgres(
-  'postgresql://postgres:S9JLpGt71IXzuG4l@db.zhcflyuhrtnbbgmshsni.supabase.co:5432/postgres',
-  { prepare: false },
-)
+const connectionString = process.env.DATABASE_URL
+if (!connectionString) {
+  console.error('DATABASE_URL is required')
+  process.exit(1)
+}
+
+const sql = postgres(connectionString, { prepare: false })
 
 const orgId = process.argv[2]
 if (!orgId) {

@@ -34,8 +34,7 @@ vi.mock('@/db/provision-tenant', () => ({
   }),
 }))
 
-// Not-yet-existing module under test — resolution failure is the Wave 0 RED signal.
-import { handleClerkWebhook } from '@/app/api/webhooks/clerk/route'
+import { handleClerkWebhook } from '@/lib/clerk-webhook'
 
 function makeRequest(): Request {
   return new Request('https://app.test/api/webhooks/clerk', {

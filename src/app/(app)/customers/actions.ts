@@ -51,14 +51,6 @@ function extractIndexedArrays(formData: FormData) {
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 
-// Zod v4: .optional() does NOT accept null; FormData.get() returns null for
-// missing keys. This helper converts null/empty-string → undefined so optional
-// fields work correctly with native form submissions.
-const optionalString = z.preprocess(
-  (val) => (val === '' || val === null || val === undefined) ? undefined : val,
-  z.string().optional(),
-)
-
 // Base UI Checkbox does not render a native <input>, so we use hidden inputs
 // that submit '1' (checked) or '0' (unchecked). This helper maps those back to
 // booleans and falls back to the default when the field is missing.
@@ -73,14 +65,29 @@ const formBool = (defaultValue: boolean) =>
   )
 
 const createCustomerSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required'),
+  name: z.string().trim().min(1, 'Name is required').max(255),
   vip: formBool(false),
   active: formBool(true),
-  parentCustomerId: optionalString,
-  assignedAgentId: optionalString,
-  referralSourceId: optionalString,
-  internalNotes: optionalString,
-  publicNotes: optionalString,
+  parentCustomerId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(255).optional(),
+  ),
+  assignedAgentId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(255).optional(),
+  ),
+  referralSourceId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(255).optional(),
+  ),
+  internalNotes: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(2000).optional(),
+  ),
+  publicNotes: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(2000).optional(),
+  ),
   tagIds: z.array(z.string()).default([]),
 })
 
@@ -90,13 +97,31 @@ const updateCustomerSchema = createCustomerSchema.extend({
 
 const createLocationSchema = z.object({
   customerId: z.string().min(1),
-  name: z.string().trim().min(1, 'Location name is required'),
-  addressLine1: optionalString,
-  addressLine2: optionalString,
-  city: optionalString,
-  state: optionalString,
-  postalCode: optionalString,
-  country: optionalString,
+  name: z.string().trim().min(1, 'Location name is required').max(255),
+  addressLine1: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(255).optional(),
+  ),
+  addressLine2: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(255).optional(),
+  ),
+  city: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(100).optional(),
+  ),
+  state: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(50).optional(),
+  ),
+  postalCode: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(20).optional(),
+  ),
+  country: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(100).optional(),
+  ),
   gated: formBool(false),
 })
 
@@ -196,6 +221,11 @@ export async function createCustomer(
       revalidatePath('/customers')
       return { success: true, id }
     } catch (err) {
+      const code = (err as { code?: string }).code
+      if (code !== '23505') {
+        // Only retry on unique-constraint violation; rethrow everything else
+        throw err
+      }
       attempts++
       if (attempts >= maxAttempts) {
         console.error('createCustomer failed after retries:', err)
@@ -283,22 +313,22 @@ export async function updateCustomer(
 
 const updateCustomerDetailSchema = z.object({
   id: z.string().min(1),
-  name: z.string().trim().min(1, 'Name is required'),
+  name: z.string().trim().min(1, 'Name is required').max(255),
   vip: z.boolean().default(false),
   active: z.boolean().default(true),
   taxable: z.boolean().default(true),
-  parentCustomerId: z.string().nullable().optional(),
-  assignedAgentId: z.string().nullable().optional(),
-  referralSourceId: z.string().nullable().optional(),
-  internalNotes: z.string().nullable().optional(),
-  publicNotes: z.string().nullable().optional(),
+  parentCustomerId: z.string().max(255).nullable().optional(),
+  assignedAgentId: z.string().max(255).nullable().optional(),
+  referralSourceId: z.string().max(255).nullable().optional(),
+  internalNotes: z.string().max(2000).nullable().optional(),
+  publicNotes: z.string().max(2000).nullable().optional(),
   tagIds: z.array(z.string()).default([]),
   contacts: z
     .array(
       z.object({
         id: z.string().optional(),
-        name: z.string().min(1, 'Contact name is required'),
-        jobTitle: z.string().nullable().optional(),
+        name: z.string().min(1, 'Contact name is required').max(255),
+        jobTitle: z.string().max(255).nullable().optional(),
         birthday: z.string().nullable().optional(),
         anniversary: z.string().nullable().optional(),
         smsConsent: z.boolean().default(false),
@@ -307,8 +337,8 @@ const updateCustomerDetailSchema = z.object({
         phones: z
           .array(
             z.object({
-              number: z.string().min(1),
-              type: z.string(),
+              number: z.string().min(1).max(50),
+              type: z.string().max(20),
               isPrimary: z.boolean(),
             }),
           )
@@ -316,8 +346,8 @@ const updateCustomerDetailSchema = z.object({
         emails: z
           .array(
             z.object({
-              address: z.string().min(1),
-              type: z.string(),
+              address: z.string().min(1).max(255),
+              type: z.string().max(20),
               isPrimary: z.boolean(),
             }),
           )
@@ -379,6 +409,17 @@ export async function updateCustomerDetail(
     for (const contact of contactList) {
       if (contact.id) {
         const cid = contact.id
+
+        // Verify the contact belongs to the customer being updated (AUDIT-007)
+        const contactCheck = await tx
+          .select({ customerId: contacts.customerId })
+          .from(contacts)
+          .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, cid)))
+          .limit(1)
+        if (contactCheck.length === 0 || contactCheck[0].customerId !== id) {
+          throw new Error('Invalid contact: does not belong to this customer')
+        }
+
         await tx
           .update(contacts)
           .set({
@@ -390,7 +431,7 @@ export async function updateCustomerDetail(
             billingContact: contact.billingContact,
             bookingContact: contact.bookingContact,
             updatedAt: new Date(),
-          } as any)
+          })
           .where(
             and(
               eq(contacts.tenantId, orgId),
@@ -400,7 +441,7 @@ export async function updateCustomerDetail(
 
         await tx
           .delete(contactPhones)
-          .where(eq(contactPhones.contactId, cid))
+          .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, cid)))
         if (contact.phones.length > 0) {
           await tx.insert(contactPhones).values(
             contact.phones.map((p) => ({
@@ -409,13 +450,13 @@ export async function updateCustomerDetail(
               number: p.number,
               type: p.type,
               isPrimary: p.isPrimary,
-            })),
+            })) as any,
           )
         }
 
         await tx
           .delete(contactEmails)
-          .where(eq(contactEmails.contactId, cid))
+          .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, cid)))
         if (contact.emails.length > 0) {
           await tx.insert(contactEmails).values(
             contact.emails.map((e) => ({
@@ -424,7 +465,7 @@ export async function updateCustomerDetail(
               address: e.address,
               type: e.type,
               isPrimary: e.isPrimary,
-            })),
+            })) as any,
           )
         }
       } else {
@@ -440,7 +481,7 @@ export async function updateCustomerDetail(
             smsConsent: contact.smsConsent,
             billingContact: contact.billingContact,
             bookingContact: contact.bookingContact,
-          } as any)
+          })
           .returning({ id: contacts.id })
 
         if (contact.phones.length > 0 && newContact) {
@@ -451,7 +492,7 @@ export async function updateCustomerDetail(
               number: p.number,
               type: p.type,
               isPrimary: p.isPrimary,
-            })),
+            })) as any,
           )
         }
         if (contact.emails.length > 0) {
@@ -462,7 +503,7 @@ export async function updateCustomerDetail(
               address: e.address,
               type: e.type,
               isPrimary: e.isPrimary,
-            })),
+            })) as any,
           )
         }
       }
@@ -640,12 +681,22 @@ export async function createEquipmentAction(
   const serviceLocationId = String(formData.get('serviceLocationId') ?? '')
 
   const id = await withTenant(orgId, async (tx) => {
+    // Verify service location belongs to this tenant (AUDIT-004)
+    const loc = await tx
+      .select({ id: serviceLocations.id })
+      .from(serviceLocations)
+      .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.id, serviceLocationId)))
+      .limit(1)
+    if (loc.length === 0) {
+      throw new Error('Invalid service location: cross-tenant access denied')
+    }
+
     const base = {
       tenantId: orgId,
       serviceLocationId,
       kind: data.kind,
-      installDate: data.installDate ? new Date(data.installDate) : null,
-      warrantyExpires: data.warrantyExpires ? new Date(data.warrantyExpires) : null,
+      installDate: data.installDate || null,
+      warrantyExpires: data.warrantyExpires || null,
       notes: data.notes ?? null,
     }
 
@@ -654,8 +705,8 @@ export async function createEquipmentAction(
       case 'door':
         specific = {
           brand: data.brand,
-          widthFt: String(data.widthFt),
-          heightFt: String(data.heightFt),
+          widthFt: data.widthFt,
+          heightFt: data.heightFt,
           material: data.material ?? null,
           style: data.style ?? null,
           color: data.color ?? null,
@@ -666,15 +717,15 @@ export async function createEquipmentAction(
         specific = {
           brand: data.brand,
           model: data.model ?? null,
-          hp: data.hp ? String(data.hp) : null,
+          hp: data.hp ?? null,
           serial: data.serial ?? null,
         }
         break
       case 'spring':
         specific = {
-          wireSize: String(data.wireSize),
-          insideDiameter: String(data.insideDiameter),
-          length: String(data.length),
+          wireSize: data.wireSize,
+          insideDiameter: data.insideDiameter,
+          length: data.length,
           windDirection: data.windDirection,
           cycleRating: data.cycleRating ?? null,
         }
@@ -683,7 +734,7 @@ export async function createEquipmentAction(
 
     const [row] = await tx
       .insert(equipment)
-      .values({ ...base, ...specific } as any)
+      .values({ ...base, ...specific })
       .returning({ id: equipment.id })
     return row.id
   })

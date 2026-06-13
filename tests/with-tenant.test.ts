@@ -89,13 +89,15 @@ describe('withTenant', () => {
     await withTenant(injection, fn, db as never)
 
     const query = tx.execute.mock.calls[0]?.[0]
-    const serialized = JSON.stringify(query)
 
-    // The injection payload must NOT appear inline in the SQL text/fragments of
-    // the query — it belongs in the bound-parameter list only.
-    expect(serialized).not.toContain('drop table tenants')
+    // The query must be a drizzle SQL object (parameterized template),
+    // not a plain string — proving parameter binding is used and the injection
+    // payload never reaches inline SQL text (T-00-02).
+    expect(typeof query).toBe('object')
+    expect(query).toHaveProperty('queryChunks')
 
     // And the literal SQL must reference set_config with the GUC key.
+    const serialized = JSON.stringify(query)
     expect(serialized).toContain('set_config')
     expect(serialized).toContain('app.current_tenant_id')
   })

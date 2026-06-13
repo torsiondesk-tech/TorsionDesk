@@ -25,18 +25,20 @@ vi.mock('@/db/with-tenant', () => ({
     const tx = {
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
+          onConflictDoNothing: vi.fn(() => ({
+            returning: vi.fn(async () => []),
+          })),
           returning: vi.fn(async () => [{ id: `tag_${Math.random().toString(36).slice(2)}`, name: '' }]),
-        })),
-        onConflictDoNothing: vi.fn(() => ({
-          returning: vi.fn(async () => []),
         })),
       })),
       select: vi.fn(() => ({
         from: vi.fn(() => ({
-          where: vi.fn(async () => {
-            const tenantStore = tagStore.get(orgId)
-            return tenantStore ? Array.from(tenantStore.values()).flat() : []
-          }),
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => {
+              const tenantStore = tagStore.get(orgId)
+              return tenantStore ? Array.from(tenantStore.values()).flat() : []
+            }),
+          })),
         })),
       })),
     }

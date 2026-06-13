@@ -19,7 +19,6 @@
       }
     ],
     "paths": {
-      "@/app/api/webhooks/clerk/route": ["./src/lib/clerk-webhook.ts"],
       "@/*": ["./src/*"]
     }
   },

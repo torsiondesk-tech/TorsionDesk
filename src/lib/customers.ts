@@ -1,7 +1,4 @@
-'use server'
-
 import { eq, ilike, and, desc, asc, sql, max, count, inArray } from 'drizzle-orm'
-import { auth } from '@clerk/nextjs/server'
 import { withTenant, type Tx } from '@/db/with-tenant'
 import {
   customers,
@@ -14,12 +11,6 @@ import {
   customerTags,
   customerEvents,
 } from '@/db/schema'
-
-async function activeOrgId(): Promise<string> {
-  const { orgId } = await auth()
-  if (!orgId) throw new Error('No active organization')
-  return orgId
-}
 
 export interface ListOpts {
   page?: number
@@ -280,11 +271,11 @@ export async function getCustomerWithContacts(
         const phones = await tx
           .select()
           .from(contactPhones)
-          .where(eq(contactPhones.contactId, c.id))
+          .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, c.id)))
         const emails = await tx
           .select()
           .from(contactEmails)
-          .where(eq(contactEmails.contactId, c.id))
+          .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, c.id)))
         return { ...c, phones, emails }
       }),
     )
@@ -328,7 +319,7 @@ export async function getCustomerWithLocationsAndEquipment(
         const eqRows = await tx
           .select()
           .from(equipment)
-          .where(eq(equipment.serviceLocationId, loc.id))
+          .where(and(eq(equipment.tenantId, orgId), eq(equipment.serviceLocationId, loc.id)))
         return { ...loc, equipment: eqRows }
       }),
     )
@@ -401,6 +392,16 @@ export async function createContact(
   data: CreateContactInput,
 ): Promise<{ id: string }> {
   return withTenant(orgId, async (tx) => {
+    // Verify the customer belongs to this tenant (AUDIT-002)
+    const cust = await tx
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, data.customerId)))
+      .limit(1)
+    if (cust.length === 0) {
+      throw new Error('Invalid customer: cross-tenant access denied')
+    }
+
     const [contact] = await tx
       .insert(contacts)
       .values({
@@ -411,9 +412,9 @@ export async function createContact(
         billingContact: data.billingContact ?? false,
         bookingContact: data.bookingContact ?? false,
         jobTitle: data.jobTitle ?? null,
-        birthday: data.birthday ? new Date(data.birthday) : null,
-        anniversary: data.anniversary ? new Date(data.anniversary) : null,
-      } as any)
+        birthday: data.birthday || null,
+        anniversary: data.anniversary || null,
+      })
       .returning({ id: contacts.id })
 
     if (data.phones.length > 0) {
@@ -424,7 +425,7 @@ export async function createContact(
           number: p.number,
           type: p.type,
           isPrimary: p.isPrimary,
-        })),
+        })) as any,
       )
     }
 
@@ -436,7 +437,7 @@ export async function createContact(
           address: e.address,
           type: e.type,
           isPrimary: e.isPrimary,
-        })),
+        })) as any,
       )
     }
 
@@ -450,6 +451,16 @@ export async function createLocation(
   data: CreateLocationInput,
 ): Promise<{ id: string }> {
   return withTenant(orgId, async (tx) => {
+    // Verify the customer belongs to this tenant (AUDIT-003)
+    const cust = await tx
+      .select({ id: customers.id })
+      .from(customers)
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, data.customerId)))
+      .limit(1)
+    if (cust.length === 0) {
+      throw new Error('Invalid customer: cross-tenant access denied')
+    }
+
     const [row] = await tx
       .insert(serviceLocations)
       .values({

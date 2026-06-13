@@ -1,5 +1,13 @@
+import { z } from 'zod'
 import { verifyWebhook } from '@clerk/nextjs/webhooks'
 import { provisionTenant } from '@/db/provision-tenant'
+
+const WebhookBody = z.object({
+  type: z.string(),
+  data: z.object({
+    id: z.string(),
+  }),
+})
 
 /**
  * Verify and handle a Clerk webhook (AUTH-01, D-02, RESEARCH Pattern 6).
@@ -19,21 +27,23 @@ import { provisionTenant } from '@/db/provision-tenant'
  * retrying; 400 on a bad signature.
  */
 export async function handleClerkWebhook(req: Request): Promise<Response> {
-  let evt: { type: string; data: { id: string } }
+  let payload: unknown
   try {
     // Clerk types `verifyWebhook` against its `RequestLike` (a NextRequest at
     // runtime); the Web `Request` is accepted at runtime. The cast keeps the
     // handler testable with a plain `Request`.
-    evt = (await verifyWebhook(req as Parameters<typeof verifyWebhook>[0])) as {
-      type: string
-      data: { id: string }
-    }
+    payload = await verifyWebhook(req as Parameters<typeof verifyWebhook>[0])
   } catch {
     return new Response('invalid signature', { status: 400 })
   }
 
-  if (evt.type === 'organization.created') {
-    await provisionTenant(evt.data.id)
+  const evt = WebhookBody.safeParse(payload)
+  if (!evt.success) {
+    return new Response('invalid payload', { status: 400 })
+  }
+
+  if (evt.data.type === 'organization.created') {
+    await provisionTenant(evt.data.data.id)
   }
 
   return new Response('ok', { status: 200 })

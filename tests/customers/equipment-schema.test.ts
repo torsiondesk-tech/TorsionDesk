@@ -16,8 +16,8 @@ describe('equipmentSchema', () => {
       const result = equipmentSchema.safeParse({
         kind: 'door',
         brand: 'Clopay',
-        widthFt: 8,
-        heightFt: 7,
+        widthFt: '8',
+        heightFt: '7',
         material: 'steel',
         style: 'carriage',
         color: 'white',
@@ -29,8 +29,8 @@ describe('equipmentSchema', () => {
     it('rejects a door missing brand', () => {
       const result = equipmentSchema.safeParse({
         kind: 'door',
-        widthFt: 8,
-        heightFt: 7,
+        widthFt: '8',
+        heightFt: '7',
       })
       expect(result.success).toBe(false)
     })
@@ -39,8 +39,8 @@ describe('equipmentSchema', () => {
       const result = equipmentSchema.safeParse({
         kind: 'door',
         brand: 'Clopay',
-        widthFt: 0,
-        heightFt: 7,
+        widthFt: '0',
+        heightFt: '7',
       })
       expect(result.success).toBe(false)
     })
@@ -52,7 +52,7 @@ describe('equipmentSchema', () => {
         kind: 'opener',
         brand: 'LiftMaster',
         model: '8550W',
-        hp: 0.75,
+        hp: '0.75',
         serial: 'ABC123',
       })
       expect(result.success).toBe(true)
@@ -71,9 +71,9 @@ describe('equipmentSchema', () => {
     it('accepts a valid spring', () => {
       const result = equipmentSchema.safeParse({
         kind: 'spring',
-        wireSize: 0.25,
-        insideDiameter: 1.75,
-        length: 32,
+        wireSize: '0.25',
+        insideDiameter: '1.75',
+        length: '32',
         windDirection: 'pair',
         cycleRating: 10000,
       })
@@ -83,9 +83,9 @@ describe('equipmentSchema', () => {
     it('rejects a spring with invalid windDirection', () => {
       const result = equipmentSchema.safeParse({
         kind: 'spring',
-        wireSize: 0.25,
-        insideDiameter: 1.75,
-        length: 32,
+        wireSize: '0.25',
+        insideDiameter: '1.75',
+        length: '32',
         windDirection: 'sideways',
       })
       expect(result.success).toBe(false)
@@ -94,8 +94,8 @@ describe('equipmentSchema', () => {
     it('rejects a spring missing wireSize', () => {
       const result = equipmentSchema.safeParse({
         kind: 'spring',
-        insideDiameter: 1.75,
-        length: 32,
+        insideDiameter: '1.75',
+        length: '32',
         windDirection: 'left',
       })
       expect(result.success).toBe(false)

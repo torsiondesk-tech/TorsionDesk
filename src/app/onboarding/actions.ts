@@ -18,8 +18,8 @@ import { saveProfile } from '@/lib/profile'
  * the wrong tenant.
  */
 const onboardingSchema = z.object({
-  companyName: z.string().trim().min(1, 'Company name is required'),
-  phone: z.string().trim().min(1, 'Phone is required'),
+  companyName: z.string().trim().min(1, 'Company name is required').max(255),
+  phone: z.string().trim().min(1, 'Phone is required').max(50),
 })
 
 export type OnboardingState = { error?: string }

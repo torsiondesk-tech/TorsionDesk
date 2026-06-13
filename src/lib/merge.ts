@@ -1,5 +1,3 @@
-'use server'
-
 import { eq, and } from 'drizzle-orm'
 import { withTenant } from '@/db/with-tenant'
 import {
@@ -29,6 +27,31 @@ export async function mergeCustomers(
   }
 
   return withTenant(orgId, async (tx) => {
+    // Verify winner exists, is active, and not already merged into another record
+    const [winnerRecord] = await tx
+      .select()
+      .from(customers)
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, winnerId)))
+      .limit(1)
+    if (!winnerRecord || !winnerRecord.active || winnerRecord.mergedInto) {
+      throw new Error('Winner is not available for merge')
+    }
+
+    // Verify loser exists and is active
+    const [loserRecord] = await tx
+      .select()
+      .from(customers)
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, loserId)))
+      .limit(1)
+    if (!loserRecord || !loserRecord.active) {
+      throw new Error('Loser is not available for merge')
+    }
+
+    // Prevent circular merge chains (AN-002)
+    if (loserRecord.mergedInto) {
+      throw new Error('Cannot merge a record that has already been merged')
+    }
+
     // 1. Reassign contacts
     await tx
       .update(contacts)
@@ -108,30 +131,21 @@ export async function mergeCustomers(
       )
 
     // 6. Apply field-level winner choices
-    const winnerRow = await tx
-      .select()
-      .from(customers)
-      .where(and(eq(customers.tenantId, orgId), eq(customers.id, winnerId)))
-      .limit(1)
-
-    const loserRow = await tx
-      .select()
-      .from(customers)
-      .where(and(eq(customers.tenantId, orgId), eq(customers.id, loserId)))
-      .limit(1)
-
-    if (winnerRow[0] && loserRow[0]) {
+    if (winnerRecord && loserRecord) {
       const updates: Record<string, unknown> = {}
-      const loserRecord = loserRow[0] as Record<string, unknown>
+      const loserData = loserRecord as Record<string, unknown>
       for (const [field, choice] of Object.entries(fieldChoices)) {
         if (choice === 'left') {
           // Overwrite winner with loser's value
-          updates[field] = loserRecord[field]
+          updates[field] = loserData[field]
         }
         // choice === 'right' means keep winner's value — no change
       }
       if (Object.keys(updates).length > 0) {
-        await tx.update(customers).set(updates).where(eq(customers.id, winnerId))
+        await tx
+          .update(customers)
+          .set(updates)
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, winnerId)))
       }
     }
 

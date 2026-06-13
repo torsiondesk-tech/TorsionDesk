@@ -9,6 +9,8 @@ import {
   date,
   timestamp,
   unique,
+  foreignKey,
+  index,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
@@ -52,6 +54,9 @@ export type NewTenant = typeof tenants.$inferInsert
 
 export const equipmentKind = pgEnum('equipment_kind', ['door', 'opener', 'spring'])
 export const windDirection = pgEnum('wind_direction', ['left', 'right', 'pair'])
+export const eventKind = pgEnum('event_kind', ['job', 'estimate', 'invoice', 'payment', 'email', 'note'])
+export const phoneType = pgEnum('phone_type', ['cell', 'home', 'work'])
+export const emailType = pgEnum('email_type', ['work', 'personal'])
 
 export const referralSources = pgTable(
   'referral_sources',
@@ -62,6 +67,8 @@ export const referralSources = pgTable(
   },
   (t) => [
     unique('referral_sources_tenant_name_unique').on(t.tenantId, t.name),
+    // Composite unique on (tenant_id, id) so composite FKs can reference it
+    unique('referral_sources_tenant_id_unique').on(t.tenantId, t.id),
     pgPolicy('referral_sources_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -83,24 +90,38 @@ export const customers = pgTable(
     name: text('name').notNull(),
     active: boolean('active').default(true),
     vip: boolean('vip').default(false),
-    parentCustomerId: text('parent_customer_id').references((): AnyPgColumn => customers.id, {
-      onDelete: 'set null',
-    }),
+    parentCustomerId: text('parent_customer_id'),
     assignedAgentId: text('assigned_agent_id'),
-    referralSourceId: text('referral_source_id').references(() => referralSources.id, {
-      onDelete: 'set null',
-    }),
+    referralSourceId: text('referral_source_id'),
     taxable: boolean('taxable').default(true),
     taxItemId: text('tax_item_id'),
     internalNotes: text('internal_notes'),
     publicNotes: text('public_notes'),
     archivedAt: timestamp('archived_at'),
-    mergedInto: text('merged_into').references((): AnyPgColumn => customers.id, { onDelete: 'set null' }),
+    mergedInto: text('merged_into'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
   (t) => [
     unique('customers_tenant_account_unique').on(t.tenantId, t.accountNo),
+    // Composite unique on (tenant_id, id) so composite FKs from this table can reference it
+    unique('customers_tenant_id_unique').on(t.tenantId, t.id),
+    index('customers_name_idx').on(t.name),
+    index('customers_active_idx').on(t.active),
+    index('customers_created_at_idx').on(t.createdAt),
+    // Composite tenant-scoped FKs so the DB enforces same-tenant references (AUDIT-014)
+    foreignKey({
+      columns: [t.tenantId, t.parentCustomerId],
+      foreignColumns: [t.tenantId, t.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.referralSourceId],
+      foreignColumns: [referralSources.tenantId, referralSources.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.mergedInto],
+      foreignColumns: [t.tenantId, t.id],
+    }).onDelete('set null'),
     pgPolicy('customers_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -132,6 +153,7 @@ export const contacts = pgTable(
     updatedAt: timestamp('updated_at').defaultNow(),
   },
   (t) => [
+    index('contacts_customer_id_idx').on(t.customerId),
     pgPolicy('contacts_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -153,7 +175,7 @@ export const contactPhones = pgTable(
       .notNull()
       .references(() => contacts.id, { onDelete: 'cascade' }),
     number: text('number').notNull(),
-    type: text('type').notNull().default('cell'), // cell, home, work
+    type: phoneType('type').notNull().default('cell'),
     isPrimary: boolean('is_primary').default(false),
     createdAt: timestamp('created_at').defaultNow(),
   },
@@ -179,7 +201,7 @@ export const contactEmails = pgTable(
       .notNull()
       .references(() => contacts.id, { onDelete: 'cascade' }),
     address: text('address').notNull(),
-    type: text('type').notNull().default('work'), // work, personal
+    type: emailType('type').notNull().default('work'),
     isPrimary: boolean('is_primary').default(false),
     createdAt: timestamp('created_at').defaultNow(),
   },
@@ -218,6 +240,7 @@ export const serviceLocations = pgTable(
     updatedAt: timestamp('updated_at').defaultNow(),
   },
   (t) => [
+    index('service_locations_customer_id_idx').on(t.customerId),
     pgPolicy('service_locations_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -264,6 +287,7 @@ export const equipment = pgTable(
     updatedAt: timestamp('updated_at').defaultNow(),
   },
   (t) => [
+    index('equipment_service_location_id_idx').on(t.serviceLocationId),
     pgPolicy('equipment_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -335,7 +359,7 @@ export const customerEvents = pgTable(
     customerId: text('customer_id')
       .notNull()
       .references(() => customers.id, { onDelete: 'cascade' }),
-    kind: text('kind').notNull(), // job | estimate | invoice | payment | email | note
+    kind: eventKind('kind').notNull(),
     title: text('title'),
     body: text('body'),
     refId: text('ref_id'),
@@ -345,6 +369,7 @@ export const customerEvents = pgTable(
     updatedAt: timestamp('updated_at').defaultNow(),
   },
   (t) => [
+    index('customer_events_customer_occurred_idx').on(t.customerId, t.occurredAt),
     pgPolicy('customer_events_tenant_isolation', {
       for: 'all',
       to: 'authenticated',

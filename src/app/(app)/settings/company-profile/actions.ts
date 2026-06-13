@@ -24,11 +24,11 @@ import { uploadLogo } from '@/lib/storage'
 
 // Full profile (D-11). Name + phone required; address + email optional.
 const companyProfileSchema = z.object({
-  companyName: z.string().trim().min(1, 'Company name is required'),
-  phone: z.string().trim().min(1, 'Phone is required'),
-  address: z.string().trim().optional(),
+  companyName: z.string().trim().min(1, 'Company name is required').max(255),
+  phone: z.string().trim().min(1, 'Phone is required').max(50),
+  address: z.string().trim().max(500).optional(),
   email: z
-    .union([z.string().trim().email('Enter a valid email'), z.literal('')])
+    .union([z.string().trim().max(255).email('Enter a valid email'), z.literal('')])
     .optional(),
 })
 
@@ -82,6 +82,9 @@ export async function uploadCompanyLogo(
   }
   if (!file.type.startsWith('image/')) {
     return { error: 'The logo must be an image file.' }
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    return { error: 'Logo must be under 2 MB.' }
   }
 
   // Upload to tenant-scoped Storage (service-role, server-only), then persist the

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { db as defaultDb, type Database } from './client'
+import { getDb, type Database } from './client'
 
 /**
  * The transaction handle callers receive — the real Drizzle transaction type, so
@@ -42,7 +42,7 @@ export async function withTenant<T>(
   fn: (tx: Tx) => Promise<T>,
   dbOverride?: TxDb,
 ): Promise<T> {
-  const database = (dbOverride ?? (defaultDb as unknown as TxDb)) as TxDb
+  const database = (dbOverride ?? (getDb() as unknown as TxDb)) as TxDb
   return database.transaction(async (tx) => {
     // set_config(key, value, true) == SET LOCAL. The org id is ALWAYS bound as a
     // parameter, never concatenated into the SQL text (T-00-02).
@@ -56,10 +56,11 @@ export async function withTenant<T>(
     //     driver. `db.execute()` resolves it against the live connection (a named
     //     placeholder has no value to fill there, so we bind directly).
     if (dbOverride) {
-      const query = sql`select set_config('app.current_tenant_id', ${sql.placeholder(
-        'tenantId',
-      )}, true)`
-      await tx.execute(query)
+      // In test mode bind orgId directly — sql.placeholder would require a value
+      // map that the structural fake tx does not support (AUDIT-006).
+      await tx.execute(
+        sql`select set_config('app.current_tenant_id', ${orgId}, true)`,
+      )
     } else {
       await tx.execute(
         sql`select set_config('app.current_tenant_id', ${orgId}, true)`,

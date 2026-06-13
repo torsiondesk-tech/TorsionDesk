@@ -22,7 +22,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 const ROLE_KEYS = ['org:admin', 'org:dispatcher', 'org:technician'] as const
 
 const inviteSchema = z.object({
-  email: z.string().trim().email('Enter a valid email'),
+  email: z.string().trim().max(255).email('Enter a valid email'),
   role: z.enum(ROLE_KEYS),
 })
 
@@ -40,9 +40,16 @@ export async function inviteUser(
   _prevState: InviteState,
   formData: FormData,
 ): Promise<InviteState> {
-  const { orgId, userId } = await auth()
+  const { orgId, userId, orgRole } = await auth()
   if (!orgId) {
     return { error: 'No active organization.' }
+  }
+
+  // Defense-in-depth: re-verify caller is an org admin inside the action itself
+  // (AUDIT-015) — middleware gates the route, but the action should not trust
+  // that boundary alone.
+  if (orgRole !== 'org:admin') {
+    return { error: 'Only admins can invite users.' }
   }
 
   const parsed = inviteSchema.safeParse({
