@@ -381,3 +381,182 @@ export const customerEvents = pgTable(
 
 export type CustomerEvent = typeof customerEvents.$inferSelect
 export type NewCustomerEvent = typeof customerEvents.$inferInsert
+
+// ── Phase 2: Catalog and Settings ──────────────────────────────────────────
+
+export const productCategories = pgTable(
+  'product_categories',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('product_categories_tenant_name_unique').on(t.tenantId, t.name),
+    unique('product_categories_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('product_categories_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type ProductCategory = typeof productCategories.$inferSelect
+export type NewProductCategory = typeof productCategories.$inferInsert
+
+export const jobCategories = pgTable(
+  'job_categories',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    parentId: text('parent_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_categories_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.parentId],
+      foreignColumns: [t.tenantId, t.id],
+    }).onDelete('set null'),
+    pgPolicy('job_categories_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobCategory = typeof jobCategories.$inferSelect
+export type NewJobCategory = typeof jobCategories.$inferInsert
+
+export const taxItems = pgTable(
+  'tax_items',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    rate: numeric('rate'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('tax_items_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('tax_items_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type TaxItem = typeof taxItems.$inferSelect
+export type NewTaxItem = typeof taxItems.$inferInsert
+
+export const jobSources = pgTable(
+  'job_sources',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_sources_tenant_name_unique').on(t.tenantId, t.name),
+    unique('job_sources_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('job_sources_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobSource = typeof jobSources.$inferSelect
+export type NewJobSource = typeof jobSources.$inferInsert
+
+export const services = pgTable(
+  'services',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    categoryId: text('category_id'),
+    name: text('name').notNull(),
+    unitPrice: numeric('unit_price'),
+    unitCost: numeric('unit_cost'),
+    description: text('description'),
+    active: boolean('active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('services_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.categoryId],
+      foreignColumns: [productCategories.tenantId, productCategories.id],
+    }).onDelete('set null'),
+    pgPolicy('services_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Service = typeof services.$inferSelect
+export type NewService = typeof services.$inferInsert
+
+export const products = pgTable(
+  'products',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    categoryId: text('category_id'),
+    name: text('name').notNull(),
+    model: text('model'),
+    sku: text('sku'),
+    upc: text('upc'),
+    partNo: text('part_no'),
+    type: text('type'),
+    unitPrice: numeric('unit_price'),
+    unitCost: numeric('unit_cost'),
+    active: boolean('active').default(true),
+    inventoryItem: boolean('inventory_item').default(false),
+    salesDescription: text('sales_description'),
+    purchaseDescription: text('purchase_description'),
+    vendor1Name: text('vendor1_name'),
+    vendor1Price: numeric('vendor1_price'),
+    vendor2Name: text('vendor2_name'),
+    vendor2Price: numeric('vendor2_price'),
+    vendor3Name: text('vendor3_name'),
+    vendor3Price: numeric('vendor3_price'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('products_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.categoryId],
+      foreignColumns: [productCategories.tenantId, productCategories.id],
+    }).onDelete('set null'),
+    pgPolicy('products_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Product = typeof products.$inferSelect
+export type NewProduct = typeof products.$inferInsert
