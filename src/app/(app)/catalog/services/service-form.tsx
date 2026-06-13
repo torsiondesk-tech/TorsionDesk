@@ -1,0 +1,174 @@
+'use client'
+
+import { useActionState, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  createService,
+  updateService,
+  type ServiceActionState,
+} from '../actions'
+
+export interface ServiceFormData {
+  id?: string
+  name: string
+  categoryId?: string | null
+  unitPrice: string
+  unitCost?: string
+  description?: string
+  active: boolean
+}
+
+interface ServiceFormProps {
+  mode: 'create' | 'edit'
+  initial?: Partial<ServiceFormData>
+  categories: Array<{ id: string; name: string }>
+}
+
+export function ServiceForm({
+  mode,
+  initial,
+  categories,
+}: ServiceFormProps) {
+  const router = useRouter()
+  const action = mode === 'create' ? createService : updateService
+  const [state, formAction, pending] = useActionState<
+    ServiceActionState,
+    FormData
+  >(action, {})
+
+  const [active, setActive] = useState(initial?.active ?? true)
+
+  useEffect(() => {
+    if (state.success) {
+      router.push('/catalog')
+    }
+  }, [state, router])
+
+  const title = mode === 'create' ? 'New Service' : 'Edit Service'
+  const cta = 'Save Service'
+
+  return (
+    <div className="mx-auto max-w-4xl animate-in fade-in-0 duration-300 space-y-8">
+      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+
+      <form action={formAction} className="space-y-8">
+        {mode === 'edit' && initial?.id && (
+          <input type="hidden" name="id" value={initial.id} />
+        )}
+
+        {/* ── Basics ─────────────────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Basics</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="categoryId">Category</Label>
+              <select
+                id="categoryId"
+                name="categoryId"
+                defaultValue={initial?.categoryId ?? ''}
+                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+              >
+                <option value="">Select a category…</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                name="name"
+                defaultValue={initial?.name}
+                placeholder="Tune Up"
+                required
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input type="hidden" name="active" value={active ? '1' : '0'} />
+              <Checkbox
+                id="active"
+                checked={active}
+                onCheckedChange={(c) => setActive(c === true)}
+              />
+              <Label htmlFor="active" className="cursor-pointer">
+                Active
+              </Label>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pricing ────────────────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Pricing</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="unitPrice">Unit price *</Label>
+              <Input
+                id="unitPrice"
+                name="unitPrice"
+                type="text"
+                defaultValue={initial?.unitPrice}
+                placeholder="0.00"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="unitCost">Unit cost</Label>
+              <Input
+                id="unitCost"
+                name="unitCost"
+                type="text"
+                defaultValue={initial?.unitCost}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Description ────────────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Description</h2>
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              defaultValue={initial?.description}
+              placeholder="Service description…"
+              rows={4}
+            />
+          </div>
+        </section>
+
+        {state.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        )}
+
+        <div className="flex items-center gap-3 pt-2">
+          <Button type="submit" disabled={pending}>
+            {pending ? 'Saving…' : cta}
+          </Button>
+          <Link href="/catalog">
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </Link>
+        </div>
+      </form>
+    </div>
+  )
+}

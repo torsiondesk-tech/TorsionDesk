@@ -1,8 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { listProducts, listProductCategories } from '@/lib/catalog'
+import { listProducts, listServices, listProductCategories } from '@/lib/catalog'
 import { ProductsTable } from './products-table'
+import { ServicesTable } from './services-table'
 import { CatalogToolbar } from './catalog-toolbar'
 import { CatalogTabs } from './catalog-tabs'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ interface CatalogPageProps {
     inventory?: string | string[]
     sort?: string | string[]
     page?: string | string[]
+    tab?: string | string[]
   }>
 }
 
@@ -60,9 +62,41 @@ async function ProductList({ searchParams }: CatalogPageProps) {
   )
 }
 
+async function ServiceList({ searchParams }: CatalogPageProps) {
+  const { orgId } = await auth()
+  if (!orgId) redirect('/sign-in')
+
+  const params = await searchParams
+  const q = normalizeParam(params.q)
+  const categoryId = normalizeParam(params.category)
+  const sort = normalizeParam(params.sort)
+  const page = Math.max(0, parseInt(normalizeParam(params.page) ?? '0', 10) || 0)
+
+  const { rows, pageCount } = await listServices(orgId, {
+    page,
+    pageSize: 25,
+    categoryId,
+    q,
+    sort,
+  })
+
+  return (
+    <ServicesTable
+      rows={rows}
+      pageCount={pageCount}
+      page={page}
+      pageSize={25}
+    />
+  )
+}
+
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const { orgId } = await auth()
   if (!orgId) redirect('/sign-in')
+
+  const params = await searchParams
+  const tab = normalizeParam(params.tab) ?? 'products'
+  const isServices = tab === 'services'
 
   const categories = await listProductCategories(orgId)
 
@@ -75,26 +109,30 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             Manage your products and services.
           </p>
         </div>
-        <Link href="/catalog/products/new">
+        <Link href={isServices ? '/catalog/services/new' : '/catalog/products/new'}>
           <Button size="sm">
             <Plus className="size-4" />
-            New Product
+            {isServices ? 'New Service' : 'New Product'}
           </Button>
         </Link>
       </div>
 
-      <CatalogTabs active="products" />
+      <CatalogTabs active={isServices ? 'services' : 'products'} />
 
-      <CatalogToolbar categories={categories} />
+      {!isServices && <CatalogToolbar categories={categories} />}
 
       <Suspense
         fallback={
           <div className="h-64 animate-pulse rounded-lg bg-muted">
-            Loading products…
+            Loading {isServices ? 'services' : 'products'}…
           </div>
         }
       >
-        <ProductList searchParams={searchParams} />
+        {isServices ? (
+          <ServiceList searchParams={searchParams} />
+        ) : (
+          <ProductList searchParams={searchParams} />
+        )}
       </Suspense>
     </div>
   )

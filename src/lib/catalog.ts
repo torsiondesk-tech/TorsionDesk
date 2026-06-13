@@ -56,6 +56,20 @@ export async function getProductById(
   })
 }
 
+export async function getServiceById(
+  orgId: string,
+  id: string,
+): Promise<typeof services.$inferSelect | null> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(services)
+      .where(and(eq(services.tenantId, orgId), eq(services.id, id)))
+      .limit(1)
+    return rows[0] ?? null
+  })
+}
+
 /* ── List queries ─────────────────────────────────────────────────────────── */
 
 export async function listProducts(
@@ -278,6 +292,21 @@ export async function createCatalogItem(
   },
 ): Promise<{ id: string; name: string; unitPrice: string }> {
   return withTenant(orgId, async (tx) => {
+    // Cross-tenant category guard (T-02-11)
+    const cat = await tx
+      .select({ id: productCategories.id })
+      .from(productCategories)
+      .where(
+        and(
+          eq(productCategories.tenantId, orgId),
+          eq(productCategories.id, input.categoryId),
+        ),
+      )
+      .limit(1)
+    if (cat.length === 0) {
+      throw new Error('Invalid category: cross-tenant access denied')
+    }
+
     if (input.kind === 'product') {
       const [row] = await tx
         .insert(products)
