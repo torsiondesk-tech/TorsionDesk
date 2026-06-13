@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useState, useCallback } from 'react'
+import { useActionState, useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,10 +50,27 @@ export function CategoryForm({
     updateInitial,
   )
 
+  const router = useRouter()
+
   // Dialog state
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryWithParent | null>(null)
   const [deleting, setDeleting] = useState<CategoryWithParent | null>(null)
+
+  // Close dialogs and refresh data on success
+  useEffect(() => {
+    if (createState.success) {
+      setIsAddOpen(false)
+      router.refresh()
+    }
+  }, [createState, router])
+
+  useEffect(() => {
+    if (updateState.success) {
+      setEditing(null)
+      router.refresh()
+    }
+  }, [updateState, router])
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -131,13 +149,7 @@ export function CategoryForm({
               ) : null}
 
               <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={createPending}
-                  onClick={() => {
-                    if (createState.success) setIsAddOpen(false)
-                  }}
-                >
+                <Button type="submit" disabled={createPending}>
                   {createPending ? 'Adding…' : 'Add'}
                 </Button>
               </DialogFooter>
@@ -267,13 +279,7 @@ export function CategoryForm({
               ) : null}
 
               <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={updatePending}
-                  onClick={() => {
-                    if (updateState.success) setEditing(null)
-                  }}
-                >
+                <Button type="submit" disabled={updatePending}>
                   {updatePending ? 'Saving…' : 'Save'}
                 </Button>
               </DialogFooter>
