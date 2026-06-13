@@ -76,22 +76,8 @@ export async function createJobCategory(
       }
     }
 
-    const inserted = await tx
-      .insert(jobCategories)
-      .values({
-        tenantId: orgId,
-        name,
-        parentId: parentId ?? null,
-      })
-      .onConflictDoNothing({
-        target: [jobCategories.tenantId, jobCategories.name],
-      })
-      .returning({ id: jobCategories.id })
-
-    if (inserted.length > 0) return inserted[0]
-
-    // Duplicate — fetch existing.
-    const rows = await tx
+    // Check for duplicate first — avoids Drizzle onConflictDoNothing+returning bug
+    const existing = await tx
       .select({ id: jobCategories.id })
       .from(jobCategories)
       .where(
@@ -102,7 +88,18 @@ export async function createJobCategory(
       )
       .limit(1)
 
-    return rows[0] ?? { id: '' }
+    if (existing.length > 0) return existing[0]
+
+    const inserted = await tx
+      .insert(jobCategories)
+      .values({
+        tenantId: orgId,
+        name,
+        parentId: parentId ?? null,
+      })
+      .returning({ id: jobCategories.id })
+
+    return inserted[0] ?? { id: '' }
   })
 }
 
@@ -182,18 +179,8 @@ export async function createProductCategory(
   name: string,
 ): Promise<{ id: string; name: string }> {
   return withTenant(orgId, async (tx) => {
-    const inserted = await tx
-      .insert(productCategories)
-      .values({ tenantId: orgId, name })
-      .onConflictDoNothing({
-        target: [productCategories.tenantId, productCategories.name],
-      })
-      .returning({ id: productCategories.id, name: productCategories.name })
-
-    if (inserted.length > 0) return inserted[0]
-
-    // Duplicate — fetch existing.
-    const rows = await tx
+    // Check for duplicate first — avoids Drizzle onConflictDoNothing+returning bug
+    const existing = await tx
       .select({ id: productCategories.id, name: productCategories.name })
       .from(productCategories)
       .where(
@@ -204,7 +191,14 @@ export async function createProductCategory(
       )
       .limit(1)
 
-    return rows[0] ?? { id: '', name }
+    if (existing.length > 0) return existing[0]
+
+    const inserted = await tx
+      .insert(productCategories)
+      .values({ tenantId: orgId, name })
+      .returning({ id: productCategories.id, name: productCategories.name })
+
+    return inserted[0] ?? { id: '', name }
   })
 }
 
