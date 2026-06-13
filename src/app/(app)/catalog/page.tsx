@@ -1,6 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
 import { listProducts, listServices, listProductCategories } from '@/lib/catalog'
 import { ProductsTable } from './products-table'
 import { ServicesTable } from './services-table'
@@ -28,68 +27,6 @@ function normalizeParam(param: string | string[] | undefined): string | undefine
   return param
 }
 
-async function ProductList({ searchParams }: CatalogPageProps) {
-  const { orgId } = await auth()
-  if (!orgId) redirect('/sign-in')
-
-  const params = await searchParams
-  const q = normalizeParam(params.q)
-  const categoryId = normalizeParam(params.category)
-  const minPrice = normalizeParam(params.minPrice)
-  const maxPrice = normalizeParam(params.maxPrice)
-  const inventory = normalizeParam(params.inventory)
-  const sort = normalizeParam(params.sort)
-  const page = Math.max(0, parseInt(normalizeParam(params.page) ?? '0', 10) || 0)
-
-  const { rows, pageCount } = await listProducts(orgId, {
-    page,
-    pageSize: 25,
-    categoryId,
-    q,
-    minPrice,
-    maxPrice,
-    inventoryItem: inventory === 'true' ? true : inventory === 'false' ? false : undefined,
-    sort,
-  })
-
-  return (
-    <ProductsTable
-      rows={rows}
-      pageCount={pageCount}
-      page={page}
-      pageSize={25}
-    />
-  )
-}
-
-async function ServiceList({ searchParams }: CatalogPageProps) {
-  const { orgId } = await auth()
-  if (!orgId) redirect('/sign-in')
-
-  const params = await searchParams
-  const q = normalizeParam(params.q)
-  const categoryId = normalizeParam(params.category)
-  const sort = normalizeParam(params.sort)
-  const page = Math.max(0, parseInt(normalizeParam(params.page) ?? '0', 10) || 0)
-
-  const { rows, pageCount } = await listServices(orgId, {
-    page,
-    pageSize: 25,
-    categoryId,
-    q,
-    sort,
-  })
-
-  return (
-    <ServicesTable
-      rows={rows}
-      pageCount={pageCount}
-      page={page}
-      pageSize={25}
-    />
-  )
-}
-
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const { orgId } = await auth()
   if (!orgId) redirect('/sign-in')
@@ -99,6 +36,39 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const isServices = tab === 'services'
 
   const categories = await listProductCategories(orgId)
+
+  const q = normalizeParam(params.q)
+  const categoryId = normalizeParam(params.category)
+  const sort = normalizeParam(params.sort)
+  const page = Math.max(0, parseInt(normalizeParam(params.page) ?? '0', 10) || 0)
+
+  let productData = { rows: [] as Awaited<ReturnType<typeof listProducts>>['rows'], pageCount: 0 }
+  let serviceData = { rows: [] as Awaited<ReturnType<typeof listServices>>['rows'], pageCount: 0 }
+
+  if (isServices) {
+    serviceData = await listServices(orgId, {
+      page,
+      pageSize: 25,
+      categoryId,
+      q,
+      sort,
+    })
+  } else {
+    const minPrice = normalizeParam(params.minPrice)
+    const maxPrice = normalizeParam(params.maxPrice)
+    const inventory = normalizeParam(params.inventory)
+
+    productData = await listProducts(orgId, {
+      page,
+      pageSize: 25,
+      categoryId,
+      q,
+      minPrice,
+      maxPrice,
+      inventoryItem: inventory === 'true' ? true : inventory === 'false' ? false : undefined,
+      sort,
+    })
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-300">
@@ -121,19 +91,21 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
       {!isServices && <CatalogToolbar categories={categories} />}
 
-      <Suspense
-        fallback={
-          <div className="h-64 animate-pulse rounded-lg bg-muted">
-            Loading {isServices ? 'services' : 'products'}…
-          </div>
-        }
-      >
-        {isServices ? (
-          <ServiceList searchParams={searchParams} />
-        ) : (
-          <ProductList searchParams={searchParams} />
-        )}
-      </Suspense>
+      {isServices ? (
+        <ServicesTable
+          rows={serviceData.rows}
+          pageCount={serviceData.pageCount}
+          page={page}
+          pageSize={25}
+        />
+      ) : (
+        <ProductsTable
+          rows={productData.rows}
+          pageCount={productData.pageCount}
+          page={page}
+          pageSize={25}
+        />
+      )}
     </div>
   )
 }
