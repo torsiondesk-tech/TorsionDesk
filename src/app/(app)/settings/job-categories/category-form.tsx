@@ -52,10 +52,27 @@ export function CategoryForm({
 
   const router = useRouter()
 
+  // Sync server data into local state so router.refresh() updates the list
+  useEffect(() => {
+    setCategories(initialCategories)
+  }, [initialCategories])
+
   // Dialog state
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryWithParent | null>(null)
   const [deleting, setDeleting] = useState<CategoryWithParent | null>(null)
+
+  // Controlled parent selects
+  const [addParentId, setAddParentId] = useState('')
+  const [editParentId, setEditParentId] = useState('')
+
+  useEffect(() => {
+    if (isAddOpen) setAddParentId('')
+  }, [isAddOpen])
+
+  useEffect(() => {
+    if (editing) setEditParentId(editing.parentId ?? '')
+  }, [editing])
 
   // Close dialogs and refresh data on success
   useEffect(() => {
@@ -124,21 +141,31 @@ export function CategoryForm({
 
               <div className="space-y-2">
                 <Label htmlFor="add-parentId">Parent Category</Label>
-                <Select name="parentId">
+                <Select
+                  name="parentId"
+                  value={addParentId}
+                  onValueChange={(v) => setAddParentId(v ?? '')}
+                >
                   <SelectTrigger id="add-parentId" aria-label="Select a parent category">
-                    <SelectValue placeholder="Select a category…" />
+                    <SelectValue placeholder="Select a category…">
+                      {addParentId
+                        ? parentMap.get(addParentId) ?? 'Select a category…'
+                        : 'Select a category…'}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {'  '.repeat(cat.depth)}
-                        {cat.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="">— Top level —</SelectItem>
+                    {categories
+                      .filter((c) => c.depth === 0)
+                      .map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Leave blank for a top-level category.
+                  Only top-level categories can be parents.
                 </p>
               </div>
 
@@ -251,24 +278,31 @@ export function CategoryForm({
 
               <div className="space-y-2">
                 <Label htmlFor="edit-parentId">Parent Category</Label>
-                <Select name="parentId" defaultValue={editing.parentId ?? ''}>
+                <Select
+                  name="parentId"
+                  value={editParentId}
+                  onValueChange={(v) => setEditParentId(v ?? '')}
+                >
                   <SelectTrigger id="edit-parentId" aria-label="Select a parent category">
-                    <SelectValue placeholder="Select a category…" />
+                    <SelectValue placeholder="Select a category…">
+                      {editParentId
+                        ? parentMap.get(editParentId) ?? 'Select a category…'
+                        : 'Select a category…'}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">— Top level —</SelectItem>
                     {categories
-                      .filter((c) => c.id !== editing.id)
+                      .filter((c) => c.depth === 0 && c.id !== editing.id)
                       .map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
-                          {'  '.repeat(cat.depth)}
                           {cat.name}
                         </SelectItem>
                       ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Leave blank for a top-level category.
+                  Only top-level categories can be parents.
                 </p>
               </div>
 

@@ -44,6 +44,11 @@ export function CategoryForm({
 
   const router = useRouter()
 
+  // Sync server data into local state so router.refresh() updates the list
+  useEffect(() => {
+    setCategories(initialCategories)
+  }, [initialCategories])
+
   // Dialog state
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
