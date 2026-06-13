@@ -30,7 +30,8 @@ type SettingsTab = {
 const TABS: SettingsTab[] = [
   { label: 'Company Profile', href: '/settings/company-profile' },
   { label: 'Users', href: '/settings/users' },
-  { label: 'Job Categories', phase: 2 },
+  { label: 'Job Categories', href: '/settings/job-categories' },
+  { label: 'Product Categories', href: '/settings/product-categories' },
   { label: 'Tags', phase: 2 },
   { label: 'Templates', phase: 8 },
   { label: 'Email', phase: 8 },
