@@ -23,15 +23,32 @@ vi.mock('@/db/with-tenant', () => ({
   withTenant: vi.fn(async (orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
     const tx = {
       insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-          onConflictDoNothing: vi.fn(() => ({
-            returning: vi.fn(async () => []),
-          })),
-          returning: vi.fn(async () => {
-            const id = `tag_${Math.random().toString(36).slice(2)}`
-            return [{ id, name: '', color: '' }]
-          }),
-        })),
+        values: vi.fn((vals: Record<string, unknown>) => {
+          const name = String(vals?.name ?? '')
+          const color = String(vals?.color ?? '')
+          return {
+            onConflictDoNothing: vi.fn(() => ({
+              returning: vi.fn(async () => {
+                const tenantStore = tagStore.get(orgId)
+                if (tenantStore?.has(name)) return []
+                const id = `tag_${Math.random().toString(36).slice(2)}`
+                const row = { id, name, color }
+                if (!tagStore.has(orgId)) tagStore.set(orgId, new Map())
+                tagStore.get(orgId)!.set(name, row)
+                return [row]
+              }),
+            })),
+            returning: vi.fn(async () => {
+              const tenantStore = tagStore.get(orgId)
+              if (tenantStore?.has(name)) return []
+              const id = `tag_${Math.random().toString(36).slice(2)}`
+              const row = { id, name, color }
+              if (!tagStore.has(orgId)) tagStore.set(orgId, new Map())
+              tagStore.get(orgId)!.set(name, row)
+              return [row]
+            }),
+          }
+        }),
       })),
       select: vi.fn(() => ({
         from: vi.fn(() => ({
