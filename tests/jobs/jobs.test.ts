@@ -18,6 +18,39 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: () => auth(),
 }))
 
+// Minimal fake tx that resolves every query chain to a defined value.
+// listJobs and getJob now call withTenant internally; this mock lets
+// the placeholder assertions run without a live database.
+function makeEmptyTx() {
+  const terminal = {
+    then: (resolve: (v: unknown) => void) => resolve([{ c: 0 }]),
+  }
+  const fromChain = {
+    where: vi.fn(() => ({
+      orderBy: vi.fn(() => ({
+        limit: vi.fn(() => ({
+          offset: vi.fn(() => terminal),
+        })),
+      })),
+      limit: vi.fn(() => terminal),
+      groupBy: vi.fn(() => terminal),
+      ...terminal,
+    })),
+    innerJoin: vi.fn(() => fromChain),
+  }
+  return {
+    select: vi.fn(() => ({
+      from: vi.fn(() => fromChain),
+    })),
+  }
+}
+
+vi.mock('@/db/with-tenant', () => ({
+  withTenant: vi.fn(async (_orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
+    return fn(makeEmptyTx())
+  }),
+}))
+
 // Fake tx that returns a configurable max(jobNo) per tenant.
 function makeFakeTx(maxValue: number | null) {
   return {
