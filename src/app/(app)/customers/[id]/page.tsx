@@ -8,6 +8,7 @@ import {
   getCustomerById,
 } from '@/lib/customers'
 import { listTags, listReferralSources } from '@/lib/tags'
+import { listJobs } from '@/lib/jobs/jobs'
 import { CustomerDetailForm } from './customer-detail-form'
 
 interface CustomerDetailPageProps {
@@ -29,6 +30,7 @@ export default async function CustomerDetailPage({
     tagNames,
     availableTags,
     referralOptions,
+    customerJobs,
   ] = await Promise.all([
     getCustomerWithContacts(orgId, id),
     getCustomerWithLocationsAndEquipment(orgId, id),
@@ -36,6 +38,7 @@ export default async function CustomerDetailPage({
     getCustomerTagNames(orgId, id),
     listTags(orgId),
     listReferralSources(orgId),
+    listJobs(orgId, { customerId: id, pageSize: 100 }),
   ])
 
   if (!customerWithContacts) notFound()
@@ -61,6 +64,7 @@ export default async function CustomerDetailPage({
       availableTags={availableTags}
       referralOptions={referralOptions}
       parentCustomerLabel={parentCustomerLabel}
+      jobs={customerJobs.rows}
     />
   )
 }

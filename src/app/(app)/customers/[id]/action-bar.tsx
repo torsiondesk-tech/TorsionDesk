@@ -15,7 +15,15 @@ import {
 } from '@/components/ui/dialog'
 import { deactivateCustomer } from '../actions'
 
-export function CustomerActionBar({ customerId }: { customerId: string }) {
+export function CustomerActionBar({
+  customerId,
+  primaryContactId,
+  firstLocationId,
+}: {
+  customerId: string
+  primaryContactId?: string | null
+  firstLocationId?: string | null
+}) {
   const router = useRouter()
   const [deactivating, setDeactivating] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -37,9 +45,12 @@ export function CustomerActionBar({ customerId }: { customerId: string }) {
         <Button variant="outline" size="sm">Edit Customer</Button>
       </Link>
 
-      <Button variant="outline" size="sm" disabled title="Available in a later release">
-        New Job
-      </Button>
+      <Link
+        href={`/jobs/new?customerId=${customerId}&contactId=${primaryContactId ?? ''}&locationId=${firstLocationId ?? ''}`}
+      >
+        <Button variant="outline" size="sm">New Job</Button>
+      </Link>
+
       <Button variant="outline" size="sm" disabled title="Available in a later release">
         New Estimate
       </Button>

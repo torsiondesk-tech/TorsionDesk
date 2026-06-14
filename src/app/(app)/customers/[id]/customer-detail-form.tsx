@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Save,
@@ -135,6 +136,13 @@ interface CustomerDetailFormProps {
   availableTags: TagOption[]
   referralOptions: ReferralOption[]
   parentCustomerLabel?: string
+  jobs?: Array<{
+    id: string
+    jobNo: number
+    description: string | null
+    status: string
+    startDate: Date | null
+  }>
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -148,6 +156,7 @@ export function CustomerDetailForm({
   availableTags,
   referralOptions,
   parentCustomerLabel,
+  jobs = [],
 }: CustomerDetailFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -426,14 +435,14 @@ export function CustomerDetailForm({
             Save
           </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            disabled
-            title="Available in a later release"
+          <Link
+            href={`/jobs/new?customerId=${customer.id}&contactId=${initialContacts[0]?.id ?? ''}&locationId=${locations[0]?.id ?? ''}`}
           >
-            New Job
-          </Button>
+            <Button size="sm" variant="outline">
+              New Job
+            </Button>
+          </Link>
+
           <Button
             size="sm"
             variant="outline"
@@ -480,6 +489,9 @@ export function CustomerDetailForm({
         <TabsList className="h-9 w-full justify-start overflow-x-auto rounded-md bg-muted p-1">
           <TabsTrigger value="account" className="text-xs">
             Account Info
+          </TabsTrigger>
+          <TabsTrigger value="jobs" className="text-xs">
+            Jobs
           </TabsTrigger>
           <TabsTrigger value="financial" className="text-xs">
             Financial Data
@@ -956,6 +968,65 @@ export function CustomerDetailForm({
                 customerId={customer.id}
               />
             </aside>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="jobs" className="mt-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Jobs</h3>
+              <Link
+                href={`/jobs/new?customerId=${customer.id}&contactId=${initialContacts[0]?.id ?? ''}&locationId=${locations[0]?.id ?? ''}`}
+              >
+                <Button size="sm" variant="outline">New Job</Button>
+              </Link>
+            </div>
+            {jobs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No jobs yet.</p>
+            ) : (
+              <div className="overflow-hidden rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-semibold">Job #</th>
+                      <th className="px-4 py-2 text-left font-semibold">Description</th>
+                      <th className="px-4 py-2 text-left font-semibold">Status</th>
+                      <th className="px-4 py-2 text-left font-semibold">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {jobs.map((job) => (
+                      <tr key={job.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-2">
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            className="font-medium hover:underline"
+                          >
+                            #{job.jobNo}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {job.description ?? '—'}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                            {job.status
+                              .split('_')
+                              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                              .join(' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {job.startDate
+                            ? new Date(job.startDate).toLocaleDateString()
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </TabsContent>
 
