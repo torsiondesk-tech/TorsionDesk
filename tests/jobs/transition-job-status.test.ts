@@ -44,7 +44,7 @@ function makeFakeTx(orgId: string) {
         where: vi.fn(() => ({
           limit: vi.fn(async () => {
             const job = jobStore.get(`__current__`)
-            return job ? [{ status: job.status }] : []
+            return job && job.tenantId === orgId ? [{ status: job.status }] : []
           }),
         })),
       })),
