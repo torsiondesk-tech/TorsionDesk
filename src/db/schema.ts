@@ -602,3 +602,495 @@ export const products = pgTable(
 
 export type Product = typeof products.$inferSelect
 export type NewProduct = typeof products.$inferInsert
+
+// ── Phase 3: Jobs Core and Status FSM ──────────────────────────────────────
+
+export const jobStatus = pgEnum('job_status', [
+  'unscheduled',
+  'scheduled',
+  'dispatched',
+  'cancelled',
+  'delayed',
+  'on_the_way',
+  'on_site',
+  'started',
+  'paused',
+  'resumed',
+  'partially_completed',
+  'completed',
+  'invoiced',
+  'paid_in_full',
+  'job_closed',
+])
+
+export const billingType = pgEnum('billing_type', [
+  'single_invoice',
+  'progress_billing',
+  'no_charge',
+])
+
+export const lineItemType = pgEnum('line_item_type', [
+  'product',
+  'service',
+  'discount',
+  'expense',
+])
+
+export const jobs = pgTable(
+  'jobs',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobNo: integer('job_no').notNull(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    contactId: text('contact_id').references(() => contacts.id, {
+      onDelete: 'set null',
+    }),
+    serviceLocationId: text('service_location_id').references(
+      () => serviceLocations.id,
+      { onDelete: 'set null' },
+    ),
+    categoryId: text('category_id').references(() => jobCategories.id, {
+      onDelete: 'set null',
+    }),
+    status: jobStatus('status').notNull().default('unscheduled'),
+    billingType: billingType('billing_type').notNull().default('single_invoice'),
+    description: text('description'),
+    poNumber: text('po_number'),
+    jobSourceId: text('job_source_id').references(() => jobSources.id, {
+      onDelete: 'set null',
+    }),
+    assignedAgentId: text('assigned_agent_id'),
+    priority: text('priority'),
+    startDate: timestamp('start_date'),
+    endDate: timestamp('end_date'),
+    arrivalWindowStart: timestamp('arrival_window_start'),
+    arrivalWindowEnd: timestamp('arrival_window_end'),
+    estimatedDuration: integer('estimated_duration'),
+    multiDay: boolean('multi_day').default(false),
+    notesForTechs: text('notes_for_techs'),
+    completionNotes: text('completion_notes'),
+    requiresFollowUp: boolean('requires_follow_up').default(false),
+    isRepeating: boolean('is_repeating').default(false),
+    repeatFrequency: text('repeat_frequency'),
+    repeatEndDate: timestamp('repeat_end_date'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('jobs_tenant_job_no_unique').on(t.tenantId, t.jobNo),
+    unique('jobs_tenant_id_unique').on(t.tenantId, t.id),
+    index('jobs_status_idx').on(t.status),
+    index('jobs_customer_id_idx').on(t.customerId),
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.contactId],
+      foreignColumns: [contacts.tenantId, contacts.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.serviceLocationId],
+      foreignColumns: [serviceLocations.tenantId, serviceLocations.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.categoryId],
+      foreignColumns: [jobCategories.tenantId, jobCategories.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.jobSourceId],
+      foreignColumns: [jobSources.tenantId, jobSources.id],
+    }).onDelete('set null'),
+    pgPolicy('jobs_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Job = typeof jobs.$inferSelect
+export type NewJob = typeof jobs.$inferInsert
+
+export const jobLineItems = pgTable(
+  'job_line_items',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    type: lineItemType('type'),
+    refId: text('ref_id'),
+    description: text('description'),
+    qty: numeric('qty'),
+    rate: numeric('rate'),
+    cost: numeric('cost'),
+    taxItemId: text('tax_item_id').references(() => taxItems.id, {
+      onDelete: 'set null',
+    }),
+    sortOrder: integer('sort_order'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_line_items_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.taxItemId],
+      foreignColumns: [taxItems.tenantId, taxItems.id],
+    }).onDelete('set null'),
+    pgPolicy('job_line_items_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobLineItem = typeof jobLineItems.$inferSelect
+export type NewJobLineItem = typeof jobLineItems.$inferInsert
+
+export const jobTags = pgTable(
+  'job_tags',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    tagId: text('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_tags_tenant_job_tag_unique').on(t.tenantId, t.jobId, t.tagId),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.tagId],
+      foreignColumns: [tags.tenantId, tags.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_tags_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobTag = typeof jobTags.$inferSelect
+export type NewJobTag = typeof jobTags.$inferInsert
+
+export const jobAssignees = pgTable(
+  'job_assignees',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull(),
+    notify: boolean('notify').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_assignees_tenant_job_user_unique').on(
+      t.tenantId,
+      t.jobId,
+      t.userId,
+    ),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_assignees_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobAssignee = typeof jobAssignees.$inferSelect
+export type NewJobAssignee = typeof jobAssignees.$inferInsert
+
+export const jobStatusHistory = pgTable(
+  'job_status_history',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    fromStatus: jobStatus('from_status'),
+    toStatus: jobStatus('to_status').notNull(),
+    changedBy: text('changed_by'),
+    changedAt: timestamp('changed_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_status_history_tenant_id_unique').on(t.tenantId, t.id),
+    index('job_status_history_job_id_idx').on(t.jobId),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_status_history_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobStatusHistory = typeof jobStatusHistory.$inferSelect
+export type NewJobStatusHistory = typeof jobStatusHistory.$inferInsert
+
+export const jobSiteVisits = pgTable(
+  'job_site_visits',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    status: jobStatus('status'),
+    visitDate: timestamp('visit_date'),
+    arrivalWindowStart: timestamp('arrival_window_start'),
+    arrivalWindowEnd: timestamp('arrival_window_end'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_site_visits_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_site_visits_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobSiteVisit = typeof jobSiteVisits.$inferSelect
+export type NewJobSiteVisit = typeof jobSiteVisits.$inferInsert
+
+export const jobTasks = pgTable(
+  'job_tasks',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    label: text('label'),
+    done: boolean('done').default(false),
+    sortOrder: integer('sort_order'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_tasks_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_tasks_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobTask = typeof jobTasks.$inferSelect
+export type NewJobTask = typeof jobTasks.$inferInsert
+
+export const jobReminders = pgTable(
+  'job_reminders',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    remindAt: timestamp('remind_at'),
+    note: text('note'),
+    done: boolean('done').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_reminders_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_reminders_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobReminder = typeof jobReminders.$inferSelect
+export type NewJobReminder = typeof jobReminders.$inferInsert
+
+export const jobTemplates = pgTable(
+  'job_templates',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    categoryId: text('category_id').references(() => jobCategories.id, {
+      onDelete: 'set null',
+    }),
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_templates_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.categoryId],
+      foreignColumns: [jobCategories.tenantId, jobCategories.id],
+    }).onDelete('set null'),
+    pgPolicy('job_templates_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobTemplate = typeof jobTemplates.$inferSelect
+export type NewJobTemplate = typeof jobTemplates.$inferInsert
+
+export const jobTemplateLineItems = pgTable(
+  'job_template_line_items',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    templateId: text('template_id')
+      .notNull()
+      .references(() => jobTemplates.id, { onDelete: 'cascade' }),
+    type: lineItemType('type'),
+    refId: text('ref_id'),
+    description: text('description'),
+    qty: numeric('qty'),
+    rate: numeric('rate'),
+    cost: numeric('cost'),
+    taxItemId: text('tax_item_id').references(() => taxItems.id, {
+      onDelete: 'set null',
+    }),
+    sortOrder: integer('sort_order'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_template_line_items_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.templateId],
+      foreignColumns: [jobTemplates.tenantId, jobTemplates.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.taxItemId],
+      foreignColumns: [taxItems.tenantId, taxItems.id],
+    }).onDelete('set null'),
+    pgPolicy('job_template_line_items_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobTemplateLineItem = typeof jobTemplateLineItems.$inferSelect
+export type NewJobTemplateLineItem = typeof jobTemplateLineItems.$inferInsert
+
+export const jobTemplateTasks = pgTable(
+  'job_template_tasks',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    templateId: text('template_id')
+      .notNull()
+      .references(() => jobTemplates.id, { onDelete: 'cascade' }),
+    label: text('label'),
+    sortOrder: integer('sort_order'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_template_tasks_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.templateId],
+      foreignColumns: [jobTemplates.tenantId, jobTemplates.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_template_tasks_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobTemplateTask = typeof jobTemplateTasks.$inferSelect
+export type NewJobTemplateTask = typeof jobTemplateTasks.$inferInsert
+
+export const jobPhotos = pgTable(
+  'job_photos',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    storagePath: text('storage_path').notNull(),
+    label: text('label'),
+    uploadedBy: text('uploaded_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_photos_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_photos_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobPhoto = typeof jobPhotos.$inferSelect
+export type NewJobPhoto = typeof jobPhotos.$inferInsert
