@@ -42,7 +42,7 @@ type NavItem = {
 // Dashboard and Settings; later phases flip their own `enabled` to true.
 const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, enabled: true },
-  { key: 'jobs', label: 'Jobs', href: '/jobs', icon: Briefcase, enabled: false },
+  { key: 'jobs', label: 'Jobs', href: '/jobs', icon: Briefcase, enabled: true },
   { key: 'dispatch', label: 'Dispatch', href: '/dispatch', icon: CalendarRange, enabled: false },
   { key: 'customers', label: 'Customers', href: '/customers', icon: Users, enabled: true },
   { key: 'estimates', label: 'Estimates', href: '/estimates', icon: FileText, enabled: false },
