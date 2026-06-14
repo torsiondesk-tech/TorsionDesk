@@ -31,22 +31,29 @@ vi.mock('@/db/with-tenant', () => ({
     const tx = {
       select: vi.fn(() => ({
         from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            groupBy: vi.fn(() => ({
-              then: vi.fn(async (resolve: (v: unknown) => void) => {
-                const rows = jobTagStore
-                  .filter((r) => r.tenantId === orgId)
-                  .reduce(
-                    (acc, r) => {
-                      acc[r.tagId] = (acc[r.tagId] || 0) + 1
-                      return acc
-                    },
-                    {} as Record<string, number>,
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              groupBy: vi.fn(() => ({
+                then: vi.fn(async (resolve: (v: unknown) => void) => {
+                  const rows = jobTagStore
+                    .filter((r) => r.tenantId === orgId)
+                    .reduce(
+                      (acc, r) => {
+                        acc[r.tagId] = (acc[r.tagId] || 0) + 1
+                        return acc
+                      },
+                      {} as Record<string, number>,
+                    )
+                  resolve(
+                    Object.entries(rows).map(([tagId, count]) => ({
+                      tagId,
+                      count,
+                      name: tagId === 'tag_a' ? 'Tag A' : 'Tag B',
+                      color: null,
+                    })),
                   )
-                resolve(
-                  Object.entries(rows).map(([tagId, count]) => ({ tagId, count })),
-                )
-              }),
+                }),
+              })),
             })),
           })),
         })),

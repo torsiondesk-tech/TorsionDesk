@@ -361,6 +361,19 @@ export async function getCustomerTagNames(
   })
 }
 
+/** Fetch equipment by service location ID (read-only for job detail). */
+export async function getEquipmentByServiceLocation(
+  orgId: string,
+  serviceLocationId: string,
+): Promise<typeof equipment.$inferSelect[]> {
+  return withTenant(orgId, async (tx) => {
+    return tx
+      .select()
+      .from(equipment)
+      .where(and(eq(equipment.tenantId, orgId), eq(equipment.serviceLocationId, serviceLocationId)))
+  })
+}
+
 export interface CreateContactInput {
   customerId: string
   name: string

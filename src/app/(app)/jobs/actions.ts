@@ -768,3 +768,31 @@ export async function listOrgMembers(orgId: string): Promise<
     return []
   }
 }
+
+// ── Photo upload ────────────────────────────────────────────────────────────
+
+export async function uploadJobPhotoAction(
+  jobId: string,
+  formData: FormData,
+): Promise<{ error?: string; success?: boolean }> {
+  const { orgId, userId } = await auth()
+  if (!orgId || !userId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  const file = formData.get('file') as File | null
+  if (!file || file.size === 0) {
+    return { error: 'No file selected.' }
+  }
+
+  try {
+    const { uploadJobPhoto } = await import('@/lib/jobs/photos')
+    await uploadJobPhoto(orgId, jobId, file)
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('uploadJobPhotoAction error:', err)
+    return { error: message }
+  }
+}

@@ -37,6 +37,7 @@ function makeEmptyTx() {
       ...terminal,
     })),
     innerJoin: vi.fn(() => fromChain),
+    leftJoin: vi.fn(() => fromChain),
   }
   return {
     select: vi.fn(() => ({
