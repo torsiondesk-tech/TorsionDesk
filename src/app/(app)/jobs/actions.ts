@@ -17,6 +17,9 @@ import {
   jobSources,
   taxItems,
   customerEvents,
+  jobSiteVisits,
+  jobTasks,
+  jobReminders,
 } from '@/db/schema'
 import { nextJobNo } from '@/lib/jobs/job-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
@@ -851,4 +854,303 @@ export async function listJobTemplatesAction(): Promise<
   const { listJobTemplates } = await import('@/lib/job-templates')
   const rows = await listJobTemplates(orgId)
   return rows.map((r) => ({ id: r.id, name: r.name }))
+}
+
+// ── Site Visits ──────────────────────────────────────────────────────────────
+
+const siteVisitStatusSchema = z.enum([
+  'unscheduled',
+  'scheduled',
+  'dispatched',
+  'cancelled',
+  'delayed',
+  'on_the_way',
+  'on_site',
+  'started',
+  'paused',
+  'resumed',
+  'partially_completed',
+  'completed',
+  'invoiced',
+  'paid_in_full',
+  'job_closed',
+])
+
+export async function addSiteVisit(
+  jobId: string,
+  input: {
+    status?: string
+    visitDate?: string | null
+    arrivalWindowStart?: string | null
+    arrivalWindowEnd?: string | null
+    notes?: string
+  },
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const status = input.status ? siteVisitStatusSchema.safeParse(input.status) : null
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx.insert(jobSiteVisits).values({
+        tenantId: orgId,
+        jobId,
+        status: status?.success ? (status.data as any) : null,
+        visitDate: input.visitDate ? new Date(input.visitDate) : null,
+        arrivalWindowStart: input.arrivalWindowStart
+          ? new Date(input.arrivalWindowStart)
+          : null,
+        arrivalWindowEnd: input.arrivalWindowEnd
+          ? new Date(input.arrivalWindowEnd)
+          : null,
+        notes: input.notes,
+      })
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not add site visit.'
+    return { error: message }
+  }
+}
+
+export async function updateSiteVisit(
+  visitId: string,
+  jobId: string,
+  input: {
+    status?: string
+    visitDate?: string | null
+    arrivalWindowStart?: string | null
+    arrivalWindowEnd?: string | null
+    notes?: string
+  },
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const status = input.status ? siteVisitStatusSchema.safeParse(input.status) : null
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(jobSiteVisits)
+        .set({
+          status: status?.success ? (status.data as any) : undefined,
+          visitDate: input.visitDate !== undefined
+            ? input.visitDate
+              ? new Date(input.visitDate)
+              : null
+            : undefined,
+          arrivalWindowStart:
+            input.arrivalWindowStart !== undefined
+              ? input.arrivalWindowStart
+                ? new Date(input.arrivalWindowStart)
+                : null
+              : undefined,
+          arrivalWindowEnd:
+            input.arrivalWindowEnd !== undefined
+              ? input.arrivalWindowEnd
+                ? new Date(input.arrivalWindowEnd)
+                : null
+              : undefined,
+          notes: input.notes,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(jobSiteVisits.tenantId, orgId),
+            eq(jobSiteVisits.id, visitId),
+            eq(jobSiteVisits.jobId, jobId),
+          ),
+        )
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not update site visit.'
+    return { error: message }
+  }
+}
+
+export async function deleteSiteVisit(
+  visitId: string,
+  jobId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(jobSiteVisits)
+        .where(
+          and(
+            eq(jobSiteVisits.tenantId, orgId),
+            eq(jobSiteVisits.id, visitId),
+            eq(jobSiteVisits.jobId, jobId),
+          ),
+        )
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not delete site visit.'
+    return { error: message }
+  }
+}
+
+// ── Job Tasks ────────────────────────────────────────────────────────────────
+
+export async function addJobTask(
+  jobId: string,
+  label: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      const [{ maxOrder }] = await tx
+        .select({ maxOrder: sql<number>`COALESCE(MAX(${jobTasks.sortOrder}), -1)` })
+        .from(jobTasks)
+        .where(and(eq(jobTasks.tenantId, orgId), eq(jobTasks.jobId, jobId)))
+
+      await tx.insert(jobTasks).values({
+        tenantId: orgId,
+        jobId,
+        label: label.trim(),
+        sortOrder: (maxOrder ?? -1) + 1,
+      })
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not add task.'
+    return { error: message }
+  }
+}
+
+export async function toggleJobTask(
+  taskId: string,
+  jobId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      const rows = await tx
+        .select({ done: jobTasks.done })
+        .from(jobTasks)
+        .where(
+          and(
+            eq(jobTasks.tenantId, orgId),
+            eq(jobTasks.id, taskId),
+            eq(jobTasks.jobId, jobId),
+          ),
+        )
+        .limit(1)
+
+      const current = rows[0]?.done ?? false
+      await tx
+        .update(jobTasks)
+        .set({ done: !current, updatedAt: new Date() })
+        .where(
+          and(
+            eq(jobTasks.tenantId, orgId),
+            eq(jobTasks.id, taskId),
+            eq(jobTasks.jobId, jobId),
+          ),
+        )
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not toggle task.'
+    return { error: message }
+  }
+}
+
+export async function deleteJobTask(
+  taskId: string,
+  jobId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(jobTasks)
+        .where(
+          and(
+            eq(jobTasks.tenantId, orgId),
+            eq(jobTasks.id, taskId),
+            eq(jobTasks.jobId, jobId),
+          ),
+        )
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not delete task.'
+    return { error: message }
+  }
+}
+
+// ── Job Reminders ────────────────────────────────────────────────────────────
+
+export async function addJobReminder(
+  jobId: string,
+  input: {
+    remindAt?: string | null
+    note?: string
+  },
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx.insert(jobReminders).values({
+        tenantId: orgId,
+        jobId,
+        remindAt: input.remindAt ? new Date(input.remindAt) : null,
+        note: input.note,
+      })
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not add reminder.'
+    return { error: message }
+  }
+}
+
+export async function deleteJobReminder(
+  reminderId: string,
+  jobId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(jobReminders)
+        .where(
+          and(
+            eq(jobReminders.tenantId, orgId),
+            eq(jobReminders.id, reminderId),
+            eq(jobReminders.jobId, jobId),
+          ),
+        )
+    })
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not delete reminder.'
+    return { error: message }
+  }
 }

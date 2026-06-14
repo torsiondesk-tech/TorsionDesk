@@ -11,6 +11,8 @@ import {
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
 import { JobForm, type JobFormData } from './job-form'
+import { SiteVisits } from './site-visits'
+import { JobTasks } from './job-tasks'
 import { EquipmentTab } from './tabs/equipment-tab'
 import { PicsTab } from './tabs/pics-tab'
 import {
@@ -174,6 +176,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
               orgMembers,
             }}
           />
+          <SiteVisits jobId={id} visits={job.siteVisits} />
+          <JobTasks jobId={id} tasks={job.tasks} reminders={job.reminders} />
         </TabsContent>
 
         <TabsContent value="custom_fields">

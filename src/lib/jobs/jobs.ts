@@ -7,6 +7,7 @@ import {
   jobAssignees,
   jobSiteVisits,
   jobTasks,
+  jobReminders,
   jobPhotos,
   tags,
   customers,
@@ -182,6 +183,7 @@ export type JobDetail = typeof jobs.$inferSelect & {
   assignees: typeof jobAssignees.$inferSelect[]
   siteVisits: typeof jobSiteVisits.$inferSelect[]
   tasks: typeof jobTasks.$inferSelect[]
+  reminders: typeof jobReminders.$inferSelect[]
   photos: typeof jobPhotos.$inferSelect[]
 }
 
@@ -203,7 +205,7 @@ export async function getJob(
     const job = jobRows[0]
     if (!job) return null
 
-    const [customerRows, lineItems, tagRows, assignees, siteVisits, tasks, photos] =
+    const [customerRows, lineItems, tagRows, assignees, siteVisits, tasks, reminders, photos] =
       await Promise.all([
         tx
           .select({ name: customers.name })
@@ -240,6 +242,10 @@ export async function getJob(
           .where(and(eq(jobTasks.tenantId, orgId), eq(jobTasks.jobId, jobId))),
         tx
           .select()
+          .from(jobReminders)
+          .where(and(eq(jobReminders.tenantId, orgId), eq(jobReminders.jobId, jobId))),
+        tx
+          .select()
           .from(jobPhotos)
           .where(and(eq(jobPhotos.tenantId, orgId), eq(jobPhotos.jobId, jobId)))
           .orderBy(desc(jobPhotos.createdAt)),
@@ -253,6 +259,7 @@ export async function getJob(
       assignees,
       siteVisits,
       tasks,
+      reminders,
       photos,
     }
   })
