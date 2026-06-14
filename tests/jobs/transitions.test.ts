@@ -53,9 +53,9 @@ describe('STATUS_GROUPS', () => {
   })
 
   it('has no overlap between groups', () => {
-    const openSet = new Set(STATUS_GROUPS.open)
-    const inProgressSet = new Set(STATUS_GROUPS.in_progress)
-    const closedSet = new Set(STATUS_GROUPS.closed)
+    const openSet = new Set<string>(STATUS_GROUPS.open)
+    const inProgressSet = new Set<string>(STATUS_GROUPS.in_progress)
+    const closedSet = new Set<string>(STATUS_GROUPS.closed)
 
     for (const s of inProgressSet) {
       expect(openSet.has(s)).toBe(false)
