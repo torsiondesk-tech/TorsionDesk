@@ -796,3 +796,59 @@ export async function uploadJobPhotoAction(
     return { error: message }
   }
 }
+
+// ── Apply Template ───────────────────────────────────────────────────────────
+
+export async function applyTemplateAction(
+  templateId: string,
+): Promise<{
+  error?: string
+  lineItems?: Array<{
+    type: 'product' | 'service' | 'discount' | 'expense'
+    refId: string | null
+    description: string
+    qty: string
+    rate: string
+    cost: string
+    taxItemId: string | null
+  }>
+  tasks?: Array<{ label: string }>
+}> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    const { applyJobTemplate } = await import('@/lib/job-templates')
+    const result = await applyJobTemplate(orgId, templateId)
+    return {
+      lineItems: result.lineItems.map((li) => ({
+        type: li.type,
+        refId: li.refId ?? null,
+        description: li.description,
+        qty: li.qty,
+        rate: li.rate,
+        cost: li.cost,
+        taxItemId: li.taxItemId ?? null,
+      })),
+      tasks: result.tasks.map((t) => ({ label: t.label })),
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('applyTemplateAction error:', err)
+    return { error: message }
+  }
+}
+
+// ── Template list RPC ────────────────────────────────────────────────────────
+
+export async function listJobTemplatesAction(): Promise<
+  Array<{ id: string; name: string }>
+> {
+  const { orgId } = await auth()
+  if (!orgId) return []
+  const { listJobTemplates } = await import('@/lib/job-templates')
+  const rows = await listJobTemplates(orgId)
+  return rows.map((r) => ({ id: r.id, name: r.name }))
+}

@@ -33,7 +33,7 @@ const TABS: SettingsTab[] = [
   { label: 'Job Categories', href: '/settings/job-categories' },
   { label: 'Product Categories', href: '/settings/product-categories' },
   { label: 'Tags', href: '/settings/tags' },
-  { label: 'Templates', phase: 8 },
+  { label: 'Templates', href: '/settings/templates' },
   { label: 'Email', phase: 8 },
   { label: 'SMS', phase: 8 },
   { label: 'Payment Methods', phase: 7 },

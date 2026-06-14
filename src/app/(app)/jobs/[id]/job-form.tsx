@@ -23,6 +23,8 @@ import {
   type JobActionState,
   getCustomerContacts,
   getCustomerLocations,
+  listJobTemplatesAction,
+  applyTemplateAction,
 } from '../actions'
 import { StatusDropdown } from './status-dropdown'
 import { LineItems } from './line-items'
@@ -127,6 +129,45 @@ export function JobForm({ mode, initial, referenceData, defaults }: JobFormProps
   const [locationId, setLocationId] = useState<string | undefined>(
     initial?.serviceLocationId ?? defaults?.locationId ?? undefined,
   )
+
+  // Templates
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  const [applyingTemplate, setApplyingTemplate] = useState(false)
+
+  // Load templates on mount (create mode)
+  useEffect(() => {
+    if (mode === 'create') {
+      listJobTemplatesAction()
+        .catch(() => {
+          // ignore — we'll just show empty list
+        })
+        .then((rows) => {
+          if (rows && Array.isArray(rows)) setTemplates(rows)
+        })
+    }
+  }, [mode])
+
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplateId) return
+    setApplyingTemplate(true)
+    try {
+      const result = await applyTemplateAction(selectedTemplateId)
+      if (result.lineItems) {
+        setLineItems(result.lineItems.map((li) => ({
+          type: li.type,
+          refId: li.refId ?? null,
+          description: li.description,
+          qty: li.qty,
+          rate: li.rate,
+          cost: li.cost,
+          taxItemId: li.taxItemId ?? null,
+        })))
+      }
+    } finally {
+      setApplyingTemplate(false)
+    }
+  }
 
   // Line items state (synced from initial or local)
   const [lineItems, setLineItems] = useState<JobFormLineItem[]>(
@@ -559,6 +600,32 @@ export function JobForm({ mode, initial, referenceData, defaults }: JobFormProps
             )}
           </div>
         </div>
+
+        {/* ── APPLY TEMPLATE (create mode only) ── */}
+        {mode === 'create' && templates.length > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
+            <Label className="shrink-0 text-sm font-medium">Apply Template</Label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              className="h-9 flex-1 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            >
+              <option value="">Select a template…</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!selectedTemplateId || applyingTemplate}
+              onClick={handleApplyTemplate}
+            >
+              {applyingTemplate ? 'Applying…' : 'Apply'}
+            </Button>
+          </div>
+        )}
 
         {/* ── LINE ITEMS (full-width below grid) ── */}
         <LineItems

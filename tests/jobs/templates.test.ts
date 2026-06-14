@@ -1,8 +1,7 @@
 /**
- * JOB-07 — applyJobTemplate copies line items + tasks (RED until
- * src/lib/job-templates.ts exists).
+ * JOB-07 — applyJobTemplate copies line items + tasks.
  *
- * Contract: applyJobTemplate(tx, tenantId, templateId) returns a structure
+ * Contract: applyJobTemplate(orgId, templateId) returns a structure
  * containing the copied line items and tasks from the template, ready to be
  * inserted alongside a new job.
  */
@@ -16,7 +15,7 @@ vi.mock('@clerk/nextjs/server', () => ({
   auth: () => auth(),
 }))
 
-// In-memory template store.
+// In-memory template store keyed by template id.
 const templateStore = new Map<
   string,
   {
@@ -58,30 +57,101 @@ templateStore.set('tmpl_1', {
   tasks: [{ description: 'Inspect cables', completed: false }],
 })
 
-vi.mock('@/db/with-tenant', () => ({
-  withTenant: vi.fn(async (orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
-    const tx = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => {
-              const tmpl = templateStore.get('tmpl_1')
-              return tmpl ? [{ id: 'tmpl_1', tenantId: tmpl.tenantId, name: tmpl.name }] : []
-            }),
-          })),
-        })),
+// Track which query is being executed by counting select() calls.
+let selectCallCount = 0
+let currentTemplateId: string | null = 'tmpl_1'
+
+function resetMocks() {
+  selectCallCount = 0
+}
+
+function buildMockTx() {
+  const selectMock = vi.fn(() => {
+    selectCallCount++
+    const myCallNumber = selectCallCount
+
+    const mockLimit = vi.fn(async () => {
+      if (myCallNumber === 1) {
+        // First query: job_templates header
+        if (!currentTemplateId) return []
+        const tmpl = templateStore.get(currentTemplateId)
+        if (!tmpl) return []
+        if (tmpl.tenantId !== ORG_A) return []
+        return [{ id: currentTemplateId, tenantId: tmpl.tenantId, name: tmpl.name }]
+      }
+      return []
+    })
+
+    const mockOrderBy = vi.fn(() => ({
+      then: vi.fn(async (cb: (rows: unknown[]) => unknown) => {
+        if (!currentTemplateId) return cb([])
+        const tmpl = templateStore.get(currentTemplateId)
+        if (!tmpl) return cb([])
+
+        if (myCallNumber === 2) {
+          // Second query: job_template_line_items
+          return cb(
+            tmpl.lineItems.map((li) => ({
+              id: `li_${li.description}`,
+              tenantId: tmpl.tenantId,
+              templateId: currentTemplateId,
+              type: li.type,
+              refId: null,
+              description: li.description,
+              qty: li.qty,
+              rate: li.rate,
+              cost: li.cost,
+              taxItemId: null,
+              sortOrder: 0,
+            })),
+          )
+        }
+
+        if (myCallNumber === 3) {
+          // Third query: job_template_tasks
+          return cb(
+            tmpl.tasks.map((t) => ({
+              id: `task_${t.description}`,
+              tenantId: tmpl.tenantId,
+              templateId: currentTemplateId,
+              label: t.description,
+              sortOrder: 0,
+            })),
+          )
+        }
+
+        return cb([])
+      }),
+    }))
+
+    return {
+      from: vi.fn(() => ({
+        where: vi.fn(() => {
+          if (myCallNumber === 1) {
+            return { limit: mockLimit }
+          }
+          return { orderBy: mockOrderBy }
+        }),
       })),
     }
+  })
+
+  return { select: selectMock }
+}
+
+vi.mock('@/db/with-tenant', () => ({
+  withTenant: vi.fn(async (_orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
+    resetMocks()
+    const tx = buildMockTx()
     return fn(tx)
   }),
 }))
 
-// Not-yet-existing module under test — RED signal.
 import { applyJobTemplate } from '@/lib/job-templates'
 
 describe('applyJobTemplate', () => {
   it('copies template line items into the result', async () => {
-    const result = await applyJobTemplate('tmpl_1')
+    const result = await applyJobTemplate(ORG_A, 'tmpl_1')
 
     expect(result).toBeDefined()
     expect(result.lineItems).toBeDefined()
@@ -96,15 +166,14 @@ describe('applyJobTemplate', () => {
   })
 
   it('copies template tasks into the result', async () => {
-    const result = await applyJobTemplate('tmpl_1')
+    const result = await applyJobTemplate(ORG_A, 'tmpl_1')
 
     expect(result.tasks).toBeDefined()
     expect(Array.isArray(result.tasks)).toBe(true)
     expect(result.tasks.length).toBe(1)
 
     const task = result.tasks[0]
-    expect(task.description).toBe('Inspect cables')
-    expect(task.completed).toBe(false)
+    expect(task.label).toBe('Inspect cables')
   })
 
   it('does not return items from a cross-tenant template', async () => {
@@ -115,6 +184,7 @@ describe('applyJobTemplate', () => {
       tasks: [],
     })
 
-    await expect(applyJobTemplate('tmpl_2')).rejects.toThrow(/not found|cross-tenant|tenant/i)
+    currentTemplateId = 'tmpl_2'
+    await expect(applyJobTemplate(ORG_A, 'tmpl_2')).rejects.toThrow(/not found|cross-tenant|tenant/i)
   })
 })
