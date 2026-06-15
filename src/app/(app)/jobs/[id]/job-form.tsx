@@ -10,7 +10,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -483,7 +485,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     setApplyingTemplate(true)
     setTemplateError(null)
     try {
-      const result = await applyTemplateAction(selectedTemplateId, orgId)
+      const result = await applyTemplateAction(selectedTemplateId)
       if (result.error) {
         setTemplateError(result.error)
         console.error('applyTemplateAction returned error:', result.error)
@@ -759,39 +761,42 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                   {contactMode === 'new' && <input type="hidden" name="contactId" value="" />}
                 </div>
               ) : !customerId ? (
-                <select
-                  disabled
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm opacity-50"
-                >
-                  <option>Select a customer first…</option>
-                </select>
+                <Select name="contactId" disabled>
+                  <SelectTrigger className="w-full opacity-50">
+                    <SelectValue placeholder="Select a customer first…" />
+                  </SelectTrigger>
+                </Select>
               ) : (
                 <>
-                  <select
-                    id="contactId"
+                  <Select
                     name="contactId"
                     value={contactId ?? ''}
-                    onChange={(e) => {
-                      if (e.target.value === '__new__') {
+                    onValueChange={(val) => {
+                      const v = val ?? ''
+                      if (v === '__new__') {
                         setContactMode('new')
                         setContactEdit(null)
-                      } else if (e.target.value === '') {
+                      } else if (v === '') {
                         setContactId(undefined)
                         setContactEdit(null)
                       } else {
-                        setContactId(e.target.value)
+                        setContactId(v)
                       }
                     }}
-                    className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                   >
-                    <option value="">Select contact…</option>
-                    {contacts.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.firstName + (c.lastName ? ' ' + c.lastName : '')}
-                      </option>
-                    ))}
-                    <option value="__new__">+ Create new contact…</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select contact…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select contact…</SelectItem>
+                      {contacts.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.firstName + (c.lastName ? ' ' + c.lastName : '')}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__">+ Create new contact…</SelectItem>
+                    </SelectContent>
+                  </Select>
 
                   {/* Full contact editor when an existing contact is selected */}
                   {contactEdit && contactId && (
@@ -855,17 +860,21 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                               }
                               className="max-w-[180px]"
                             />
-                            <select
-                              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                            <Select
                               value={phone.type}
-                              onChange={(e) =>
-                                updateContactPhone(pi, 'type', e.target.value)
+                              onValueChange={(val) =>
+                                updateContactPhone(pi, 'type', val ?? '')
                               }
                             >
-                              <option value="cell">Cell</option>
-                              <option value="home">Home</option>
-                              <option value="work">Work</option>
-                            </select>
+                              <SelectTrigger className="h-9 w-[100px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cell">Cell</SelectItem>
+                                <SelectItem value="home">Home</SelectItem>
+                                <SelectItem value="work">Work</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <div className="flex items-center gap-1.5">
                               <Checkbox
                                 id={`phone-primary-${pi}`}
@@ -930,16 +939,20 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                               }
                               className="max-w-[240px]"
                             />
-                            <select
-                              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                            <Select
                               value={email.type}
-                              onChange={(e) =>
-                                updateContactEmail(ei, 'type', e.target.value)
+                              onValueChange={(val) =>
+                                updateContactEmail(ei, 'type', val ?? '')
                               }
                             >
-                              <option value="work">Work</option>
-                              <option value="personal">Personal</option>
-                            </select>
+                              <SelectTrigger className="h-9 w-[100px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="work">Work</SelectItem>
+                                <SelectItem value="personal">Personal</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <div className="flex items-center gap-1.5">
                               <Checkbox
                                 id={`email-primary-${ei}`}
@@ -1046,32 +1059,30 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-4">
               <Label htmlFor="serviceLocationId">Service Location</Label>
               {!customerId ? (
-                <select
-                  disabled
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm opacity-50"
-                >
-                  <option>Select a customer first…</option>
-                </select>
+                <Select name="serviceLocationId" disabled>
+                  <SelectTrigger className="w-full opacity-50">
+                    <SelectValue placeholder="Select a customer first…" />
+                  </SelectTrigger>
+                </Select>
               ) : (
                 <>
-                  <select
-                    id="serviceLocationId"
+                  <Select
                     name="serviceLocationId"
                     value={
                       locationMode === 'new'
                         ? '__new__'
                         : (locationId ?? '')
                     }
-                    onChange={(e) => {
-                      const val = e.target.value
+                    onValueChange={(val) => {
+                      const v = val ?? ''
                       setLocationError(null)
-                      if (val === '__new__') {
+                      if (v === '__new__') {
                         setLocationMode('new')
                         setLocationId(undefined)
                         setNewLocationAddr({})
                         setLocationEditName('')
                         setLocationGated(false)
-                      } else if (val === '') {
+                      } else if (v === '') {
                         setLocationMode('existing')
                         setLocationId(undefined)
                         setNewLocationAddr({})
@@ -1079,30 +1090,34 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                         setLocationGated(false)
                       } else {
                         setLocationMode('existing')
-                        setLocationId(val)
+                        setLocationId(v)
                       }
                     }}
-                    className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                   >
-                    <option value="">Select location…</option>
-                    {locations.map((l) => {
-                      const cityStateZip = [l.city, l.state, l.postalCode].filter(Boolean).join(', ')
-                      const addrFull = l.addressLine1
-                        ? `${l.addressLine1}${cityStateZip ? `, ${cityStateZip}` : ''}`
-                        : cityStateZip
-                      const hasName = !isRedundantLocationName(l.name, l.addressLine1, l.city)
-                      const label = hasName
-                        ? (addrFull ? `${l.name} — ${addrFull}` : l.name)
-                        : addrFull
-                      const isPrimary = l.id === primaryLocationId
-                      return (
-                        <option key={l.id} value={l.id}>
-                          {label || 'Location'}{isPrimary ? ' (Primary)' : ''}
-                        </option>
-                      )
-                    })}
-                    <option value="__new__">+ Create new location…</option>
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select location…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select location…</SelectItem>
+                      {locations.map((l) => {
+                        const cityStateZip = [l.city, l.state, l.postalCode].filter(Boolean).join(', ')
+                        const addrFull = l.addressLine1
+                          ? `${l.addressLine1}${cityStateZip ? `, ${cityStateZip}` : ''}`
+                          : cityStateZip
+                        const hasName = !isRedundantLocationName(l.name, l.addressLine1, l.city)
+                        const label = hasName
+                          ? (addrFull ? `${l.name} — ${addrFull}` : l.name)
+                          : addrFull
+                        const isPrimary = l.id === primaryLocationId
+                        return (
+                          <SelectItem key={l.id} value={l.id}>
+                            {label || 'Location'}{isPrimary ? ' (Primary)' : ''}
+                          </SelectItem>
+                        )
+                      })}
+                      <SelectItem value="__new__">+ Create new location…</SelectItem>
+                    </SelectContent>
+                  </Select>
 
                   {/* Summary card when an existing location is selected */}
                   {locationMode === 'existing' && locationId && (
@@ -1186,14 +1201,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           />
                         </div>
                         <div className="flex items-center gap-1.5 pt-5">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             id="newLocationGated"
                             name="newLocationGated"
-                            value="true"
                             checked={locationGated}
-                            onChange={(e) => setLocationGated(e.target.checked)}
-                            className="rounded"
+                            onCheckedChange={(c) => setLocationGated(c === true)}
                           />
                           <Label htmlFor="newLocationGated" className="cursor-pointer text-sm">
                             Gated Property
@@ -1319,26 +1331,27 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="categoryId">Job Category</Label>
-              <select
-                id="categoryId"
-                name="categoryId"
-                defaultValue={initial?.categoryId ?? ''}
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              >
-                <option value="">Select category…</option>
-                {topCategories.map((parent) => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    <option value={parent.id}>{parent.name}</option>
-                    {childCategories
-                      .filter((c) => c.parentId === parent.id)
-                      .map((child) => (
-                        <option key={child.id} value={child.id}>
-                          &nbsp;&nbsp;{child.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
+              <Select name="categoryId" defaultValue={initial?.categoryId ?? ''}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select category…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Select category…</SelectItem>
+                  {topCategories.map((parent) => (
+                    <SelectGroup key={parent.id}>
+                      <SelectLabel>{parent.name}</SelectLabel>
+                      <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                      {childCategories
+                        .filter((c) => c.parentId === parent.id)
+                        .map((child) => (
+                          <SelectItem key={child.id} value={child.id}>
+                            &nbsp;&nbsp;{child.name}
+                          </SelectItem>
+                        ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1364,19 +1377,19 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="jobSourceId">Job Source</Label>
-              <select
-                id="jobSourceId"
-                name="jobSourceId"
-                defaultValue={initial?.jobSourceId ?? ''}
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              >
-                <option value="">Select source…</option>
-                {referenceData.jobSources.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              <Select name="jobSourceId" defaultValue={initial?.jobSourceId ?? ''}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select source…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Select source…</SelectItem>
+                  {referenceData.jobSources.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1406,22 +1419,23 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label>Status</Label>
               {mode === 'create' ? (
-                <select
-                  name="status"
-                  defaultValue="unscheduled"
-                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                >
-                  <option value="unscheduled">Unscheduled</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="dispatched">Dispatched</option>
-                  <option value="on_the_way">On The Way</option>
-                  <option value="on_site">On Site</option>
-                  <option value="started">Started</option>
-                  <option value="paused">Paused</option>
-                  <option value="partially_completed">Partially Completed</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                <Select name="status" defaultValue="unscheduled">
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unscheduled">Unscheduled</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="dispatched">Dispatched</SelectItem>
+                    <SelectItem value="on_the_way">On The Way</SelectItem>
+                    <SelectItem value="on_site">On Site</SelectItem>
+                    <SelectItem value="started">Started</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="partially_completed">Partially Completed</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
               ) : initial?.id ? (
                 <StatusDropdown
                   jobId={initial.id}
@@ -1518,18 +1532,17 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
-              <select
-                id="priority"
-                name="priority"
-                defaultValue={initial?.priority ?? 'normal'}
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              >
-                <option value="">Select priority…</option>
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="emergency">Emergency</option>
-              </select>
+              <Select name="priority" defaultValue={initial?.priority ?? 'normal'}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select priority…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="emergency">Emergency</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1580,16 +1593,16 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="billingType">Billing Type</Label>
-              <select
-                id="billingType"
-                name="billingType"
-                defaultValue={initial?.billingType ?? 'single_invoice'}
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              >
-                <option value="single_invoice">Single Invoice</option>
-                <option value="progress_billing">Progress Billing</option>
-                <option value="no_charge">No Charge</option>
-              </select>
+              <Select name="billingType" defaultValue={initial?.billingType ?? 'single_invoice'}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select billing type…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single_invoice">Single Invoice</SelectItem>
+                  <SelectItem value="progress_billing">Progress Billing</SelectItem>
+                  <SelectItem value="no_charge">No Charge</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <input
@@ -1612,20 +1625,19 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
               <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
                 <div className="space-y-2">
                   <Label htmlFor="repeatFrequency">Frequency</Label>
-                  <select
-                    id="repeatFrequency"
-                    name="repeatFrequency"
-                    defaultValue={initial?.repeatFrequency ?? ''}
-                    className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-                  >
-                    <option value="">Select frequency…</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="biweekly">Bi-weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
-                  </select>
+                  <Select name="repeatFrequency" defaultValue={initial?.repeatFrequency ?? ''}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select frequency…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="repeatEndDate">End Date</Label>
@@ -1650,16 +1662,20 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
               <Label className="shrink-0 text-sm font-medium">Apply Template</Label>
               {templates.length > 0 ? (
                 <>
-                  <select
+                  <Select
                     value={selectedTemplateId}
-                    onChange={(e) => { setSelectedTemplateId(e.target.value); setTemplateError(null) }}
-                    className="h-9 flex-1 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                    onValueChange={(val) => { setSelectedTemplateId(val ?? ''); setTemplateError(null) }}
                   >
-                    <option value="">Select a template…</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-9 flex-1">
+                      <SelectValue placeholder="Select a template…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select a template…</SelectItem>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     type="button"
                     variant="outline"

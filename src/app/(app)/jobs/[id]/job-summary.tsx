@@ -268,7 +268,7 @@ export function JobSummary({
                 Status
               </div>
               <Badge
-                variant={statusBadgeVariant(job.status) as any}
+                variant={statusBadgeVariant(job.status)}
                 className="mt-1"
               >
                 {statusLabel(job.status)}

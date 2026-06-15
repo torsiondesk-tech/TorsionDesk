@@ -440,9 +440,9 @@ export async function createContact(
           tenantId: orgId,
           contactId: contact.id,
           number: p.number,
-          type: p.type,
+          type: p.type as 'cell' | 'home' | 'work',
           isPrimary: p.isPrimary,
-        })) as any,
+        })),
       )
     }
 
@@ -452,9 +452,9 @@ export async function createContact(
           tenantId: orgId,
           contactId: contact.id,
           address: e.address,
-          type: e.type,
+          type: e.type as 'work' | 'personal',
           isPrimary: e.isPrimary,
-        })) as any,
+        })),
       )
     }
 

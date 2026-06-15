@@ -160,7 +160,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
         <h1 className="text-3xl font-semibold tracking-tight">
           #{`JOB-${job.jobNo}`}
         </h1>
-        <Badge variant={statusBadgeVariant(job.status) as any}>
+        <Badge variant={statusBadgeVariant(job.status)}>
           {statusLabel(job.status)}
         </Badge>
         <span className="text-sm text-muted-foreground">{job.customerName}</span>

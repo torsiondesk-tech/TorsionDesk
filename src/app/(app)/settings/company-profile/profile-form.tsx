@@ -148,6 +148,7 @@ export function CompanyProfileForm({ initial }: { initial: Initial }) {
             <div className="flex items-center gap-5">
               <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
                 {preview ? (
+                  // preview is a blob: URL from the file input — next/image does not support blob URLs
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={preview}

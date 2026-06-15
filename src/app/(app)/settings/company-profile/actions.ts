@@ -92,15 +92,15 @@ export async function uploadCompanyLogo(
   // so read the current profile to satisfy the name/phone requirement.
   const path = await uploadLogo(orgId, file)
 
-  const current = (await getProfile()) ?? {}
-  const companyName = (current.companyName as string) || 'Company'
-  const phone = (current.phone as string) || ''
+  const current = await getProfile()
+  const companyName = current?.companyName ?? 'Company'
+  const phone = current?.phone ?? ''
 
   await saveProfile({
     companyName,
     phone,
-    address: (current.address as string) || undefined,
-    email: (current.email as string) || undefined,
+    address: current?.address ?? undefined,
+    email: current?.email ?? undefined,
     logoUrl: path,
   })
 

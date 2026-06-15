@@ -23,37 +23,37 @@ export default async function CustomerDetailPage({
 
   const { id } = await params
 
+  // Stage 1: customer is needed before everything else to check existence
+  // and to know whether a parent customer fetch is needed.
+  const customerWithContacts = await getCustomerWithContacts(orgId, id)
+  if (!customerWithContacts) notFound()
+
+  // Stage 2: all remaining fetches in parallel, including conditional parent lookup.
   const [
-    customerWithContacts,
     locationsWithEquipment,
     events,
     tagNames,
     availableTags,
     referralOptions,
     customerJobs,
+    parent,
   ] = await Promise.all([
-    getCustomerWithContacts(orgId, id),
     getCustomerWithLocationsAndEquipment(orgId, id),
     getCustomerEvents(orgId, id),
     getCustomerTagNames(orgId, id),
     listTags(orgId),
     listReferralSources(orgId),
     listJobs(orgId, { customerId: id, pageSize: 100 }),
+    customerWithContacts.parentCustomerId
+      ? getCustomerById(orgId, customerWithContacts.parentCustomerId)
+      : Promise.resolve(null),
   ])
-
-  if (!customerWithContacts) notFound()
 
   const customer = customerWithContacts
   const contacts = customerWithContacts.contactList
   const locations = locationsWithEquipment?.locations ?? []
   const primaryLocationId = locationsWithEquipment?.primaryLocationId ?? null
-
-  // Fetch parent customer name if needed
-  let parentCustomerLabel: string | undefined
-  if (customer.parentCustomerId) {
-    const parent = await getCustomerById(orgId, customer.parentCustomerId)
-    parentCustomerLabel = parent?.name
-  }
+  const parentCustomerLabel = parent?.name ?? undefined
 
   return (
     <CustomerDetailForm

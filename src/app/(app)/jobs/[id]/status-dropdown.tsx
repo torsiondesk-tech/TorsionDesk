@@ -16,31 +16,14 @@ import { transitionJobStatusAction, type JobActionState } from '../actions'
 import {
   ALLOWED_TRANSITIONS,
   STATUS_GROUPS,
+  statusBadgeVariant,
+  statusLabel,
   type JobStatusValue,
 } from '@/lib/jobs/transitions'
 
 interface StatusDropdownProps {
   jobId: string
   currentStatus: string
-}
-
-function statusBadgeVariant(status: string) {
-  const open = STATUS_GROUPS.open as readonly string[]
-  const inProgress = STATUS_GROUPS.in_progress as readonly string[]
-  const closed = STATUS_GROUPS.closed as readonly string[]
-
-  if (status === 'cancelled') return 'destructive'
-  if (open.includes(status)) return 'outline'
-  if (inProgress.includes(status)) return 'default'
-  if (closed.includes(status)) return 'secondary'
-  return 'outline'
-}
-
-function statusLabel(status: string) {
-  return status
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
 }
 
 export function StatusDropdown({ jobId, currentStatus }: StatusDropdownProps) {
@@ -80,7 +63,7 @@ export function StatusDropdown({ jobId, currentStatus }: StatusDropdownProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <Badge variant={statusBadgeVariant(currentStatus) as any}>
+        <Badge variant={statusBadgeVariant(currentStatus)}>
           {statusLabel(currentStatus)}
         </Badge>
       </div>

@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
-import { tenants } from '@/db/schema'
+import { tenants, type Tenant } from '@/db/schema'
 
 /**
  * Business profile (TENANT-02, D-11/D-12).
@@ -37,7 +37,7 @@ export type ProfileInput = z.infer<typeof profileSchema>
  */
 type ProfileTx = {
   saveFor?: (data: Record<string, unknown>) => void
-  readFor?: () => Record<string, unknown> | null
+  readFor?: () => Tenant | null
   update?: (table: typeof tenants) => {
     set: (data: Record<string, unknown>) => {
       where: (cond: unknown) => Promise<unknown>
@@ -45,7 +45,7 @@ type ProfileTx = {
   }
   select?: () => {
     from: (table: typeof tenants) => {
-      where: (cond: unknown) => Promise<Array<Record<string, unknown>>>
+      where: (cond: unknown) => Promise<Array<Tenant>>
     }
   }
 }
@@ -74,7 +74,7 @@ export async function saveProfile(input: ProfileInput): Promise<void> {
 }
 
 /** Read the business profile for the active tenant. */
-export async function getProfile(): Promise<Record<string, unknown> | null> {
+export async function getProfile(): Promise<Tenant | null> {
   const orgId = await activeOrgId()
 
   return withTenant(orgId, async (tx) => {

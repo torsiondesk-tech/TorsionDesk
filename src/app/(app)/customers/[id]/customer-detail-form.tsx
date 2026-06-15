@@ -18,6 +18,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatPhone } from '@/lib/utils'
 import {
   Card,
@@ -711,22 +718,26 @@ export function CustomerDetailForm({
                                 }
                                 className="max-w-[200px]"
                               />
-                              <select
-                                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                              <Select
                                 value={phone.type}
-                                onChange={(e) =>
+                                onValueChange={(val) =>
                                   updateContactPhone(
                                     ci,
                                     pi,
                                     'type',
-                                    e.target.value,
+                                    val ?? '',
                                   )
                                 }
                               >
-                                <option value="cell">Cell</option>
-                                <option value="home">Home</option>
-                                <option value="work">Work</option>
-                              </select>
+                                <SelectTrigger className="h-9 w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="cell">Cell</SelectItem>
+                                  <SelectItem value="home">Home</SelectItem>
+                                  <SelectItem value="work">Work</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <div className="flex items-center gap-1.5">
                                 <Checkbox
                                   id={`phone-primary-${ci}-${pi}`}
@@ -793,21 +804,25 @@ export function CustomerDetailForm({
                                 }
                                 className="max-w-[280px]"
                               />
-                              <select
-                                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                              <Select
                                 value={email.type}
-                                onChange={(e) =>
+                                onValueChange={(val) =>
                                   updateContactEmail(
                                     ci,
                                     ei,
                                     'type',
-                                    e.target.value,
+                                    val ?? '',
                                   )
                                 }
                               >
-                                <option value="work">Work</option>
-                                <option value="personal">Personal</option>
-                              </select>
+                                <SelectTrigger className="h-9 w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="work">Work</SelectItem>
+                                  <SelectItem value="personal">Personal</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <div className="flex items-center gap-1.5">
                                 <Checkbox
                                   id={`email-primary-${ci}-${ei}`}

@@ -1352,7 +1352,6 @@ export async function deleteJobPhotoAction(
 
 export async function applyTemplateAction(
   templateId: string,
-  clientOrgId?: string,
 ): Promise<{
   error?: string
   lineItems?: Array<{
@@ -1367,8 +1366,7 @@ export async function applyTemplateAction(
   }>
   tasks?: Array<{ label: string }>
 }> {
-  const { userId, orgId: authOrgId } = await auth()
-  const orgId = authOrgId ?? clientOrgId ?? null
+  const { userId, orgId } = await auth()
 
   if (!userId) {
     return { error: 'Not authenticated. Please sign in.' }
@@ -1427,9 +1425,6 @@ const siteVisitStatusSchema = z.enum([
   'resumed',
   'partially_completed',
   'completed',
-  'invoiced',
-  'paid_in_full',
-  'job_closed',
 ])
 
 export async function addSiteVisit(
@@ -1452,7 +1447,7 @@ export async function addSiteVisit(
       await tx.insert(jobSiteVisits).values({
         tenantId: orgId,
         jobId,
-        status: status?.success ? (status.data as any) : null,
+        status: status?.success ? status.data : null,
         visitDate: input.visitDate ? new Date(input.visitDate) : null,
         arrivalWindowStart: combineDateTime(input.visitDate, input.arrivalWindowStart),
         arrivalWindowEnd: combineDateTime(input.visitDate, input.arrivalWindowEnd),
@@ -1488,7 +1483,7 @@ export async function updateSiteVisit(
       await tx
         .update(jobSiteVisits)
         .set({
-          status: status?.success ? (status.data as any) : undefined,
+          status: status?.success ? status.data : undefined,
           visitDate: input.visitDate !== undefined
             ? input.visitDate
               ? new Date(input.visitDate)

@@ -276,7 +276,7 @@ export async function createCustomer(
               number: ic.phone.trim(),
               type: 'cell',
               isPrimary: true,
-            } as any)
+            })
           }
           if (ic.email.trim()) {
             await tx.insert(contactEmails).values({
@@ -285,7 +285,7 @@ export async function createCustomer(
               address: ic.email.trim(),
               type: 'work',
               isPrimary: true,
-            } as any)
+            })
           }
         }
 
@@ -547,9 +547,9 @@ export async function updateCustomerDetail(
               tenantId: orgId,
               contactId: cid,
               number: p.number,
-              type: p.type,
+              type: p.type as 'cell' | 'home' | 'work',
               isPrimary: p.isPrimary,
-            })) as any,
+            })),
           )
         }
 
@@ -562,9 +562,9 @@ export async function updateCustomerDetail(
               tenantId: orgId,
               contactId: cid,
               address: e.address,
-              type: e.type,
+              type: e.type as 'work' | 'personal',
               isPrimary: e.isPrimary,
-            })) as any,
+            })),
           )
         }
       } else {
@@ -590,9 +590,9 @@ export async function updateCustomerDetail(
               tenantId: orgId,
               contactId: newContact.id,
               number: p.number,
-              type: p.type,
+              type: p.type as 'cell' | 'home' | 'work',
               isPrimary: p.isPrimary,
-            })) as any,
+            })),
           )
         }
         if (contact.emails.length > 0) {
@@ -601,9 +601,9 @@ export async function updateCustomerDetail(
               tenantId: orgId,
               contactId: newContact.id,
               address: e.address,
-              type: e.type,
+              type: e.type as 'work' | 'personal',
               isPrimary: e.isPrimary,
-            })) as any,
+            })),
           )
         }
       }

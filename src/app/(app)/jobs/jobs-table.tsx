@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { JobRow } from '@/lib/jobs/jobs'
-import { STATUS_GROUPS } from '@/lib/jobs/transitions'
+import { STATUS_GROUPS, statusBadgeVariant, statusLabel } from '@/lib/jobs/transitions'
 import { cn } from '@/lib/utils'
 
 interface JobsTableProps {
@@ -28,25 +28,6 @@ interface JobsTableProps {
   pageCount: number
   page: number
   pageSize: number
-}
-
-function statusBadgeVariant(status: string) {
-  const open = STATUS_GROUPS.open as readonly string[]
-  const inProgress = STATUS_GROUPS.in_progress as readonly string[]
-  const closed = STATUS_GROUPS.closed as readonly string[]
-
-  if (status === 'cancelled') return 'destructive'
-  if (open.includes(status)) return 'outline'
-  if (inProgress.includes(status)) return 'default'
-  if (closed.includes(status)) return 'secondary'
-  return 'outline'
-}
-
-function statusLabel(status: string) {
-  return status
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
 }
 
 function priorityLabel(priority: string | null) {
@@ -104,7 +85,7 @@ const columns: ColumnDef<JobRow>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => (
-      <Badge variant={statusBadgeVariant(row.original.status) as any}>
+      <Badge variant={statusBadgeVariant(row.original.status)}>
         {statusLabel(row.original.status)}
       </Badge>
     ),

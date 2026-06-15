@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -290,6 +291,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
     if (!addTitle.trim()) return
 
     const newItem: JobFormLineItem = {
+      id: crypto.randomUUID(),
       type: dialogTab === 'discount' ? 'discount' : dialogTab,
       refId: selectedRefId,
       title: addTitle.trim() || null,
@@ -611,7 +613,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
     }
 
     return (
-      <tr key={item.id ?? `${item.description}-${Math.random()}`} className="border-b">
+      <tr key={item.id} className="border-b">
         <td className="px-3 py-2 text-sm">
           <div className="flex flex-col">
             {item.title ? (
@@ -832,7 +834,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
             </>
           )}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger render={<Button size="sm">Add Line Item</Button>}>
+            <DialogTrigger render={<Button size="sm"><Plus className="size-4 mr-1" />Add Line Item</Button>}>
               Add Line Item
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">

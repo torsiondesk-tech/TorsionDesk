@@ -80,7 +80,7 @@ export async function dispatchSideEffects(
   await onTransition(from, to, jobId)
 }
 
-export function statusBadgeVariant(status: string) {
+export function statusBadgeVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   const open = STATUS_GROUPS.open as readonly string[]
   const inProgress = STATUS_GROUPS.in_progress as readonly string[]
   const closed = STATUS_GROUPS.closed as readonly string[]

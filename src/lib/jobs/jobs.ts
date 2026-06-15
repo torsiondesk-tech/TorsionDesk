@@ -17,12 +17,12 @@ import {
   serviceLocations,
   jobCategories,
 } from '@/db/schema'
-import { STATUS_GROUPS } from './transitions'
+import { STATUS_GROUPS, type JobStatusValue } from './transitions'
 
 export interface ListOpts {
   page?: number
   pageSize?: number
-  status?: string
+  status?: JobStatusValue
   statusGroup?: 'open' | 'in_progress' | 'closed'
   customerId?: string
   q?: string
@@ -96,7 +96,7 @@ export async function listJobs(
         conditions.push(inArray(jobs.status, groupStatuses))
       }
     } else if (opts.status) {
-      conditions.push(eq(jobs.status, opts.status as any))
+      conditions.push(eq(jobs.status, opts.status))
     }
 
     if (opts.customerId) {

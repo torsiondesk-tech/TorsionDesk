@@ -10,16 +10,16 @@ import { CompanyProfileForm } from './profile-form'
  * (save profile + upload logo).
  */
 export default async function CompanyProfilePage() {
-  const profile = (await getProfile()) ?? {}
+  const profile = await getProfile()
 
   return (
     <CompanyProfileForm
       initial={{
-        companyName: (profile.companyName as string) ?? '',
-        phone: (profile.phone as string) ?? '',
-        address: (profile.address as string) ?? '',
-        email: (profile.email as string) ?? '',
-        logoUrl: (profile.logoUrl as string) ?? '',
+        companyName: profile?.companyName ?? '',
+        phone: profile?.phone ?? '',
+        address: profile?.address ?? '',
+        email: profile?.email ?? '',
+        logoUrl: profile?.logoUrl ?? '',
       }}
     />
   )
