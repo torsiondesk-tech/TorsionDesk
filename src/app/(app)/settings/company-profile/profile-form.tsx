@@ -17,6 +17,7 @@ import {
   type ProfileActionState,
   type LogoActionState,
 } from './actions'
+import { formatPhone } from '@/lib/utils'
 
 /**
  * Company Profile form (TENANT-02, D-11/D-12).
@@ -96,7 +97,7 @@ export function CompanyProfileForm({ initial }: { initial: Initial }) {
                   id="phone"
                   name="phone"
                   type="tel"
-                  defaultValue={initial.phone}
+                  defaultValue={formatPhone(initial.phone)}
                   placeholder="(555) 123-4567"
                   autoComplete="tel"
                   required

@@ -37,22 +37,16 @@ interface SiteVisitsProps {
 
 function toDateInputValue(d: Date | string | null): string {
   if (!d) return ''
-  const date = new Date(d)
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  const iso = typeof d === 'string' ? d : d.toISOString()
+  return iso.slice(0, 10)
 }
 
-function toDateTimeLocalValue(d: Date | string | null): string {
+function toTimeInputValue(d: Date | string | null): string {
   if (!d) return ''
   const date = new Date(d)
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
   const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `${y}-${m}-${day}T${h}:${min}`
+  const m = String(date.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
 }
 
 const ALL_STATUSES = [
@@ -69,6 +63,21 @@ export function SiteVisits({ jobId, visits: initialVisits }: SiteVisitsProps) {
   const [deleting, setDeleting] = useState<SiteVisit | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Inline form state
+  const [addDate, setAddDate] = useState('')
+  const [addStart, setAddStart] = useState('')
+  const [addEnd, setAddEnd] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editStart, setEditStart] = useState('')
+  const [editEnd, setEditEnd] = useState('')
+
+  const addTimeError = addStart && addEnd && addEnd <= addStart
+    ? 'End time must be later than start time.'
+    : null
+  const editTimeError = editStart && editEnd && editEnd <= editStart
+    ? 'End time must be later than start time.'
+    : null
+
   // Sync from props
   if (
     initialVisits.length !== visits.length ||
@@ -77,9 +86,31 @@ export function SiteVisits({ jobId, visits: initialVisits }: SiteVisitsProps) {
     setVisits(initialVisits)
   }
 
+  const resetAdd = useCallback(() => {
+    setIsAdding(false)
+    setAddDate('')
+    setAddStart('')
+    setAddEnd('')
+  }, [])
+
+  const startEditing = useCallback((visit: SiteVisit) => {
+    setEditing(visit)
+    setEditDate(toDateInputValue(visit.visitDate))
+    setEditStart(toTimeInputValue(visit.arrivalWindowStart))
+    setEditEnd(toTimeInputValue(visit.arrivalWindowEnd))
+  }, [])
+
+  const resetEdit = useCallback(() => {
+    setEditing(null)
+    setEditDate('')
+    setEditStart('')
+    setEditEnd('')
+  }, [])
+
   const handleAdd = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
+      if (addTimeError) return
       setSaving(true)
       const fd = new FormData(e.currentTarget)
       const result = await addSiteVisit(jobId, {
@@ -91,17 +122,17 @@ export function SiteVisits({ jobId, visits: initialVisits }: SiteVisitsProps) {
       })
       setSaving(false)
       if (result.success) {
-        setIsAdding(false)
+        resetAdd()
         router.refresh()
       }
     },
-    [jobId, router],
+    [jobId, router, addTimeError, resetAdd],
   )
 
   const handleUpdate = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-      if (!editing) return
+      if (!editing || editTimeError) return
       setSaving(true)
       const fd = new FormData(e.currentTarget)
       const result = await updateSiteVisit(editing.id, jobId, {
@@ -113,11 +144,11 @@ export function SiteVisits({ jobId, visits: initialVisits }: SiteVisitsProps) {
       })
       setSaving(false)
       if (result.success) {
-        setEditing(null)
+        resetEdit()
         router.refresh()
       }
     },
-    [editing, jobId, router],
+    [editing, jobId, router, editTimeError, resetEdit],
   )
 
   const handleDelete = useCallback(
@@ -140,110 +171,117 @@ export function SiteVisits({ jobId, visits: initialVisits }: SiteVisitsProps) {
         </Button>
       </div>
 
-      {visits.length === 0 ? (
+      {/* Inline Add Form */}
+      {isAdding && (
+        <form onSubmit={handleAdd} className="space-y-3 rounded-lg border bg-card p-4">
+          <VisitFormFields
+            date={addDate}
+            start={addStart}
+            end={addEnd}
+            onDateChange={setAddDate}
+            onStartChange={setAddStart}
+            onEndChange={setAddEnd}
+            timeError={addTimeError}
+          />
+          <div className="flex items-center gap-2 pt-1">
+            <Button type="submit" size="sm" disabled={saving || !!addTimeError}>
+              <Check className="mr-1 size-3.5" />
+              {saving ? 'Saving…' : 'Add Visit'}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={resetAdd}>
+              <X className="mr-1 size-3.5" /> Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {visits.length === 0 && !isAdding ? (
         <p className="text-sm text-muted-foreground">No additional site visits.</p>
       ) : (
         <div className="space-y-2">
-          {visits.map((visit) => (
-            <div
-              key={visit.id}
-              className="flex items-start justify-between rounded-lg border bg-card p-3"
-            >
-              <div className="space-y-1 text-sm">
-                <div className="flex items-center gap-2">
-                  {visit.status ? (
-                    <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                      {visit.status
-                        .split('_')
-                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                        .join(' ')}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No status</span>
+          {visits.map((visit) =>
+            editing?.id === visit.id ? (
+              <form
+                key={visit.id}
+                onSubmit={handleUpdate}
+                className="space-y-3 rounded-lg border bg-card p-4"
+              >
+                <VisitFormFields
+                  initial={visit}
+                  date={editDate}
+                  start={editStart}
+                  end={editEnd}
+                  onDateChange={setEditDate}
+                  onStartChange={setEditStart}
+                  onEndChange={setEditEnd}
+                  timeError={editTimeError}
+                />
+                <div className="flex items-center gap-2 pt-1">
+                  <Button type="submit" size="sm" disabled={saving || !!editTimeError}>
+                    <Check className="mr-1 size-3.5" />
+                    {saving ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={resetEdit}>
+                    <X className="mr-1 size-3.5" /> Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div
+                key={visit.id}
+                className="flex items-start justify-between rounded-lg border bg-card p-3"
+              >
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    {visit.status ? (
+                      <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                        {visit.status
+                          .split('_')
+                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(' ')}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No status</span>
+                    )}
+                    {visit.visitDate && (
+                      <span className="text-muted-foreground">
+                        {toDateInputValue(visit.visitDate)}
+                      </span>
+                    )}
+                  </div>
+                  {visit.arrivalWindowStart && (
+                    <div className="text-xs text-muted-foreground">
+                      Window: {toTimeInputValue(visit.arrivalWindowStart)} —{' '}
+                      {toTimeInputValue(visit.arrivalWindowEnd)}
+                    </div>
                   )}
-                  {visit.visitDate && (
-                    <span className="text-muted-foreground">
-                      {toDateInputValue(visit.visitDate)}
-                    </span>
+                  {visit.notes && (
+                    <div className="text-xs text-muted-foreground">{visit.notes}</div>
                   )}
                 </div>
-                {visit.arrivalWindowStart && (
-                  <div className="text-xs text-muted-foreground">
-                    Window: {toDateTimeLocalValue(visit.arrivalWindowStart)} —{' '}
-                    {toDateTimeLocalValue(visit.arrivalWindowEnd)}
-                  </div>
-                )}
-                {visit.notes && (
-                  <div className="text-xs text-muted-foreground">{visit.notes}</div>
-                )}
+                <div className="inline-flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit visit"
+                    onClick={() => startEditing(visit)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Delete visit"
+                    onClick={() => setDeleting(visit)}
+                  >
+                    <Trash2 className="size-3.5 text-destructive" />
+                  </Button>
+                </div>
               </div>
-              <div className="inline-flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Edit visit"
-                  onClick={() => setEditing(visit)}
-                >
-                  <Pencil className="size-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Delete visit"
-                  onClick={() => setDeleting(visit)}
-                >
-                  <Trash2 className="size-3.5 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            ),
+          )}
         </div>
       )}
-
-      {/* Add Dialog */}
-      <Dialog open={isAdding} onOpenChange={setIsAdding}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Site Visit</DialogTitle>
-            <DialogDescription>
-              Schedule an additional site visit with its own status and window.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-3">
-            <VisitFormFields />
-            <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Saving…' : 'Add Visit'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null) }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Site Visit</DialogTitle>
-          </DialogHeader>
-          {editing ? (
-            <form onSubmit={handleUpdate} className="space-y-3">
-              <VisitFormFields initial={editing} />
-              <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button type="button" variant="outline" onClick={() => setEditing(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
-              </DialogFooter>
-            </form>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Dialog */}
       <Dialog open={!!deleting} onOpenChange={(open) => { if (!open) setDeleting(null) }}>
@@ -279,13 +317,31 @@ export function SiteVisits({ jobId, visits: initialVisits }: SiteVisitsProps) {
   )
 }
 
-function VisitFormFields({ initial }: { initial?: SiteVisit }) {
+function VisitFormFields({
+  initial,
+  date,
+  start,
+  end,
+  onDateChange,
+  onStartChange,
+  onEndChange,
+  timeError,
+}: {
+  initial?: SiteVisit
+  date: string
+  start: string
+  end: string
+  onDateChange: (v: string) => void
+  onStartChange: (v: string) => void
+  onEndChange: (v: string) => void
+  timeError: string | null
+}) {
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="visit-status">Status</Label>
+        <Label htmlFor={initial ? 'edit-visit-status' : 'visit-status'}>Status</Label>
         <select
-          id="visit-status"
+          id={initial ? 'edit-visit-status' : 'visit-status'}
           name="status"
           defaultValue={initial?.status ?? ''}
           className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
@@ -316,40 +372,52 @@ function VisitFormFields({ initial }: { initial?: SiteVisit }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="visit-date">Visit Date</Label>
+        <Label htmlFor={initial ? 'edit-visit-date' : 'visit-date'}>Visit Date</Label>
         <Input
-          id="visit-date"
+          id={initial ? 'edit-visit-date' : 'visit-date'}
           name="visitDate"
           type="date"
-          defaultValue={toDateInputValue(initial?.visitDate ?? null)}
+          value={date}
+          onChange={(e) => onDateChange(e.target.value)}
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="visit-window-start">Window Start</Label>
-          <Input
-            id="visit-window-start"
-            name="arrivalWindowStart"
-            type="datetime-local"
-            defaultValue={toDateTimeLocalValue(initial?.arrivalWindowStart ?? null)}
-          />
+      <div className="space-y-2">
+        <Label>Arrival Time Window</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">Start time</span>
+            <Input
+              id={initial ? 'edit-arrivalWindowStart' : 'arrivalWindowStart'}
+              name="arrivalWindowStart"
+              type="time"
+              value={start}
+              onChange={(e) => onStartChange(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">End time</span>
+            <Input
+              id={initial ? 'edit-arrivalWindowEnd' : 'arrivalWindowEnd'}
+              name="arrivalWindowEnd"
+              type="time"
+              value={end}
+              min={start || undefined}
+              onChange={(e) => onEndChange(e.target.value)}
+              aria-invalid={!!timeError}
+              className={timeError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="visit-window-end">Window End</Label>
-          <Input
-            id="visit-window-end"
-            name="arrivalWindowEnd"
-            type="datetime-local"
-            defaultValue={toDateTimeLocalValue(initial?.arrivalWindowEnd ?? null)}
-          />
-        </div>
+        {timeError && (
+          <p className="text-xs text-destructive">{timeError}</p>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="visit-notes">Notes</Label>
+        <Label htmlFor={initial ? 'edit-visit-notes' : 'visit-notes'}>Notes</Label>
         <textarea
-          id="visit-notes"
+          id={initial ? 'edit-visit-notes' : 'visit-notes'}
           name="notes"
           defaultValue={initial?.notes ?? ''}
           placeholder="Optional notes…"

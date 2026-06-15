@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useState, useEffect, useRef, useCallback } from 'react'
+import { useActionState, useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -54,6 +55,8 @@ function LookupSection({
   addButtonLabel: string
   deleteConfirmLabel: string
 }) {
+  const router = useRouter()
+
   const [rows, setRows] = useState<LookupRow[]>(initialRows)
   const [createState, createFormAction, createPending] = useActionState(
     createAction,
@@ -64,43 +67,39 @@ function LookupSection({
     updateInitial,
   )
 
+  // Sync server data into local state
+  useEffect(() => {
+    setRows(initialRows)
+  }, [initialRows])
+
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editing, setEditing] = useState<LookupRow | null>(null)
   const [deleting, setDeleting] = useState<LookupRow | null>(null)
 
-  const createFormRef = useRef<HTMLFormElement>(null)
-  const editFormRef = useRef<HTMLFormElement>(null)
-
+  // Close dialogs and refresh data on success
   useEffect(() => {
-    if (createState.success && createState.id && createFormRef.current) {
-      const fd = new FormData(createFormRef.current)
-      const name = fd.get('name') as string
-      setRows((prev) => [...prev, { id: createState.id!, name }])
+    if (createState.success) {
       setIsAddOpen(false)
-      createFormRef.current.reset()
+      router.refresh()
     }
-  }, [createState])
+  }, [createState, router])
 
   useEffect(() => {
-    if (updateState.success && updateState.id && editing) {
-      const fd = new FormData(editFormRef.current!)
-      const name = fd.get('name') as string
-      setRows((prev) =>
-        prev.map((r) => (r.id === updateState.id ? { ...r, name } : r)),
-      )
+    if (updateState.success) {
       setEditing(null)
+      router.refresh()
     }
-  }, [updateState, editing])
+  }, [updateState, router])
 
   const handleDelete = useCallback(
     async (id: string) => {
       const result = await deleteAction(id)
       if (result.success) {
-        setRows((prev) => prev.filter((r) => r.id !== id))
         setDeleting(null)
+        router.refresh()
       }
     },
-    [deleteAction],
+    [deleteAction, router],
   )
 
   const isEmpty = rows.length === 0
@@ -110,11 +109,9 @@ function LookupSection({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold leading-tight">{title}</h2>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger>
-            <Button variant="outline" size="sm">
-              <Plus className="mr-1 size-4" />
-              {addButtonLabel}
-            </Button>
+          <DialogTrigger render={<Button variant="outline" size="sm" />}>
+            <Plus className="mr-1 size-4" />
+            {addButtonLabel}
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
@@ -123,7 +120,7 @@ function LookupSection({
                 Add a new entry to the {title.toLowerCase()} list.
               </DialogDescription>
             </DialogHeader>
-            <form ref={createFormRef} action={createFormAction} className="space-y-4">
+            <form action={createFormAction} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor={`add-${title}`}>Name</Label>
                 <Input
@@ -212,7 +209,7 @@ function LookupSection({
             <DialogDescription>Update the name of this entry.</DialogDescription>
           </DialogHeader>
           {editing ? (
-            <form ref={editFormRef} action={updateFormAction} className="space-y-4">
+            <form action={updateFormAction} className="space-y-4">
               <input type="hidden" name="id" value={editing.id} />
               <div className="space-y-2">
                 <Label htmlFor={`edit-${title}`}>Name</Label>

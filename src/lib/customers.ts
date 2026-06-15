@@ -376,7 +376,8 @@ export async function getEquipmentByServiceLocation(
 
 export interface CreateContactInput {
   customerId: string
-  name: string
+  firstName: string
+  lastName?: string | null
   smsConsent?: boolean
   billingContact?: boolean
   bookingContact?: boolean
@@ -389,7 +390,7 @@ export interface CreateContactInput {
 
 export interface CreateLocationInput {
   customerId: string
-  name: string
+  name?: string | null
   addressLine1?: string
   addressLine2?: string
   city?: string
@@ -397,6 +398,8 @@ export interface CreateLocationInput {
   postalCode?: string
   country?: string
   gated?: boolean
+  latitude?: string
+  longitude?: string
 }
 
 /** Create a contact with phones and emails (called from tests and actions). */
@@ -420,7 +423,8 @@ export async function createContact(
       .values({
         tenantId: orgId,
         customerId: data.customerId,
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName ?? null,
         smsConsent: data.smsConsent ?? false,
         billingContact: data.billingContact ?? false,
         bookingContact: data.bookingContact ?? false,
@@ -487,8 +491,59 @@ export async function createLocation(
         postalCode: data.postalCode,
         country: data.country ?? 'USA',
         gated: data.gated ?? false,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
       })
       .returning({ id: serviceLocations.id })
+
+    // If this is the customer's first location, make it primary
+    const existingCount = await tx
+      .select({ c: count() })
+      .from(serviceLocations)
+      .where(
+        and(
+          eq(serviceLocations.tenantId, orgId),
+          eq(serviceLocations.customerId, data.customerId),
+        ),
+      )
+    if ((existingCount[0]?.c ?? 0) <= 1) {
+      await tx
+        .update(customers)
+        .set({ primaryLocationId: row.id, updatedAt: new Date() })
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, data.customerId)))
+    }
+
     return { id: row.id }
+  })
+}
+
+/** Set a customer's primary location. Verifies the location belongs to the customer. */
+export async function setPrimaryLocation(
+  orgId: string,
+  customerId: string,
+  locationId: string | null,
+): Promise<void> {
+  return withTenant(orgId, async (tx) => {
+    if (locationId) {
+      // Verify the location belongs to this customer (not just tenant)
+      const loc = await tx
+        .select({ customerId: serviceLocations.customerId })
+        .from(serviceLocations)
+        .where(
+          and(
+            eq(serviceLocations.tenantId, orgId),
+            eq(serviceLocations.id, locationId),
+          ),
+        )
+        .limit(1)
+      if (loc.length === 0 || loc[0].customerId !== customerId) {
+        throw new Error('Invalid location: does not belong to this customer')
+      }
+    }
+
+    await tx
+      .update(customers)
+      .set({ primaryLocationId: locationId, updatedAt: new Date() })
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
   })
 }

@@ -23,9 +23,9 @@ export default async function AppLayout({
   const { orgRole } = await auth()
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar role={orgRole ?? ''} />
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
           <div />
           <CreateNewButton />

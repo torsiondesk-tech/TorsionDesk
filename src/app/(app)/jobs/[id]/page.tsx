@@ -11,8 +11,7 @@ import {
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
 import { JobForm, type JobFormData } from './job-form'
-import { SiteVisits } from './site-visits'
-import { JobTasks } from './job-tasks'
+import { JobDetailShell } from './job-detail-shell'
 import { EquipmentTab } from './tabs/equipment-tab'
 import { PicsTab } from './tabs/pics-tab'
 import {
@@ -22,38 +21,20 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { STATUS_GROUPS } from '@/lib/jobs/transitions'
+import {
+  statusBadgeVariant,
+  statusLabel,
+} from '@/lib/jobs/transitions'
 
 interface JobDetailPageProps {
   params: Promise<{ id: string }>
 }
 
-function statusBadgeVariant(status: string) {
-  const open = STATUS_GROUPS.open as readonly string[]
-  const inProgress = STATUS_GROUPS.in_progress as readonly string[]
-  const closed = STATUS_GROUPS.closed as readonly string[]
-
-  if (status === 'cancelled') return 'destructive'
-  if (open.includes(status)) return 'outline'
-  if (inProgress.includes(status)) return 'default'
-  if (closed.includes(status)) return 'secondary'
-  return 'outline'
-}
-
-function statusLabel(status: string) {
-  return status
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
-}
-
 function toDateInputValue(d: Date | string | null): string | null {
   if (!d) return null
-  const date = new Date(d)
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  // Use ISO string to avoid timezone off-by-one (Pitfall: getDate() is local).
+  const iso = typeof d === 'string' ? d : d.toISOString()
+  return iso.slice(0, 10)
 }
 
 function toDateTimeLocalValue(d: Date | string | null): string | null {
@@ -65,6 +46,15 @@ function toDateTimeLocalValue(d: Date | string | null): string | null {
   const h = String(date.getHours()).padStart(2, '0')
   const min = String(date.getMinutes()).padStart(2, '0')
   return `${y}-${m}-${day}T${h}:${min}`
+}
+
+/** Extract HH:MM for a `type="time"` input from a full Date/string. */
+function toTimeInputValue(d: Date | string | null): string | null {
+  if (!d) return null
+  const date = new Date(d)
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  return `${h}:${min}`
 }
 
 function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData {
@@ -86,8 +76,8 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
     priority: job.priority,
     startDate: toDateInputValue(job.startDate),
     endDate: toDateInputValue(job.endDate),
-    arrivalWindowStart: toDateTimeLocalValue(job.arrivalWindowStart),
-    arrivalWindowEnd: toDateTimeLocalValue(job.arrivalWindowEnd),
+    arrivalWindowStart: toTimeInputValue(job.arrivalWindowStart),
+    arrivalWindowEnd: toTimeInputValue(job.arrivalWindowEnd),
     estimatedDuration: job.estimatedDuration,
     multiDay: job.multiDay ?? false,
     requiresFollowUp: job.requiresFollowUp ?? false,
@@ -102,12 +92,36 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
       id: li.id,
       type: (li.type ?? 'product') as 'product' | 'service' | 'discount' | 'expense',
       refId: li.refId,
+      title: li.title ?? null,
       description: li.description ?? '',
       qty: String(li.qty ?? '1'),
       rate: String(li.rate ?? '0'),
       cost: String(li.cost ?? '0'),
       taxItemId: li.taxItemId,
     })),
+    contact: job.contact
+      ? {
+          id: job.contact.id,
+          firstName: job.contact.firstName,
+          lastName: job.contact.lastName ?? '',
+          jobTitle: '',
+          phones: job.contact.phones.map((p) => ({
+            id: p.id,
+            number: p.number,
+            type: p.type,
+            isPrimary: p.isPrimary ?? false,
+          })),
+          emails: job.contact.emails.map((e) => ({
+            id: e.id,
+            address: e.address,
+            type: e.type,
+            isPrimary: e.isPrimary ?? false,
+          })),
+          smsConsent: false,
+          billingContact: false,
+          bookingContact: false,
+        }
+      : undefined,
   }
 }
 
@@ -140,7 +154,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
   const initial = mapJobToFormData(job)
 
   return (
-    <div className="mx-auto max-w-5xl animate-in fade-in-0 duration-300 space-y-6">
+    <div className="animate-in fade-in-0 duration-300 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">
@@ -164,8 +178,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
         </TabsList>
 
         <TabsContent value="summary" className="space-y-6">
-          <JobForm
-            mode="edit"
+          <JobDetailShell
+            job={job}
             initial={initial}
             referenceData={{
               jobCategories,
@@ -175,9 +189,12 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
               productCategories,
               orgMembers,
             }}
+            orgMembers={orgMembers}
+            categoryName={
+              jobCategories.find((c) => c.id === job.categoryId)?.name
+            }
+            sourceName={jobSources.find((s) => s.id === job.jobSourceId)?.name}
           />
-          <SiteVisits jobId={id} visits={job.siteVisits} />
-          <JobTasks jobId={id} tasks={job.tasks} reminders={job.reminders} />
         </TabsContent>
 
         <TabsContent value="custom_fields">

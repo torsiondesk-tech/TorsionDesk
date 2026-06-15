@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
+import { PlusIcon } from 'lucide-react'
 import {
   Combobox,
   ComboboxInput,
   ComboboxContent,
   ComboboxList,
   ComboboxItem,
+  ComboboxSeparator,
   ComboboxEmpty,
 } from '@/components/ui/combobox'
 import { searchCustomersAction } from '@/app/(app)/customers/actions'
@@ -22,6 +24,8 @@ interface CustomerSearchProps {
   defaultValue?: string
   defaultLabel?: string
   onChange?: (value: string | null) => void
+  allowCreate?: boolean
+  onCreateNew?: (name: string) => void
 }
 
 export function CustomerSearch({
@@ -29,6 +33,8 @@ export function CustomerSearch({
   defaultValue,
   defaultLabel,
   onChange,
+  allowCreate,
+  onCreateNew,
 }: CustomerSearchProps) {
   const [value, setValue] = useState<string | null>(defaultValue ?? null)
   const [label, setLabel] = useState(defaultLabel ?? '')
@@ -72,6 +78,12 @@ export function CustomerSearch({
 
   const handleSelect = useCallback(
     (val: string | null) => {
+      if (val === '__create__') {
+        onCreateNew?.(query.trim())
+        setQuery('')
+        setResults([])
+        return
+      }
       const row = results.find((r) => r.id === val)
       if (!row) return
       setValue(row.id)
@@ -80,12 +92,12 @@ export function CustomerSearch({
       setResults([])
       onChange?.(row.id)
     },
-    [results, onChange]
+    [results, onChange, query, onCreateNew]
   )
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Combobox value={value ?? undefined} onValueChange={handleSelect}>
+      <Combobox value={value ?? ''} onValueChange={handleSelect}>
         <ComboboxInput
           placeholder="Search by name, phone, email, or address…"
           value={value ? label : query}
@@ -110,13 +122,22 @@ export function CustomerSearch({
                   </div>
                 </ComboboxItem>
               ))}
-            {!loading && !results.length && query.trim() && (
+            {!loading && !results.length && query.trim() && !allowCreate && (
               <ComboboxEmpty>No customers found</ComboboxEmpty>
             )}
             {!loading && !results.length && !query.trim() && (
               <div className="px-3 py-2 text-sm text-muted-foreground">
                 Start typing to search…
               </div>
+            )}
+            {allowCreate && query.trim() && (
+              <>
+                {results.length > 0 && <ComboboxSeparator />}
+                <ComboboxItem value="__create__" className="text-primary">
+                  <PlusIcon className="size-4 shrink-0" />
+                  Create new customer &ldquo;{query}&rdquo;
+                </ComboboxItem>
+              </>
             )}
           </ComboboxList>
         </ComboboxContent>

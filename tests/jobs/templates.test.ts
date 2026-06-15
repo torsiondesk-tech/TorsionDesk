@@ -23,6 +23,7 @@ const templateStore = new Map<
     name: string
     lineItems: Array<{
       type: string
+      title: string
       description: string
       qty: string
       rate: string
@@ -39,7 +40,8 @@ templateStore.set('tmpl_1', {
   lineItems: [
     {
       type: 'product',
-      description: 'Torsion Spring',
+      title: 'Torsion Spring',
+      description: 'Heavy-duty torsion spring replacement',
       qty: '2',
       rate: '149.99',
       cost: '75.00',
@@ -47,7 +49,8 @@ templateStore.set('tmpl_1', {
     },
     {
       type: 'service',
-      description: 'Labor — Install',
+      title: 'Labor — Install',
+      description: 'Professional installation service',
       qty: '1',
       rate: '89.00',
       cost: '0',
@@ -97,6 +100,7 @@ function buildMockTx() {
               templateId: currentTemplateId,
               type: li.type,
               refId: null,
+              title: li.title,
               description: li.description,
               qty: li.qty,
               rate: li.rate,
@@ -160,9 +164,10 @@ describe('applyJobTemplate', () => {
 
     const product = result.lineItems.find((li: any) => li.type === 'product')
     expect(product).toBeDefined()
-    expect(product.description).toBe('Torsion Spring')
-    expect(product.qty).toBe('2')
-    expect(product.rate).toBe('149.99')
+    expect(product!.title).toBe('Torsion Spring')
+    expect(product!.description).toBe('Heavy-duty torsion spring replacement')
+    expect(product!.qty).toBe('2')
+    expect(product!.rate).toBe('149.99')
   })
 
   it('copies template tasks into the result', async () => {
@@ -180,7 +185,7 @@ describe('applyJobTemplate', () => {
     templateStore.set('tmpl_2', {
       tenantId: 'org_bbbb',
       name: 'Other Tenant Template',
-      lineItems: [{ type: 'product', description: 'X', qty: '1', rate: '1.00', cost: '0.50', taxRate: null }],
+      lineItems: [{ type: 'product', title: 'X', description: 'X desc', qty: '1', rate: '1.00', cost: '0.50', taxRate: null }],
       tasks: [],
     })
 

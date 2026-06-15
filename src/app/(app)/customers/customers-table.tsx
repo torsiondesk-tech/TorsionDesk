@@ -10,6 +10,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
+import { formatPhone } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -51,6 +52,7 @@ const columns: ColumnDef<CustomerRow>[] = [
   {
     accessorKey: 'primaryPhone',
     header: 'Phone',
+    cell: ({ row }) => formatPhone(row.original.primaryPhone) || '—',
   },
   {
     accessorKey: 'primaryCity',

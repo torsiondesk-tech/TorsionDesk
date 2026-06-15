@@ -10,10 +10,10 @@
 
 | Phase | Name | Goal | Requirements |
 |-------|------|------|-------------|
-| 0 | 4/5 | In Progress|  |
+| 0 | Foundation — Tenancy, Auth, and Data Spine | Complete | 2026-06-11 |
 | 1 | Customers, Locations, and Equipment | The office can manage the full customer book — contacts, properties, and spring/door equipment specs | CUST-01 through CUST-09 |
-| 2 | 5/6 | In Progress|  |
-| 3 | Jobs Core and Status FSM | A job can be created, priced, and moved through a server-enforced status machine — the hub all other surfaces consume | JOB-01 through JOB-14 |
+| 2 | Catalog and Settings | Complete | 2026-06-14 |
+| 3 | Jobs Core and Status FSM | Complete | 2026-06-15 |
 | 4 | Dispatch Board | A dispatcher schedules and dispatches jobs on a live week-view board and closes-and-invoices in one click | DISP-01 through DISP-07 |
 | 5 | Technician Mobile PWA | A tech runs their day offline on their phone — status, photos, signature, notes, and on-site spec lookup | TECH-01 through TECH-08 |
 | 6 | Estimates | Sales can run estimates through their own pipeline and convert a won estimate into a job in one action | EST-01 through EST-09 |
@@ -28,8 +28,8 @@
 
 - [x] **Phase 0: Foundation — Tenancy, Auth, and Data Spine** - Workspace creation, Clerk native auth, role-based access, and RLS tenant isolation
 - [x] **Phase 1: Customers, Locations, and Equipment** - Customer book with contacts, service locations, and per-location equipment/spring specs
-- [ ] **Phase 2: Catalog and Settings** - Product/service catalog plus admin configuration of categories, tags, templates, users, and lookups
-- [ ] **Phase 3: Jobs Core and Status FSM** - Job form, line items, totals, and the server-enforced status machine that everything consumes
+- [x] **Phase 2: Catalog and Settings** - Product/service catalog plus admin configuration of categories, tags, templates, users, and lookups (completed 2026-06-14)
+- [x] **Phase 3: Jobs Core and Status FSM** - Job form, line items, totals, and the server-enforced status machine that everything consumes (completed 2026-06-15)
 - [ ] **Phase 4: Dispatch Board** - Live week-view scheduling grid with job pool, popup actions, and one-click Close & Invoice
 - [ ] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, and on-site spec lookup
 - [ ] **Phase 6: Estimates** - Separate estimate module with its own pipeline, dashboard, templates, and convert-to-job
@@ -117,7 +117,7 @@ Plans:
   4. An admin can set per-trigger email automation toggles and edit email body templates (the configuration Phase 8 will consume).
   5. The "Create New Product / Service" inline modal saves to the catalog and is reusable as the line-item add flow that Phases 3 and 6 will embed.
 
-**Plans:** 5/6 plans executed
+**Plans:** 5/6 plans complete
 **UI hint:** yes
 Plans:
 **Wave 0**
@@ -152,27 +152,32 @@ Plans:
   4. A user can apply a job template to pre-fill line items and tasks, configure a repeating job, and add additional site visits with their own dates/statuses.
   5. The jobs dashboard lists jobs with the left sidebar (My Jobs by status, Jobs by Tag with counts, All Open, Completed & Ready to Close, To Be Invoiced) and a sortable main list, with the Summary/Pics/Docs/Equipment/Sign tabs present on the job detail.
 
-**Plans:** 6 plans across 6 waves
+**Plans:** 6/6 plans complete
 **UI hint:** yes
 Plans:
 **Wave 0**
 
-- [ ] 03-01-PLAN.md — Nyquist RED tests: FSM transitions, transitionJobStatus, totals (cent-exact), nextJobNo, per-tag counts, applyTemplate
+- [x] 03-01-PLAN.md — Nyquist RED tests: FSM transitions, transitionJobStatus, totals (cent-exact), nextJobNo, per-tag counts, applyTemplate
+
 **Wave 1** *(blocked on Wave 0)*
 
-- [ ] 03-02-PLAN.md — 12 job tables + 3 enums + [BLOCKING] pnpm db:push + nextJobNo helper + flip Jobs sidebar enabled
+- [x] 03-02-PLAN.md — 12 job tables + 3 enums + [BLOCKING] pnpm db:push + nextJobNo helper + flip Jobs sidebar enabled
+
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 03-03-PLAN.md — FSM core (ALLOWED_TRANSITIONS + transitionJobStatus + named stubs) + computeJobTotals + listJobs/getJob/countJobsByTag
+- [x] 03-03-PLAN.md — FSM core (ALLOWED_TRANSITIONS + transitionJobStatus + named stubs) + computeJobTotals + listJobs/getJob/countJobsByTag
+
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 03-04-PLAN.md — Job CRUD actions + two-panel JobForm + line items (Add dialog + inline catalog create) + live totals + FSM status dropdown
+- [x] 03-04-PLAN.md — Job CRUD actions + two-panel JobForm + line items (Add dialog + inline catalog create) + live totals + FSM status dropdown
+
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 03-05-PLAN.md — Jobs dashboard (8-bucket nested sidebar + sortable table) + job detail 6 tabs + Equipment (read-only) + Pics (Storage upload)
+- [x] 03-05-PLAN.md — Jobs dashboard (8-bucket nested sidebar + sortable table) + job detail 6 tabs + Equipment (read-only) + Pics (Storage upload)
+
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 03-06-PLAN.md — Templates (SET-03 + Apply) + repeating-job config + site visits + tasks/reminders + wire customer New Job button + Jobs tab
+- [x] 03-06-PLAN.md — Templates (SET-03 + Apply) + repeating-job config + site visits + tasks/reminders + wire customer New Job button + Jobs tab
 
 ### Phase 4: Dispatch Board
 
@@ -296,10 +301,10 @@ Plans:
 |-------|----------------|--------|-----------|
 | 0. Foundation — Tenancy, Auth, and Data Spine | 5/5 | Completed | 2026-06-11 |
 | 1. Customers, Locations, and Equipment | 5/5 | Completed | 2026-06-12 |
-| 2. Catalog and Settings | 5/6 | In Progress | - |
-| 3. Jobs Core and Status FSM | 0/6 | Planned | - |
-| 4. Dispatch Board | 0/0 | Not started | - |
-| 5. Technician Mobile PWA | 0/0 | Not started | - |
+| 2. Catalog and Settings | 5/6 | Completed | 2026-06-14 |
+| 3. Jobs Core and Status FSM | 6/6 | Completed | 2026-06-15 |
+| 4. Dispatch Board | 0/0 | Ready to plan | - |
+| 5. Technician Mobile PWA | 0/0 | Ready to plan | - |
 | 6. Estimates | 0/0 | Not started | - |
 | 7. Invoicing and Payments | 0/0 | Not started | - |
 | 8. Communications and Notifications | 0/0 | Not started | - |
@@ -309,3 +314,5 @@ Plans:
 ---
 *Roadmap generated: 2026-06-10 | 11 phases, 97 v1 requirements, 100% coverage*
 *Phase 0 planned: 2026-06-10 — 5 plans across 5 waves (Walking Skeleton)*
+*Phase 3 completed: 2026-06-15 — 6/6 plans, 8/8 UAT passed, 17/17 truths verified*
+*Next: Phase 4 (Dispatch Board) and Phase 5 (Technician PWA) ready for parallel planning*

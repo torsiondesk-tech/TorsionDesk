@@ -1,0 +1,1 @@
+ALTER TABLE "service_locations" ALTER COLUMN "name" DROP NOT NULL;

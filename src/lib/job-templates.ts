@@ -20,6 +20,7 @@ export interface TemplateLineItem {
   id?: string
   type: 'product' | 'service' | 'discount' | 'expense'
   refId: string | null
+  title: string | null
   description: string
   qty: string
   rate: string
@@ -109,6 +110,7 @@ export async function getJobTemplate(
         id: li.id,
         type: (li.type ?? 'product') as TemplateLineItem['type'],
         refId: li.refId ?? null,
+        title: li.title ?? null,
         description: li.description ?? '',
         qty: String(li.qty ?? '1'),
         rate: String(li.rate ?? '0'),
@@ -153,6 +155,7 @@ export async function createJobTemplate(
           templateId,
           type: item.type,
           refId: item.refId ?? null,
+          title: item.title ?? null,
           description: item.description,
           qty: item.qty,
           rate: item.rate,
@@ -217,6 +220,7 @@ export async function updateJobTemplate(
           templateId: id,
           type: item.type,
           refId: item.refId ?? null,
+          title: item.title ?? null,
           description: item.description,
           qty: item.qty,
           rate: item.rate,
@@ -310,6 +314,7 @@ export async function applyJobTemplate(
         id: li.id,
         type: (li.type ?? 'product') as TemplateLineItem['type'],
         refId: li.refId ?? null,
+        title: li.title ?? null,
         description: li.description ?? '',
         qty: String(li.qty ?? '1'),
         rate: String(li.rate ?? '0'),

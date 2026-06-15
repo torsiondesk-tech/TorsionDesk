@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { formatPhone } from '@/lib/utils'
 import {
   Card,
   CardContent,
@@ -50,7 +51,8 @@ import { LocationsSection } from './locations-section'
 
 interface ContactFormState {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   jobTitle: string
   birthday: string
   anniversary: string
@@ -63,7 +65,7 @@ interface ContactFormState {
 
 interface LocationRow {
   id: string
-  name: string
+  name: string | null
   addressLine1: string | null
   addressLine2: string | null
   city: string | null
@@ -110,7 +112,8 @@ interface CustomerDetailFormProps {
   }
   contacts: Array<{
     id: string
-    name: string
+    firstName: string
+    lastName: string | null
     jobTitle: string | null
     birthday: string | null
     anniversary: string | null
@@ -131,6 +134,7 @@ interface CustomerDetailFormProps {
     }>
   }>
   locations: LocationRow[]
+  primaryLocationId: string | null
   tagNames: string[]
   events: EventRow[]
   availableTags: TagOption[]
@@ -151,6 +155,7 @@ export function CustomerDetailForm({
   customer,
   contacts: initialContacts,
   locations,
+  primaryLocationId,
   tagNames,
   events,
   availableTags,
@@ -196,7 +201,8 @@ export function CustomerDetailForm({
   // Contacts
   const emptyContact = (): ContactFormState => ({
     id: '',
-    name: '',
+    firstName: '',
+    lastName: '',
     jobTitle: '',
     birthday: '',
     anniversary: '',
@@ -211,7 +217,8 @@ export function CustomerDetailForm({
     if (initialContacts.length === 0) return [emptyContact()]
     return initialContacts.map((c) => ({
       id: c.id,
-      name: c.name,
+      firstName: c.firstName,
+      lastName: c.lastName ?? '',
       jobTitle: c.jobTitle ?? '',
       birthday: c.birthday ?? '',
       anniversary: c.anniversary ?? '',
@@ -244,10 +251,11 @@ export function CustomerDetailForm({
     setSuccess(false)
 
     const payloadContacts = contactsState
-      .filter((c) => c.name.trim())
+      .filter((c) => c.firstName.trim())
       .map((c) => ({
         id: c.id || undefined,
-        name: c.name.trim(),
+        firstName: c.firstName.trim(),
+        lastName: c.lastName.trim() || null,
         jobTitle: c.jobTitle.trim() || null,
         birthday: c.birthday || null,
         anniversary: c.anniversary || null,
@@ -436,7 +444,7 @@ export function CustomerDetailForm({
           </Button>
 
           <Link
-            href={`/jobs/new?customerId=${customer.id}&contactId=${initialContacts[0]?.id ?? ''}&locationId=${locations[0]?.id ?? ''}`}
+            href={`/jobs/new?customerId=${customer.id}&contactId=${initialContacts[0]?.id ?? ''}&locationId=${primaryLocationId ?? locations[0]?.id ?? ''}`}
           >
             <Button size="sm" variant="outline">
               New Job
@@ -648,14 +656,26 @@ export function CustomerDetailForm({
                   <CardContent>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
-                        <Label htmlFor={`contact-name-${ci}`}>Name *</Label>
+                        <Label htmlFor={`contact-first-${ci}`}>First name *</Label>
                         <Input
-                          id={`contact-name-${ci}`}
-                          value={contact.name}
+                          id={`contact-first-${ci}`}
+                          value={contact.firstName}
                           onChange={(e) =>
-                            updateContact(ci, 'name', e.target.value)
+                            updateContact(ci, 'firstName', e.target.value)
                           }
-                          placeholder="Contact name"
+                          placeholder="First name"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`contact-last-${ci}`}>Last name</Label>
+                        <Input
+                          id={`contact-last-${ci}`}
+                          value={contact.lastName}
+                          onChange={(e) =>
+                            updateContact(ci, 'lastName', e.target.value)
+                          }
+                          placeholder="Last name"
                         />
                       </div>
 
@@ -680,13 +700,13 @@ export function CustomerDetailForm({
                               <Phone className="size-4 text-muted-foreground" />
                               <Input
                                 placeholder="555-0100"
-                                value={phone.number}
+                                value={formatPhone(phone.number)}
                                 onChange={(e) =>
                                   updateContactPhone(
                                     ci,
                                     pi,
                                     'number',
-                                    e.target.value,
+                                    e.target.value.replace(/\D/g, ''),
                                   )
                                 }
                                 className="max-w-[200px]"
@@ -923,6 +943,7 @@ export function CustomerDetailForm({
               <LocationsSection
                 customerId={customer.id}
                 locations={locations}
+                primaryLocationId={primaryLocationId}
               />
 
               {/* Notes */}
@@ -976,7 +997,7 @@ export function CustomerDetailForm({
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Jobs</h3>
               <Link
-                href={`/jobs/new?customerId=${customer.id}&contactId=${initialContacts[0]?.id ?? ''}&locationId=${locations[0]?.id ?? ''}`}
+                href={`/jobs/new?customerId=${customer.id}&contactId=${initialContacts[0]?.id ?? ''}&locationId=${primaryLocationId ?? locations[0]?.id ?? ''}`}
               >
                 <Button size="sm" variant="outline">New Job</Button>
               </Link>

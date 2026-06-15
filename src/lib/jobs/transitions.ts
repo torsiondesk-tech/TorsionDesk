@@ -23,24 +23,24 @@ export type JobStatusValue =
 /**
  * [ASSUMED] — owner must confirm exact SF-parity edges.
  * Conservative transition matrix for a service-business FSM.
- * Terminal statuses (`job_closed`, `cancelled`) map to empty arrays.
+ * Terminal status (`job_closed`) maps to an empty array. `cancelled` allows re-opening to `unscheduled`.
  */
 export const ALLOWED_TRANSITIONS: Record<JobStatusValue, JobStatusValue[]> = {
-  unscheduled: ['scheduled', 'cancelled'],
-  scheduled: ['dispatched', 'cancelled', 'delayed'],
-  dispatched: ['on_the_way', 'cancelled', 'delayed'],
-  delayed: ['on_the_way', 'cancelled'],
-  on_the_way: ['on_site', 'cancelled'],
-  on_site: ['started', 'cancelled'],
-  started: ['paused', 'completed', 'partially_completed', 'cancelled'],
-  paused: ['resumed', 'cancelled'],
-  resumed: ['started', 'cancelled'],
-  partially_completed: ['completed', 'cancelled'],
-  completed: ['invoiced'],
-  invoiced: ['paid_in_full'],
+  unscheduled: ['scheduled', 'dispatched', 'on_the_way', 'on_site', 'started', 'completed', 'cancelled'],
+  scheduled:   ['unscheduled', 'dispatched', 'on_the_way', 'on_site', 'started', 'completed', 'cancelled', 'delayed'],
+  dispatched:  ['unscheduled', 'scheduled', 'on_the_way', 'on_site', 'started', 'completed', 'cancelled', 'delayed'],
+  delayed:     ['unscheduled', 'scheduled', 'dispatched', 'on_the_way', 'cancelled'],
+  on_the_way:  ['unscheduled', 'scheduled', 'dispatched', 'on_site', 'started', 'completed', 'cancelled'],
+  on_site:     ['unscheduled', 'scheduled', 'dispatched', 'started', 'paused', 'completed', 'partially_completed', 'cancelled'],
+  started:     ['unscheduled', 'scheduled', 'dispatched', 'on_site', 'paused', 'completed', 'partially_completed', 'cancelled'],
+  paused:      ['on_site', 'started', 'resumed', 'cancelled'],
+  resumed:     ['unscheduled', 'scheduled', 'dispatched', 'on_site', 'started', 'paused', 'completed', 'partially_completed', 'cancelled'],
+  partially_completed: ['unscheduled', 'scheduled', 'dispatched', 'on_site', 'started', 'completed', 'cancelled'],
+  completed:   ['unscheduled', 'scheduled', 'dispatched', 'on_site', 'started', 'partially_completed', 'invoiced', 'cancelled'],
+  invoiced:    ['paid_in_full'],
   paid_in_full: ['job_closed'],
-  job_closed: [],
-  cancelled: [],
+  job_closed:  [],
+  cancelled:   ['unscheduled'],
 }
 
 /** Returns true if `to` is a legal next state from `from`. */
@@ -78,4 +78,23 @@ export async function dispatchSideEffects(
   if (to === 'on_the_way') await onOnTheWay(jobId)
   if (to === 'invoiced') await onCloseAndInvoice(jobId)
   await onTransition(from, to, jobId)
+}
+
+export function statusBadgeVariant(status: string) {
+  const open = STATUS_GROUPS.open as readonly string[]
+  const inProgress = STATUS_GROUPS.in_progress as readonly string[]
+  const closed = STATUS_GROUPS.closed as readonly string[]
+
+  if (status === 'cancelled') return 'destructive'
+  if (open.includes(status)) return 'outline'
+  if (inProgress.includes(status)) return 'default'
+  if (closed.includes(status)) return 'secondary'
+  return 'outline'
+}
+
+export function statusLabel(status: string) {
+  return status
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
 }

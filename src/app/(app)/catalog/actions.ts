@@ -450,7 +450,7 @@ export async function createCatalogItemAction(
     unitCost?: string
     description?: string
   },
-): Promise<{ id: string; name: string; unitPrice: string }> {
+): Promise<{ id: string; name: string; unitPrice: string; unitCost: string | null; description: string | null }> {
   const { orgId } = await auth()
   if (!orgId) throw new Error('No active organization')
   return createCatalogItem(orgId, input)

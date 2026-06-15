@@ -46,6 +46,7 @@ export default async function CustomerDetailPage({
   const customer = customerWithContacts
   const contacts = customerWithContacts.contactList
   const locations = locationsWithEquipment?.locations ?? []
+  const primaryLocationId = locationsWithEquipment?.primaryLocationId ?? null
 
   // Fetch parent customer name if needed
   let parentCustomerLabel: string | undefined
@@ -59,6 +60,7 @@ export default async function CustomerDetailPage({
       customer={customer}
       contacts={contacts}
       locations={locations}
+      primaryLocationId={primaryLocationId}
       tagNames={tagNames}
       events={events}
       availableTags={availableTags}

@@ -89,11 +89,9 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
       {/* Add button */}
       <div className="flex items-center justify-between">
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger>
-            <Button>
-              <Plus className="mr-2 size-4" />
-              Add Tag
-            </Button>
+          <DialogTrigger render={<Button />}>
+            <Plus className="mr-2 size-4" />
+            Add Tag
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>

@@ -20,11 +20,13 @@ export interface LineItemInput {
 export interface JobTotals {
   products: string
   services: string
+  discount: string
   expenses: string
   taxes: string
   driveLabor: string
   jobTotal: string
   jobCost: string
+  grossProfit: string
   payments: string
   totalDue: string
   grossProfitPct: string | null
@@ -104,11 +106,13 @@ export function computeJobTotals(items: LineItemInput[]): JobTotals {
   return {
     products: fromCents(productC),
     services: fromCents(serviceC),
+    discount: fromCents(Math.abs(discountC)),
     expenses: fromCents(expenseC),
     taxes: fromCents(taxC),
     driveLabor: '0.00', // D-11 placeholder
     jobTotal: fromCents(jobTotalC),
     jobCost: fromCents(costC),
+    grossProfit: fromCents(jobTotalC - costC),
     payments: '0.00', // Phase 7 placeholder
     totalDue: fromCents(jobTotalC),
     grossProfitPct,

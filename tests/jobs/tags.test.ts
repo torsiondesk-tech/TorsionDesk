@@ -77,10 +77,10 @@ describe('countJobsByTag', () => {
     const tagB = result.find((r: any) => r.tagId === 'tag_b')
 
     expect(tagA).toBeDefined()
-    expect(tagA.count).toBe(2)
+    expect(tagA!.count).toBe(2)
 
     expect(tagB).toBeDefined()
-    expect(tagB.count).toBe(1)
+    expect(tagB!.count).toBe(1)
   })
 
   it('does not include counts from other tenants', async () => {

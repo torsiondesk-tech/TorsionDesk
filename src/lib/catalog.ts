@@ -29,6 +29,7 @@ export interface ProductRow {
   categoryName: string | null
   unitPrice: string | null
   unitCost: string | null
+  salesDescription: string | null
   sku: string | null
   active: boolean | null
 }
@@ -39,6 +40,7 @@ export interface ServiceRow {
   categoryName: string | null
   unitPrice: string | null
   unitCost: string | null
+  description: string | null
   active: boolean | null
 }
 
@@ -121,6 +123,7 @@ export async function listProducts(
         categoryName: productCategories.name,
         unitPrice: products.unitPrice,
         unitCost: products.unitCost,
+        salesDescription: products.salesDescription,
         sku: products.sku,
         active: products.active,
       })
@@ -173,6 +176,7 @@ export async function listServices(
         categoryName: productCategories.name,
         unitPrice: services.unitPrice,
         unitCost: services.unitCost,
+        description: services.description,
         active: services.active,
       })
       .from(services)
@@ -290,7 +294,7 @@ export async function createCatalogItem(
     unitCost?: string
     description?: string
   },
-): Promise<{ id: string; name: string; unitPrice: string }> {
+): Promise<{ id: string; name: string; unitPrice: string; unitCost: string | null; description: string | null }> {
   return withTenant(orgId, async (tx) => {
     // Cross-tenant category guard (T-02-11)
     const cat = await tx
@@ -322,8 +326,10 @@ export async function createCatalogItem(
           id: products.id,
           name: products.name,
           unitPrice: products.unitPrice,
+          unitCost: products.unitCost,
+          salesDescription: products.salesDescription,
         })
-      return { id: row.id, name: row.name, unitPrice: row.unitPrice ?? '' }
+      return { id: row.id, name: row.name, unitPrice: row.unitPrice ?? '', unitCost: row.unitCost ?? null, description: row.salesDescription ?? null }
     }
 
     const [row] = await tx
@@ -340,8 +346,10 @@ export async function createCatalogItem(
         id: services.id,
         name: services.name,
         unitPrice: services.unitPrice,
+        unitCost: services.unitCost,
+        description: services.description,
       })
-    return { id: row.id, name: row.name, unitPrice: row.unitPrice ?? '' }
+    return { id: row.id, name: row.name, unitPrice: row.unitPrice ?? '', unitCost: row.unitCost ?? null, description: row.description ?? null }
   })
 }
 

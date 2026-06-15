@@ -9,6 +9,7 @@ import {
 } from '../actions'
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
+import { getCustomerById } from '@/lib/customers'
 
 interface NewJobPageProps {
   searchParams: Promise<{
@@ -31,6 +32,7 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
     availableTags,
     productCategories,
     orgMembers,
+    prefilledCustomer,
   ] = await Promise.all([
     listJobCategories(orgId),
     listJobSources(orgId),
@@ -38,6 +40,7 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
     listTags(orgId),
     listProductCategories(orgId),
     listOrgMembers(orgId),
+    params.customerId ? getCustomerById(orgId, params.customerId) : Promise.resolve(null),
   ])
 
   return (
@@ -45,6 +48,7 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
       <h1 className="text-2xl font-bold tracking-tight">New Job</h1>
       <JobForm
         mode="create"
+        orgId={orgId}
         referenceData={{
           jobCategories,
           jobSources,
@@ -55,8 +59,9 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
         }}
         defaults={{
           customerId: params.customerId,
+          customerName: prefilledCustomer?.name,
           contactId: params.contactId,
-          locationId: params.locationId,
+          locationId: params.locationId ?? prefilledCustomer?.primaryLocationId ?? undefined,
         }}
       />
     </div>

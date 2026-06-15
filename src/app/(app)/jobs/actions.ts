@@ -12,6 +12,8 @@ import {
   jobAssignees,
   customers,
   contacts,
+  contactPhones,
+  contactEmails,
   serviceLocations,
   jobCategories,
   jobSources,
@@ -22,9 +24,21 @@ import {
   jobReminders,
 } from '@/db/schema'
 import { nextJobNo } from '@/lib/jobs/job-number'
+import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+// Arrival window inputs are time-only (HH:MM). Combine with the job's start
+// date to produce a full timestamp. If no start date is set, the arrival
+// window is stored as null — a time without a date is meaningless.
+function combineDateTime(date: string | null | undefined, time: string | null | undefined): Date | null {
+  if (!time || time.trim() === '') return null
+  if (!date || date.trim() === '') return null
+  const combined = new Date(`${date}T${time}`)
+  if (isNaN(combined.getTime())) return null
+  return combined
+}
 
 // Base UI Checkbox does not render a native <input>, so we use hidden inputs
 // that submit '1' (checked) or '0' (unchecked).
@@ -59,7 +73,22 @@ export type JobActionState = {
 // ── Schemas ────────────────────────────────────────────────────────────────
 
 const createJobSchema = z.object({
-  customerId: z.string().min(1, 'Customer is required'),
+  // existing customer ID OR inline-create fields (validated manually)
+  customerId: emptyToUndefined,
+  newCustomerName: emptyToUndefined,
+  newContactFirstName: emptyToUndefined,
+  newContactLastName: emptyToUndefined,
+  newContactPhone: emptyToUndefined,
+  newContactEmail: emptyToUndefined,
+  newLocationName: emptyToUndefined,
+  newLocationAddress1: emptyToUndefined,
+  newLocationAddress2: emptyToUndefined,
+  newLocationCity: emptyToUndefined,
+  newLocationState: emptyToUndefined,
+  newLocationZip: emptyToUndefined,
+  newLocationGated: z.preprocess((v) => v === 'true' || v === true, z.boolean().default(false)),
+  newLocationLat: emptyToUndefined,
+  newLocationLng: emptyToUndefined,
   contactId: emptyToNull,
   serviceLocationId: emptyToNull,
   categoryId: emptyToNull,
@@ -67,6 +96,7 @@ const createJobSchema = z.object({
   poNumber: emptyToUndefined,
   jobSourceId: emptyToNull,
   assignedAgentId: emptyToUndefined,
+  status: z.enum(['unscheduled','scheduled','dispatched','cancelled','delayed','on_the_way','on_site','started','paused','resumed','partially_completed','completed','invoiced','paid_in_full','job_closed']).default('unscheduled'),
   billingType: z.enum(['single_invoice', 'progress_billing', 'no_charge']).default('single_invoice'),
   priority: emptyToUndefined,
   startDate: emptyToNull,
@@ -89,14 +119,54 @@ const createJobSchema = z.object({
   lineItems: z.string().default('[]'),
 })
 
+const phoneSchema = z.object({
+  id: z.string().optional(),
+  number: z.string().min(1),
+  type: z.enum(['cell', 'home', 'work']).default('cell'),
+  isPrimary: z.boolean().default(false),
+})
+
+const emailSchema = z.object({
+  id: z.string().optional(),
+  address: z.string().min(1),
+  type: z.enum(['work', 'personal']).default('work'),
+  isPrimary: z.boolean().default(false),
+})
+
+const contactUpdateSchema = z.object({
+  id: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().default(''),
+  jobTitle: z.string().default(''),
+  phones: z.array(phoneSchema).default([]),
+  emails: z.array(emailSchema).default([]),
+  smsConsent: z.boolean().default(false),
+  billingContact: z.boolean().default(false),
+  bookingContact: z.boolean().default(false),
+})
+
 const updateJobSchema = createJobSchema.extend({
   id: z.string().min(1),
   customerId: z.string().min(1),
+  contactUpdate: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val)
+        } catch {
+          return undefined
+        }
+      }
+      return val
+    },
+    contactUpdateSchema.optional(),
+  ),
 })
 
 const lineItemSchema = z.object({
   type: z.enum(['product', 'service', 'discount', 'expense']),
   refId: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
   description: z.string().min(1, 'Description is required'),
   qty: z.string().default('1'),
   rate: z.string().default('0'),
@@ -181,6 +251,21 @@ export async function createJob(
 
   const parsed = createJobSchema.safeParse({
     customerId: formData.get('customerId'),
+    newCustomerName: formData.get('newCustomerName'),
+    newContactFirstName: formData.get('newContactFirstName'),
+    newContactLastName: formData.get('newContactLastName'),
+    newContactPhone: formData.get('newContactPhone'),
+    newContactEmail: formData.get('newContactEmail'),
+    newLocationName: formData.get('newLocationName'),
+    newLocationAddress1: formData.get('newLocationAddress1'),
+    newLocationAddress2: formData.get('newLocationAddress2'),
+    newLocationCity: formData.get('newLocationCity'),
+    newLocationState: formData.get('newLocationState'),
+    newLocationZip: formData.get('newLocationZip'),
+    newLocationGated: formData.get('newLocationGated'),
+    newLocationLat: formData.get('newLocationLat'),
+    newLocationLng: formData.get('newLocationLng'),
+    status: formData.get('status'),
     contactId: formData.get('contactId'),
     serviceLocationId: formData.get('serviceLocationId'),
     categoryId: formData.get('categoryId'),
@@ -213,6 +298,10 @@ export async function createJob(
 
   const data = parsed.data
 
+  if (!data.customerId && !data.newCustomerName) {
+    return { error: 'Customer is required.' }
+  }
+
   // Parse line items JSON
   let parsedLineItems: z.infer<typeof lineItemSchema>[] = []
   try {
@@ -229,13 +318,84 @@ export async function createJob(
 
   let attempts = 0
   const maxAttempts = 3
+  let resolvedCustomerId = data.customerId ?? ''
 
   while (attempts < maxAttempts) {
     try {
       const id = await withTenant(orgId, async (tx) => {
-        await guardCustomer(tx, orgId, data.customerId)
-        await guardContact(tx, orgId, data.contactId)
-        await guardServiceLocation(tx, orgId, data.serviceLocationId)
+        // Resolve or create customer
+        if (data.customerId) {
+          await guardCustomer(tx, orgId, data.customerId)
+          resolvedCustomerId = data.customerId
+        } else {
+          const accountNo = await nextAccountNo(tx, orgId)
+          const [newCust] = await tx
+            .insert(customers)
+            .values({ tenantId: orgId, accountNo, name: data.newCustomerName! })
+            .returning({ id: customers.id })
+          resolvedCustomerId = newCust.id
+        }
+
+        // Resolve or create contact
+        let resolvedContactId: string | null = null
+        if (data.contactId) {
+          await guardContact(tx, orgId, data.contactId)
+          resolvedContactId = data.contactId
+        } else if (data.newContactFirstName || data.newContactLastName) {
+          const [newContact] = await tx
+            .insert(contacts)
+            .values({
+              tenantId: orgId,
+              customerId: resolvedCustomerId,
+              firstName: data.newContactFirstName || '',
+              lastName: data.newContactLastName || null,
+            })
+            .returning({ id: contacts.id })
+          resolvedContactId = newContact.id
+          if (data.newContactPhone) {
+            await tx.insert(contactPhones).values({
+              tenantId: orgId,
+              contactId: resolvedContactId,
+              number: data.newContactPhone,
+              isPrimary: true,
+            })
+          }
+          if (data.newContactEmail) {
+            await tx.insert(contactEmails).values({
+              tenantId: orgId,
+              contactId: resolvedContactId,
+              address: data.newContactEmail,
+              type: 'work',
+              isPrimary: true,
+            })
+          }
+        }
+
+        // Resolve or create service location
+        let resolvedLocationId: string | null = null
+        if (data.serviceLocationId) {
+          await guardServiceLocation(tx, orgId, data.serviceLocationId)
+          resolvedLocationId = data.serviceLocationId
+        } else if (data.newLocationAddress1) {
+          const [newLoc] = await tx
+            .insert(serviceLocations)
+            .values({
+              tenantId: orgId,
+              customerId: resolvedCustomerId,
+              name: data.newLocationName ?? null,
+              addressLine1: data.newLocationAddress1,
+              addressLine2: data.newLocationAddress2 ?? null,
+              city: data.newLocationCity ?? null,
+              state: data.newLocationState ?? null,
+              postalCode: data.newLocationZip ?? null,
+              gated: data.newLocationGated ?? false,
+              latitude: data.newLocationLat ?? null,
+              longitude: data.newLocationLng ?? null,
+            })
+            .returning({ id: serviceLocations.id })
+          resolvedLocationId = newLoc.id
+        }
+
         await guardCategory(tx, orgId, data.categoryId)
         await guardJobSource(tx, orgId, data.jobSourceId)
 
@@ -246,9 +406,10 @@ export async function createJob(
           .values({
             tenantId: orgId,
             jobNo,
-            customerId: data.customerId,
-            contactId: data.contactId,
-            serviceLocationId: data.serviceLocationId,
+            customerId: resolvedCustomerId,
+            contactId: resolvedContactId,
+            serviceLocationId: resolvedLocationId,
+            status: data.status,
             categoryId: data.categoryId,
             description: data.description,
             poNumber: data.poNumber,
@@ -258,8 +419,8 @@ export async function createJob(
             priority: data.priority,
             startDate: data.startDate ? new Date(data.startDate) : null,
             endDate: data.endDate ? new Date(data.endDate) : null,
-            arrivalWindowStart: data.arrivalWindowStart ? new Date(data.arrivalWindowStart) : null,
-            arrivalWindowEnd: data.arrivalWindowEnd ? new Date(data.arrivalWindowEnd) : null,
+            arrivalWindowStart: combineDateTime(data.startDate, data.arrivalWindowStart),
+            arrivalWindowEnd: combineDateTime(data.startDate, data.arrivalWindowEnd),
             estimatedDuration: data.estimatedDuration,
             multiDay: data.multiDay,
             requiresFollowUp: data.requiresFollowUp,
@@ -286,6 +447,7 @@ export async function createJob(
               jobId,
               type: item.type,
               refId: item.refId ?? null,
+              title: item.title ?? null,
               description: item.description,
               qty: item.qty,
               rate: item.rate,
@@ -322,7 +484,7 @@ export async function createJob(
         // Activity event
         await tx.insert(customerEvents).values({
           tenantId: orgId,
-          customerId: data.customerId,
+          customerId: resolvedCustomerId,
           kind: 'job',
           title: `Created job #JOB-${jobNo}`,
           refId: jobId,
@@ -333,7 +495,7 @@ export async function createJob(
 
       revalidatePath('/jobs')
       revalidatePath(`/jobs/${id}`)
-      revalidatePath(`/customers/${data.customerId}`)
+      revalidatePath(`/customers/${resolvedCustomerId}`)
       return { success: true, id }
     } catch (err) {
       const code = (err as { code?: string }).code
@@ -369,6 +531,15 @@ export async function updateJob(
     customerId: formData.get('customerId'),
     contactId: formData.get('contactId'),
     serviceLocationId: formData.get('serviceLocationId'),
+    newLocationName: formData.get('newLocationName'),
+    newLocationAddress1: formData.get('newLocationAddress1'),
+    newLocationAddress2: formData.get('newLocationAddress2'),
+    newLocationCity: formData.get('newLocationCity'),
+    newLocationState: formData.get('newLocationState'),
+    newLocationZip: formData.get('newLocationZip'),
+    newLocationGated: formData.get('newLocationGated'),
+    newLocationLat: formData.get('newLocationLat'),
+    newLocationLng: formData.get('newLocationLng'),
     categoryId: formData.get('categoryId'),
     description: formData.get('description'),
     poNumber: formData.get('poNumber'),
@@ -391,6 +562,7 @@ export async function updateJob(
     tagIds,
     assigneeUserIds,
     lineItems: formData.get('lineItems'),
+    contactUpdate: formData.get('contactUpdate'),
   })
 
   if (!parsed.success) {
@@ -420,13 +592,104 @@ export async function updateJob(
     await guardCategory(tx, orgId, data.categoryId)
     await guardJobSource(tx, orgId, data.jobSourceId)
 
+    let resolvedLocationId = data.serviceLocationId
+
+    // Update existing location in-place when both ID and new address fields are present
+    if (data.serviceLocationId && data.newLocationAddress1) {
+      const locationFields: Record<string, unknown> = {
+        addressLine1: data.newLocationAddress1,
+        addressLine2: data.newLocationAddress2 ?? null,
+        city: data.newLocationCity ?? null,
+        state: data.newLocationState ?? null,
+        postalCode: data.newLocationZip ?? null,
+        gated: data.newLocationGated ?? false,
+        latitude: data.newLocationLat ?? null,
+        longitude: data.newLocationLng ?? null,
+      }
+      if (data.newLocationName) locationFields.name = data.newLocationName
+      await tx
+        .update(serviceLocations)
+        .set(locationFields)
+        .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.id, data.serviceLocationId)))
+    }
+
+    // Create a new location when editing a job and user picks "different address"
+    if (!data.serviceLocationId && data.newLocationAddress1) {
+      const [newLoc] = await tx
+        .insert(serviceLocations)
+        .values({
+          tenantId: orgId,
+          customerId: data.customerId,
+          name: data.newLocationName ?? null,
+          addressLine1: data.newLocationAddress1,
+          addressLine2: data.newLocationAddress2 ?? null,
+          city: data.newLocationCity ?? null,
+          state: data.newLocationState ?? null,
+          postalCode: data.newLocationZip ?? null,
+          gated: data.newLocationGated ?? false,
+          latitude: data.newLocationLat ?? null,
+          longitude: data.newLocationLng ?? null,
+        })
+        .returning({ id: serviceLocations.id })
+      resolvedLocationId = newLoc.id
+    }
+
+    // Update existing contact in-place when contactUpdate is provided
+    if (data.contactUpdate && data.contactId) {
+      const cu = data.contactUpdate
+      await tx
+        .update(contacts)
+        .set({
+          firstName: cu.firstName,
+          lastName: cu.lastName || null,
+          jobTitle: cu.jobTitle || null,
+          smsConsent: cu.smsConsent,
+          billingContact: cu.billingContact,
+          bookingContact: cu.bookingContact,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, data.contactId)))
+
+      // Replace phones
+      await tx
+        .delete(contactPhones)
+        .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, data.contactId)))
+      if (cu.phones.length > 0) {
+        await tx.insert(contactPhones).values(
+          cu.phones.map((p) => ({
+            tenantId: orgId,
+            contactId: data.contactId!,
+            number: p.number,
+            type: p.type,
+            isPrimary: p.isPrimary,
+          })),
+        )
+      }
+
+      // Replace emails
+      await tx
+        .delete(contactEmails)
+        .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, data.contactId)))
+      if (cu.emails.length > 0) {
+        await tx.insert(contactEmails).values(
+          cu.emails.map((e) => ({
+            tenantId: orgId,
+            contactId: data.contactId!,
+            address: e.address,
+            type: e.type,
+            isPrimary: e.isPrimary,
+          })),
+        )
+      }
+    }
+
     // IMPORTANT: status is NEVER updated here (Pitfall 1)
     await tx
       .update(jobs)
       .set({
         customerId: data.customerId,
         contactId: data.contactId,
-        serviceLocationId: data.serviceLocationId,
+        serviceLocationId: resolvedLocationId,
         categoryId: data.categoryId,
         description: data.description,
         poNumber: data.poNumber,
@@ -436,8 +699,8 @@ export async function updateJob(
         priority: data.priority,
         startDate: data.startDate ? new Date(data.startDate) : null,
         endDate: data.endDate ? new Date(data.endDate) : null,
-        arrivalWindowStart: data.arrivalWindowStart ? new Date(data.arrivalWindowStart) : null,
-        arrivalWindowEnd: data.arrivalWindowEnd ? new Date(data.arrivalWindowEnd) : null,
+        arrivalWindowStart: combineDateTime(data.startDate, data.arrivalWindowStart),
+        arrivalWindowEnd: combineDateTime(data.startDate, data.arrivalWindowEnd),
         estimatedDuration: data.estimatedDuration,
         multiDay: data.multiDay,
         requiresFollowUp: data.requiresFollowUp,
@@ -466,6 +729,7 @@ export async function updateJob(
           jobId: data.id,
           type: item.type,
           refId: item.refId ?? null,
+          title: item.title ?? null,
           description: item.description,
           qty: item.qty,
           rate: item.rate,
@@ -557,6 +821,7 @@ export async function addJobLineItem(
   input: {
     type: 'product' | 'service' | 'discount' | 'expense'
     refId?: string | null
+    title?: string | null
     description: string
     qty?: string
     rate?: string
@@ -580,6 +845,7 @@ export async function addJobLineItem(
       jobId,
       type: input.type,
       refId: input.refId ?? null,
+      title: input.title ?? null,
       description: input.description,
       qty: input.qty ?? '1',
       rate: input.rate ?? '0',
@@ -596,6 +862,7 @@ export async function updateJobLineItem(
   lineItemId: string,
   jobId: string,
   input: {
+    title?: string | null
     description?: string
     qty?: string
     rate?: string
@@ -609,16 +876,19 @@ export async function updateJobLineItem(
   await withTenant(orgId, async (tx) => {
     if (input.taxItemId) await guardTaxItem(tx, orgId, input.taxItemId)
 
+    const setFields: Record<string, unknown> = {
+      updatedAt: new Date(),
+    }
+    if (input.title !== undefined) setFields.title = input.title
+    if (input.description !== undefined) setFields.description = input.description
+    if (input.qty !== undefined) setFields.qty = input.qty
+    if (input.rate !== undefined) setFields.rate = input.rate
+    if (input.cost !== undefined) setFields.cost = input.cost
+    if (input.taxItemId !== undefined) setFields.taxItemId = input.taxItemId ?? null
+
     await tx
       .update(jobLineItems)
-      .set({
-        description: input.description,
-        qty: input.qty,
-        rate: input.rate,
-        cost: input.cost,
-        taxItemId: input.taxItemId ?? null,
-        updatedAt: new Date(),
-      })
+      .set(setFields)
       .where(
         and(
           eq(jobLineItems.tenantId, orgId),
@@ -657,63 +927,262 @@ export async function deleteJobLineItem(
 
 export async function getCustomerContacts(
   customerId: string,
-): Promise<Array<{ id: string; name: string }>> {
+): Promise<Array<{ id: string; firstName: string; lastName: string | null }>> {
   const { orgId } = await auth()
   if (!orgId) return []
 
   const { contacts } = await import('@/db/schema')
   const { withTenant: wt } = await import('@/db/with-tenant')
+  const { sql } = await import('drizzle-orm')
   return wt(orgId, async (tx) => {
     return tx
-      .select({ id: contacts.id, name: contacts.name })
+      .select({ id: contacts.id, firstName: contacts.firstName, lastName: contacts.lastName })
       .from(contacts)
       .where(and(eq(contacts.tenantId, orgId), eq(contacts.customerId, customerId)))
-      .orderBy(contacts.name)
+      .orderBy(contacts.firstName, contacts.lastName)
+  })
+}
+
+export interface ContactDetail {
+  id: string
+  firstName: string
+  lastName: string | null
+  jobTitle: string | null
+  birthday: string | null
+  anniversary: string | null
+  smsConsent: boolean | null
+  billingContact: boolean | null
+  bookingContact: boolean | null
+  phones: Array<{
+    id?: string
+    number: string
+    type: string
+    isPrimary: boolean | null
+  }>
+  emails: Array<{
+    id?: string
+    address: string
+    type: string
+    isPrimary: boolean | null
+  }>
+}
+
+export async function getCustomerContactDetail(
+  contactId: string,
+): Promise<ContactDetail | null> {
+  const { orgId } = await auth()
+  if (!orgId) return null
+
+  const { contacts, contactPhones, contactEmails } = await import('@/db/schema')
+  const { withTenant: wt } = await import('@/db/with-tenant')
+  return wt(orgId, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(contacts)
+      .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, contactId)))
+      .limit(1)
+    if (!rows[0]) return null
+
+    const [phones, emails] = await Promise.all([
+      tx
+        .select()
+        .from(contactPhones)
+        .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, contactId))),
+      tx
+        .select()
+        .from(contactEmails)
+        .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, contactId))),
+    ])
+
+    const c = rows[0]
+    return {
+      id: c.id,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      jobTitle: c.jobTitle,
+      birthday: c.birthday,
+      anniversary: c.anniversary,
+      smsConsent: c.smsConsent,
+      billingContact: c.billingContact,
+      bookingContact: c.bookingContact,
+      phones: phones.map((p) => ({
+        id: p.id,
+        number: p.number,
+        type: p.type,
+        isPrimary: p.isPrimary,
+      })),
+      emails: emails.map((e) => ({
+        id: e.id,
+        address: e.address,
+        type: e.type,
+        isPrimary: e.isPrimary,
+      })),
+    }
   })
 }
 
 export async function getCustomerLocations(
   customerId: string,
-): Promise<Array<{ id: string; name: string; addressLine1: string | null; city: string | null }>> {
+): Promise<Array<{ id: string; name: string | null; addressLine1: string | null; addressLine2: string | null; city: string | null; state: string | null; postalCode: string | null; gated: boolean | null }>> {
   const { orgId } = await auth()
   if (!orgId) return []
 
-  const { serviceLocations } = await import('@/db/schema')
+  const { serviceLocations, customers } = await import('@/db/schema')
   const { withTenant: wt } = await import('@/db/with-tenant')
+  const { sql } = await import('drizzle-orm')
   return wt(orgId, async (tx) => {
     return tx
       .select({
         id: serviceLocations.id,
         name: serviceLocations.name,
         addressLine1: serviceLocations.addressLine1,
+        addressLine2: serviceLocations.addressLine2,
         city: serviceLocations.city,
+        state: serviceLocations.state,
+        postalCode: serviceLocations.postalCode,
+        gated: serviceLocations.gated,
       })
       .from(serviceLocations)
+      .innerJoin(customers, eq(customers.id, serviceLocations.customerId))
       .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.customerId, customerId)))
-      .orderBy(serviceLocations.name)
+      .orderBy(
+        sql`CASE WHEN ${serviceLocations.id} = ${customers.primaryLocationId} THEN 0 ELSE 1 END`,
+        serviceLocations.name,
+      )
   })
+}
+
+export async function createServiceLocation(
+  customerId: string,
+  input: {
+    name?: string | null
+    addressLine1: string
+    addressLine2?: string | null
+    city?: string | null
+    state?: string | null
+    postalCode?: string | null
+    gated?: boolean
+    latitude?: string | null
+    longitude?: string | null
+  },
+): Promise<{ id: string; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { id: '', error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    const [row] = await withTenant(orgId, async (tx) => {
+      // Guard: verify customer belongs to tenant
+      const custRows = await tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+        .limit(1)
+      if (custRows.length === 0) throw new Error('Invalid customer: cross-tenant access denied')
+
+      return tx
+        .insert(serviceLocations)
+        .values({
+          tenantId: orgId,
+          customerId,
+          name: input.name ?? null,
+          addressLine1: input.addressLine1,
+          addressLine2: input.addressLine2 ?? null,
+          city: input.city ?? null,
+          state: input.state ?? null,
+          postalCode: input.postalCode ?? null,
+          gated: input.gated ?? false,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+        })
+        .returning({ id: serviceLocations.id })
+    })
+
+    revalidatePath(`/customers/${customerId}`)
+    return { id: row.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('createServiceLocation error:', err)
+    return { id: '', error: message }
+  }
+}
+
+export async function updateServiceLocation(
+  locationId: string,
+  input: {
+    name?: string | null
+    addressLine1?: string
+    addressLine2?: string | null
+    city?: string | null
+    state?: string | null
+    postalCode?: string | null
+    gated?: boolean
+    latitude?: string | null
+    longitude?: string | null
+  },
+): Promise<{ id: string; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { id: '', error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      // Guard: verify location belongs to tenant
+      const locRows = await tx
+        .select({ id: serviceLocations.id })
+        .from(serviceLocations)
+        .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.id, locationId)))
+        .limit(1)
+      if (locRows.length === 0) throw new Error('Invalid location: cross-tenant access denied')
+
+      return tx
+        .update(serviceLocations)
+        .set({
+          name: input.name ?? null,
+          addressLine1: input.addressLine1,
+          addressLine2: input.addressLine2 ?? null,
+          city: input.city ?? null,
+          state: input.state ?? null,
+          postalCode: input.postalCode ?? null,
+          gated: input.gated ?? false,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.id, locationId)))
+    })
+
+    revalidatePath('/jobs/[id]', 'page')
+    return { id: locationId }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('updateServiceLocation error:', err)
+    return { id: '', error: message }
+  }
 }
 
 export async function searchProductsAction(
   q: string,
-): Promise<Array<{ id: string; name: string; unitPrice: string | null }>> {
+): Promise<Array<{ id: string; name: string; unitPrice: string | null; unitCost: string | null; description: string | null }>> {
   const { orgId } = await auth()
   if (!orgId) return []
 
   const { listProducts } = await import('@/lib/catalog')
   const result = await listProducts(orgId, { q, pageSize: 20 })
-  return result.rows.map((r) => ({ id: r.id, name: r.name, unitPrice: r.unitPrice }))
+  return result.rows.map((r) => ({ id: r.id, name: r.name, unitPrice: r.unitPrice, unitCost: r.unitCost, description: r.salesDescription }))
 }
 
 export async function searchServicesAction(
   q: string,
-): Promise<Array<{ id: string; name: string; unitPrice: string | null }>> {
+): Promise<Array<{ id: string; name: string; unitPrice: string | null; unitCost: string | null; description: string | null }>> {
   const { orgId } = await auth()
   if (!orgId) return []
 
   const { listServices } = await import('@/lib/catalog')
   const result = await listServices(orgId, { q, pageSize: 20 })
-  return result.rows.map((r) => ({ id: r.id, name: r.name, unitPrice: r.unitPrice }))
+  return result.rows.map((r) => ({ id: r.id, name: r.name, unitPrice: r.unitPrice, unitCost: r.unitCost, description: r.description }))
 }
 
 // ── Reference data helpers for RSC ───────────────────────────────────────────
@@ -800,15 +1269,96 @@ export async function uploadJobPhotoAction(
   }
 }
 
+/**
+ * Step 1 of signed-URL direct upload: get a signed URL + path.
+ * Client uploads the file directly to this URL, then calls confirmJobPhotoAction.
+ *
+ * No file bytes travel through the Server Action — only filename + size.
+ */
+export async function getJobPhotoUploadUrlAction(
+  jobId: string,
+  filename: string,
+  fileSize: number,
+): Promise<{ error?: string; signedUrl?: string; path?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  if (!filename || fileSize === 0) {
+    return { error: 'No file selected.' }
+  }
+
+  try {
+    const { createJobPhotoSignedUploadUrl } = await import('@/lib/jobs/photos')
+    const result = await createJobPhotoSignedUploadUrl(orgId, jobId, filename, fileSize)
+    return { signedUrl: result.signedUrl, path: result.path }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('getJobPhotoUploadUrlAction error:', err)
+    return { error: message }
+  }
+}
+
+/**
+ * Step 2 of signed-URL direct upload: record the photo in DB after client upload.
+ */
+export async function confirmJobPhotoAction(
+  jobId: string,
+  path: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const { orgId, userId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    const { confirmJobPhoto } = await import('@/lib/jobs/photos')
+    await confirmJobPhoto(orgId, jobId, path, userId)
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('confirmJobPhotoAction error:', err)
+    return { error: message }
+  }
+}
+
+/**
+ * Delete a job photo from Storage and DB.
+ */
+export async function deleteJobPhotoAction(
+  jobId: string,
+  photoId: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    const { deleteJobPhoto } = await import('@/lib/jobs/photos')
+    await deleteJobPhoto(orgId, jobId, photoId)
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('deleteJobPhotoAction error:', err)
+    return { error: message }
+  }
+}
+
 // ── Apply Template ───────────────────────────────────────────────────────────
 
 export async function applyTemplateAction(
   templateId: string,
+  clientOrgId?: string,
 ): Promise<{
   error?: string
   lineItems?: Array<{
     type: 'product' | 'service' | 'discount' | 'expense'
     refId: string | null
+    title: string | null
     description: string
     qty: string
     rate: string
@@ -817,7 +1367,12 @@ export async function applyTemplateAction(
   }>
   tasks?: Array<{ label: string }>
 }> {
-  const { orgId } = await auth()
+  const { userId, orgId: authOrgId } = await auth()
+  const orgId = authOrgId ?? clientOrgId ?? null
+
+  if (!userId) {
+    return { error: 'Not authenticated. Please sign in.' }
+  }
   if (!orgId) {
     return { error: 'No active organization. Please sign in to your workspace.' }
   }
@@ -829,6 +1384,7 @@ export async function applyTemplateAction(
       lineItems: result.lineItems.map((li) => ({
         type: li.type,
         refId: li.refId ?? null,
+        title: li.title ?? null,
         description: li.description,
         qty: li.qty,
         rate: li.rate,
@@ -898,12 +1454,8 @@ export async function addSiteVisit(
         jobId,
         status: status?.success ? (status.data as any) : null,
         visitDate: input.visitDate ? new Date(input.visitDate) : null,
-        arrivalWindowStart: input.arrivalWindowStart
-          ? new Date(input.arrivalWindowStart)
-          : null,
-        arrivalWindowEnd: input.arrivalWindowEnd
-          ? new Date(input.arrivalWindowEnd)
-          : null,
+        arrivalWindowStart: combineDateTime(input.visitDate, input.arrivalWindowStart),
+        arrivalWindowEnd: combineDateTime(input.visitDate, input.arrivalWindowEnd),
         notes: input.notes,
       })
     })
@@ -944,15 +1496,11 @@ export async function updateSiteVisit(
             : undefined,
           arrivalWindowStart:
             input.arrivalWindowStart !== undefined
-              ? input.arrivalWindowStart
-                ? new Date(input.arrivalWindowStart)
-                : null
+              ? combineDateTime(input.visitDate, input.arrivalWindowStart)
               : undefined,
           arrivalWindowEnd:
             input.arrivalWindowEnd !== undefined
-              ? input.arrivalWindowEnd
-                ? new Date(input.arrivalWindowEnd)
-                : null
+              ? combineDateTime(input.visitDate, input.arrivalWindowEnd)
               : undefined,
           notes: input.notes,
           updatedAt: new Date(),

@@ -10,6 +10,7 @@ import {
   Trash2,
   Wrench,
   Save,
+  Star,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,17 +18,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { AddressAutocomplete } from '@/components/address-autocomplete'
+import type { ParsedAddress } from '@/lib/places-actions'
 import {
   createLocationAction,
   updateLocationAction,
   deleteLocationAction,
   createEquipmentAction,
   deleteEquipmentAction,
+  setPrimaryLocationAction,
 } from '../actions'
 
 interface LocationRow {
   id: string
-  name: string
+  name: string | null
   addressLine1: string | null
   addressLine2: string | null
   city: string | null
@@ -52,28 +56,250 @@ interface LocationRow {
 interface LocationsSectionProps {
   customerId: string
   locations: LocationRow[]
+  primaryLocationId: string | null
 }
+
+// ── Inline Add Form ────────────────────────────────────────────────────────
+
+function AddLocationForm({
+  customerId,
+  onSuccess,
+  onCancel,
+}: {
+  customerId: string
+  onSuccess: () => void
+  onCancel: () => void
+}) {
+  const [gated, setGated] = useState(false)
+  const [addr, setAddr] = useState<Partial<ParsedAddress>>({})
+
+  const handleAddressSelect = (result: ParsedAddress) => {
+    setAddr(result)
+  }
+
+  return (
+    <form
+      action={async (formData) => {
+        formData.append('customerId', customerId)
+        const result = await createLocationAction({}, formData)
+        if (result.success) onSuccess()
+      }}
+      className="rounded-lg border p-4"
+    >
+      <p className="mb-3 text-sm font-medium">Add New Location</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="add-loc-name">Location name</Label>
+          <Input id="add-loc-name" name="name" />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="add-addressLine1">Address</Label>
+          <AddressAutocomplete
+            id="add-addressLine1"
+            name="addressLine1"
+            defaultValue={addr.addressLine1}
+            onAddressSelect={handleAddressSelect}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="add-city">City</Label>
+          <Input
+            id="add-city"
+            name="city"
+            value={addr.city ?? ''}
+            onChange={(e) => setAddr((a) => ({ ...a, city: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="add-state">State</Label>
+          <Input
+            id="add-state"
+            name="state"
+            value={addr.state ?? ''}
+            onChange={(e) => setAddr((a) => ({ ...a, state: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="add-postalCode">Postal code</Label>
+          <Input
+            id="add-postalCode"
+            name="postalCode"
+            value={addr.postalCode ?? ''}
+            onChange={(e) => setAddr((a) => ({ ...a, postalCode: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="add-country">Country</Label>
+          <Input
+            id="add-country"
+            name="country"
+            value={addr.country ?? 'USA'}
+            onChange={(e) => setAddr((a) => ({ ...a, country: e.target.value }))}
+          />
+        </div>
+        <div className="flex items-center gap-2 sm:col-span-2">
+          <input type="hidden" name="gated" value={gated ? '1' : '0'} />
+          <Checkbox
+            id="add-gated"
+            checked={gated}
+            onCheckedChange={(c) => setGated(c === true)}
+          />
+          <Label htmlFor="add-gated" className="cursor-pointer">
+            Gated community
+          </Label>
+        </div>
+      </div>
+      {/* Hidden lat/lng captured by autocomplete */}
+      <input type="hidden" name="latitude" value={addr.latitude ?? ''} />
+      <input type="hidden" name="longitude" value={addr.longitude ?? ''} />
+      <div className="mt-3 flex items-center gap-2">
+        <Button type="submit" size="sm">
+          <Save className="mr-1 size-3.5" />
+          Save Location
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+// ── Inline Edit Form ────────────────────────────────────────────────────────
+
+function EditLocationForm({
+  loc,
+  customerId,
+  onSuccess,
+  onCancel,
+}: {
+  loc: LocationRow
+  customerId: string
+  onSuccess: () => void
+  onCancel: () => void
+}) {
+  const [gated, setGated] = useState(loc.gated ?? false)
+  const [addr, setAddr] = useState<Partial<ParsedAddress>>({
+    addressLine1: loc.addressLine1 ?? '',
+    city: loc.city ?? '',
+    state: loc.state ?? '',
+    postalCode: loc.postalCode ?? '',
+    country: loc.country ?? 'USA',
+    latitude: '',
+    longitude: '',
+  })
+
+  const handleAddressSelect = (result: ParsedAddress) => {
+    setAddr(result)
+  }
+
+  return (
+    <form
+      action={async (formData) => {
+        formData.append('id', loc.id)
+        formData.append('customerId', customerId)
+        formData.append('gated', gated ? '1' : '0')
+        const result = await updateLocationAction({}, formData)
+        if (result.success) onSuccess()
+      }}
+      className="p-4"
+    >
+      <p className="mb-3 text-sm font-medium">Edit Location</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor={`edit-name-${loc.id}`}>Location name</Label>
+          <Input
+            id={`edit-name-${loc.id}`}
+            name="name"
+            defaultValue={loc.name ?? ''}
+          />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor={`edit-addr-${loc.id}`}>Address</Label>
+          <AddressAutocomplete
+            id={`edit-addr-${loc.id}`}
+            name="addressLine1"
+            defaultValue={addr.addressLine1}
+            onAddressSelect={handleAddressSelect}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-city-${loc.id}`}>City</Label>
+          <Input
+            id={`edit-city-${loc.id}`}
+            name="city"
+            value={addr.city ?? ''}
+            onChange={(e) => setAddr((a) => ({ ...a, city: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-state-${loc.id}`}>State</Label>
+          <Input
+            id={`edit-state-${loc.id}`}
+            name="state"
+            value={addr.state ?? ''}
+            onChange={(e) => setAddr((a) => ({ ...a, state: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-postal-${loc.id}`}>Postal code</Label>
+          <Input
+            id={`edit-postal-${loc.id}`}
+            name="postalCode"
+            value={addr.postalCode ?? ''}
+            onChange={(e) => setAddr((a) => ({ ...a, postalCode: e.target.value }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-country-${loc.id}`}>Country</Label>
+          <Input
+            id={`edit-country-${loc.id}`}
+            name="country"
+            value={addr.country ?? 'USA'}
+            onChange={(e) => setAddr((a) => ({ ...a, country: e.target.value }))}
+          />
+        </div>
+        <div className="flex items-center gap-2 sm:col-span-2">
+          <input type="hidden" name="gated" value={gated ? '1' : '0'} />
+          <Checkbox
+            id={`edit-gated-${loc.id}`}
+            checked={gated}
+            onCheckedChange={(c) => setGated(c === true)}
+          />
+          <Label htmlFor={`edit-gated-${loc.id}`} className="cursor-pointer">
+            Gated community
+          </Label>
+        </div>
+      </div>
+      <input type="hidden" name="latitude" value={addr.latitude ?? ''} />
+      <input type="hidden" name="longitude" value={addr.longitude ?? ''} />
+      <div className="mt-3 flex items-center gap-2">
+        <Button type="submit" size="sm">
+          <Save className="mr-1 size-3.5" />
+          Save
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+// ── Main Component ──────────────────────────────────────────────────────────
 
 export function LocationsSection({
   customerId,
   locations,
+  primaryLocationId,
 }: LocationsSectionProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   const [showAddForm, setShowAddForm] = useState(false)
-  const [addGated, setAddGated] = useState(false)
-
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editGated, setEditGated] = useState(false)
-
   const [equipmentFormLocId, setEquipmentFormLocId] = useState<string | null>(null)
   const [equipmentKind, setEquipmentKind] = useState<'door' | 'opener' | 'spring'>('door')
-
-  const startEdit = (loc: LocationRow) => {
-    setEditingId(loc.id)
-    setEditGated(loc.gated ?? false)
-  }
 
   return (
     <Card>
@@ -115,76 +341,15 @@ export function LocationsSection({
           </div>
         )}
 
-        {/* Inline add-location form */}
         {showAddForm && (
-          <form
-            action={async (formData) => {
-              formData.append('customerId', customerId)
-              const result = await createLocationAction({}, formData)
-              if (result.success) {
-                setShowAddForm(false)
-                setAddGated(false)
-                router.refresh()
-              }
+          <AddLocationForm
+            customerId={customerId}
+            onSuccess={() => {
+              setShowAddForm(false)
+              router.refresh()
             }}
-            className="rounded-lg border p-4"
-          >
-            <p className="mb-3 text-sm font-medium">Add New Location</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="add-loc-name">Location name *</Label>
-                <Input id="add-loc-name" name="name" required />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="add-addressLine1">Address</Label>
-                <Input id="add-addressLine1" name="addressLine1" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="add-city">City</Label>
-                <Input id="add-city" name="city" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="add-state">State</Label>
-                <Input id="add-state" name="state" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="add-postalCode">Postal code</Label>
-                <Input id="add-postalCode" name="postalCode" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="add-country">Country</Label>
-                <Input id="add-country" name="country" defaultValue="USA" />
-              </div>
-              <div className="flex items-center gap-2 sm:col-span-2">
-                <input type="hidden" name="gated" value={addGated ? '1' : '0'} />
-                <Checkbox
-                  id="add-gated"
-                  checked={addGated}
-                  onCheckedChange={(c) => setAddGated(c === true)}
-                />
-                <Label htmlFor="add-gated" className="cursor-pointer">
-                  Gated community
-                </Label>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Button type="submit" size="sm" disabled={isPending}>
-                <Save className="mr-1 size-3.5" />
-                {isPending ? 'Saving…' : 'Save Location'}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowAddForm(false)
-                  setAddGated(false)
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
+            onCancel={() => setShowAddForm(false)}
+          />
         )}
 
         {locations.map((loc) => {
@@ -195,16 +360,15 @@ export function LocationsSection({
 
           return (
             <div key={loc.id} className="rounded-lg border">
-              {/* View mode */}
               {!isEditing ? (
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2">
                       <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
-                        <p className="font-medium">{loc.name}</p>
+                        {loc.name && <p className="font-medium">{loc.name}</p>}
                         <p className="text-sm text-muted-foreground">
-                          {[loc.addressLine1, loc.city, loc.state, loc.postalCode]
+                          {[loc.addressLine1, loc.addressLine2, loc.city, loc.state, loc.postalCode]
                             .filter(Boolean)
                             .join(', ')}
                         </p>
@@ -213,14 +377,36 @@ export function LocationsSection({
                             Gated
                           </Badge>
                         )}
+                        {primaryLocationId === loc.id && (
+                          <Badge className="mt-1 gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+                            <Star className="size-3 fill-amber-500 text-amber-500" />
+                            Primary
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
+                      {primaryLocationId !== loc.id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1 text-xs"
+                          onClick={() =>
+                            startTransition(async () => {
+                              await setPrimaryLocationAction(customerId, loc.id)
+                              router.refresh()
+                            })
+                          }
+                        >
+                          <Star className="size-3" />
+                          Set Primary
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-7 gap-1 text-xs"
-                        onClick={() => startEdit(loc)}
+                        onClick={() => setEditingId(loc.id)}
                       >
                         <Pencil className="size-3" />
                         Edit
@@ -376,7 +562,6 @@ export function LocationsSection({
                     </Button>
                   </div>
 
-                  {/* Inline equipment form */}
                   {equipmentFormLocId === loc.id && (
                     <EquipmentForm
                       customerId={customerId}
@@ -389,98 +574,15 @@ export function LocationsSection({
                   )}
                 </div>
               ) : (
-                /* Edit mode */
-                <form
-                  action={async (formData) => {
-                    formData.append('id', loc.id)
-                    formData.append('customerId', customerId)
-                    formData.append('gated', editGated ? '1' : '0')
-                    const result = await updateLocationAction({}, formData)
-                    if (result.success) {
-                      setEditingId(null)
-                      router.refresh()
-                    }
+                <EditLocationForm
+                  loc={loc}
+                  customerId={customerId}
+                  onSuccess={() => {
+                    setEditingId(null)
+                    router.refresh()
                   }}
-                  className="p-4"
-                >
-                  <p className="mb-3 text-sm font-medium">Edit Location</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <Label htmlFor={`edit-name-${loc.id}`}>Location name *</Label>
-                      <Input
-                        id={`edit-name-${loc.id}`}
-                        name="name"
-                        defaultValue={loc.name}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <Label htmlFor={`edit-addr-${loc.id}`}>Address</Label>
-                      <Input
-                        id={`edit-addr-${loc.id}`}
-                        name="addressLine1"
-                        defaultValue={loc.addressLine1 ?? ''}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`edit-city-${loc.id}`}>City</Label>
-                      <Input
-                        id={`edit-city-${loc.id}`}
-                        name="city"
-                        defaultValue={loc.city ?? ''}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`edit-state-${loc.id}`}>State</Label>
-                      <Input
-                        id={`edit-state-${loc.id}`}
-                        name="state"
-                        defaultValue={loc.state ?? ''}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`edit-postal-${loc.id}`}>Postal code</Label>
-                      <Input
-                        id={`edit-postal-${loc.id}`}
-                        name="postalCode"
-                        defaultValue={loc.postalCode ?? ''}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`edit-country-${loc.id}`}>Country</Label>
-                      <Input
-                        id={`edit-country-${loc.id}`}
-                        name="country"
-                        defaultValue={loc.country ?? 'USA'}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 sm:col-span-2">
-                      <input type="hidden" name="gated" value={editGated ? '1' : '0'} />
-                      <Checkbox
-                        id={`edit-gated-${loc.id}`}
-                        checked={editGated}
-                        onCheckedChange={(c) => setEditGated(c === true)}
-                      />
-                      <Label htmlFor={`edit-gated-${loc.id}`} className="cursor-pointer">
-                        Gated community
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Button type="submit" size="sm" disabled={isPending}>
-                      <Save className="mr-1 size-3.5" />
-                      {isPending ? 'Saving…' : 'Save'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingId(null)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
+                  onCancel={() => setEditingId(null)}
+                />
               )}
             </div>
           )
@@ -503,12 +605,6 @@ function EquipmentForm({
 }) {
   const [kind, setKind] = useState<'door' | 'opener' | 'spring'>('door')
   const [pending, setPending] = useState(false)
-
-  const fields: Record<string, string> = {
-    door: 'brand, widthFt, heightFt, material, style, color, modelSeries, installDate, warrantyExpires, notes',
-    opener: 'brand, model, hp, serial, installDate, warrantyExpires, notes',
-    spring: 'wireSize, insideDiameter, length, windDirection, cycleRating, installDate, warrantyExpires, notes',
-  }
 
   return (
     <form
@@ -544,7 +640,6 @@ function EquipmentForm({
           </select>
         </div>
 
-        {/* Door fields */}
         {kind === 'door' && (
           <>
             <div className="space-y-1.5">
@@ -578,7 +673,6 @@ function EquipmentForm({
           </>
         )}
 
-        {/* Opener fields */}
         {kind === 'opener' && (
           <>
             <div className="space-y-1.5">
@@ -600,7 +694,6 @@ function EquipmentForm({
           </>
         )}
 
-        {/* Spring fields */}
         {kind === 'spring' && (
           <>
             <div className="space-y-1.5">
@@ -634,7 +727,6 @@ function EquipmentForm({
           </>
         )}
 
-        {/* Common fields */}
         <div className="space-y-1.5">
           <Label htmlFor="eq-installDate">Install Date</Label>
           <Input id="eq-installDate" name="installDate" type="date" />

@@ -22,17 +22,23 @@ vi.mock('@/db/with-tenant', () => ({
   withTenant: vi.fn(async (orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
     const tx = {
       insert: vi.fn(() => ({
-        values: vi.fn(() => ({
+        values: vi.fn((insertValues: any) => ({
           onConflictDoNothing: vi.fn(() => ({
             returning: vi.fn(async () => {
               const id = `cat_${Math.random().toString(36).slice(2)}`
-              const row = { id, name: '', parentId: null, tenantId: orgId }
+              const row = { id, name: insertValues?.name ?? '', parentId: insertValues?.parentId ?? null, tenantId: orgId }
               if (!categoryStore.has(orgId)) categoryStore.set(orgId, [])
               categoryStore.get(orgId)!.push(row)
               return [row]
             }),
           })),
-          returning: vi.fn(async () => [{ id: `cat_${Math.random().toString(36).slice(2)}`, name: '' }]),
+          returning: vi.fn(async () => {
+            const id = `cat_${Math.random().toString(36).slice(2)}`
+            const row = { id, name: insertValues?.name ?? '', parentId: insertValues?.parentId ?? null, tenantId: orgId }
+            if (!categoryStore.has(orgId)) categoryStore.set(orgId, [])
+            categoryStore.get(orgId)!.push(row)
+            return [{ id: row.id, name: row.name }]
+          }),
         })),
       })),
       select: vi.fn(() => ({

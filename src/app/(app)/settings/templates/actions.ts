@@ -51,6 +51,7 @@ export async function createTemplateAction(
   let lineItems: Array<{
     type: 'product' | 'service' | 'discount' | 'expense'
     refId?: string | null
+    title?: string | null
     description: string
     qty?: string
     rate?: string
@@ -81,6 +82,7 @@ export async function createTemplateAction(
       lineItems: lineItems.map((li) => ({
         type: li.type,
         refId: li.refId ?? null,
+        title: li.title ?? null,
         description: li.description,
         qty: li.qty ?? '1',
         rate: li.rate ?? '0',
@@ -122,6 +124,7 @@ export async function updateTemplateAction(
   let lineItems: Array<{
     type: 'product' | 'service' | 'discount' | 'expense'
     refId?: string | null
+    title?: string | null
     description: string
     qty?: string
     rate?: string
@@ -152,6 +155,7 @@ export async function updateTemplateAction(
       lineItems: lineItems.map((li) => ({
         type: li.type,
         refId: li.refId ?? null,
+        title: li.title ?? null,
         description: li.description,
         qty: li.qty ?? '1',
         rate: li.rate ?? '0',

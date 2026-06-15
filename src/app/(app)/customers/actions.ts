@@ -8,7 +8,7 @@ import { withTenant } from '@/db/with-tenant'
 import { customers, customerTags, contacts, contactPhones, contactEmails, serviceLocations, equipment } from '@/db/schema'
 import { nextAccountNo } from '@/lib/account-number'
 import { equipmentSchema } from '@/lib/equipment-schema'
-import { createContact, createLocation } from '@/lib/customers'
+import { createContact, createLocation, setPrimaryLocation } from '@/lib/customers'
 import { createTag, createReferralSource } from '@/lib/tags'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -49,6 +49,23 @@ function extractIndexedArrays(formData: FormData) {
   }
 }
 
+function extractInlineContacts(formData: FormData): Array<{ firstName: string; lastName: string; phone: string; email: string }> {
+  const map = new Map<number, { firstName: string; lastName: string; phone: string; email: string }>()
+
+  for (const [key, value] of formData.entries()) {
+    const match = key.match(/^contacts\[(\d+)\]\.(firstName|lastName|phone|email)$/)
+    if (match) {
+      const idx = Number(match[1])
+      const field = match[2] as 'firstName' | 'lastName' | 'phone' | 'email'
+      const entry = map.get(idx) ?? { firstName: '', lastName: '', phone: '', email: '' }
+      entry[field] = String(value)
+      map.set(idx, entry)
+    }
+  }
+
+  return Array.from(map.values()).filter((c) => c.firstName.trim())
+}
+
 // ── Schemas ────────────────────────────────────────────────────────────────
 
 // Base UI Checkbox does not render a native <input>, so we use hidden inputs
@@ -64,31 +81,32 @@ const formBool = (defaultValue: boolean) =>
     z.boolean().default(defaultValue),
   )
 
+const opt = (max = 255) =>
+  z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().max(max).optional(),
+  )
+
 const createCustomerSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(255),
   vip: formBool(false),
   active: formBool(true),
-  parentCustomerId: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
-    z.string().max(255).optional(),
-  ),
-  assignedAgentId: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
-    z.string().max(255).optional(),
-  ),
-  referralSourceId: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
-    z.string().max(255).optional(),
-  ),
-  internalNotes: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
-    z.string().max(2000).optional(),
-  ),
-  publicNotes: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
-    z.string().max(2000).optional(),
-  ),
+  parentCustomerId: opt(),
+  assignedAgentId: opt(),
+  referralSourceId: opt(),
+  internalNotes: opt(2000),
+  publicNotes: opt(2000),
   tagIds: z.array(z.string()).default([]),
+  // Inline service location (create mode only)
+  locationName: opt(),
+  locationAddress1: opt(),
+  locationAddress2: opt(),
+  locationCity: opt(100),
+  locationState: opt(50),
+  locationZip: opt(20),
+  locationGated: z.preprocess((v) => v === 'true' || v === true, z.boolean().default(false)),
+  locationLat: opt(),
+  locationLng: opt(),
 })
 
 const updateCustomerSchema = createCustomerSchema.extend({
@@ -97,7 +115,7 @@ const updateCustomerSchema = createCustomerSchema.extend({
 
 const createLocationSchema = z.object({
   customerId: z.string().min(1),
-  name: z.string().trim().min(1, 'Location name is required').max(255),
+  name: opt(),
   addressLine1: z.preprocess(
     (val) => (val === '' || val === null || val === undefined) ? undefined : val,
     z.string().max(255).optional(),
@@ -123,6 +141,14 @@ const createLocationSchema = z.object({
     z.string().max(100).optional(),
   ),
   gated: formBool(false),
+  latitude: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().optional(),
+  ),
+  longitude: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined) ? undefined : val,
+    z.string().optional(),
+  ),
 })
 
 const updateLocationSchema = createLocationSchema.extend({
@@ -179,13 +205,30 @@ export async function createCustomer(
     internalNotes: formData.get('internalNotes'),
     publicNotes: formData.get('publicNotes'),
     tagIds,
+    locationName: formData.get('locationName'),
+    locationAddress1: formData.get('locationAddress1'),
+    locationAddress2: formData.get('locationAddress2'),
+    locationCity: formData.get('locationCity'),
+    locationState: formData.get('locationState'),
+    locationZip: formData.get('locationZip'),
+    locationGated: formData.get('locationGated'),
+    locationLat: formData.get('locationLat'),
+    locationLng: formData.get('locationLng'),
   })
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
   }
 
-  const { tagIds: parsedTagIds, ...customerData } = parsed.data
+  const {
+    tagIds: parsedTagIds,
+    locationName, locationAddress1, locationAddress2,
+    locationCity, locationState, locationZip, locationGated,
+    locationLat, locationLng,
+    ...customerData
+  } = parsed.data
+
+  const inlineContacts = extractInlineContacts(formData)
 
   // Retry loop for rare unique-constraint race on account_no
   let attempts = 0
@@ -213,6 +256,60 @@ export async function createCustomer(
               tagId,
             })),
           )
+        }
+
+        // Inline contacts
+        for (const ic of inlineContacts) {
+          const [contact] = await tx
+            .insert(contacts)
+            .values({
+              tenantId: orgId,
+              customerId: row.id,
+              firstName: ic.firstName,
+              lastName: ic.lastName || null,
+            })
+            .returning({ id: contacts.id })
+          if (ic.phone.trim()) {
+            await tx.insert(contactPhones).values({
+              tenantId: orgId,
+              contactId: contact.id,
+              number: ic.phone.trim(),
+              type: 'cell',
+              isPrimary: true,
+            } as any)
+          }
+          if (ic.email.trim()) {
+            await tx.insert(contactEmails).values({
+              tenantId: orgId,
+              contactId: contact.id,
+              address: ic.email.trim(),
+              type: 'work',
+              isPrimary: true,
+            } as any)
+          }
+        }
+
+        // Inline service location
+        if (locationAddress1 || locationCity) {
+          const [newLoc] = await tx.insert(serviceLocations).values({
+            tenantId: orgId,
+            customerId: row.id,
+            name: locationName ?? null,
+            addressLine1: locationAddress1 ?? null,
+            addressLine2: locationAddress2 ?? null,
+            city: locationCity ?? null,
+            state: locationState ?? null,
+            postalCode: locationZip ?? null,
+            gated: locationGated ?? false,
+            latitude: locationLat ?? null,
+            longitude: locationLng ?? null,
+          }).returning({ id: serviceLocations.id })
+
+          // First (only) location becomes primary
+          await tx
+            .update(customers)
+            .set({ primaryLocationId: newLoc.id, updatedAt: new Date() })
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, row.id)))
         }
 
         return row.id
@@ -327,7 +424,8 @@ const updateCustomerDetailSchema = z.object({
     .array(
       z.object({
         id: z.string().optional(),
-        name: z.string().min(1, 'Contact name is required').max(255),
+        firstName: z.string().min(1, 'First name is required').max(255),
+        lastName: z.string().max(255).nullable().optional(),
         jobTitle: z.string().max(255).nullable().optional(),
         birthday: z.string().nullable().optional(),
         anniversary: z.string().nullable().optional(),
@@ -423,7 +521,8 @@ export async function updateCustomerDetail(
         await tx
           .update(contacts)
           .set({
-            name: contact.name,
+            firstName: contact.firstName,
+            lastName: contact.lastName || null,
             jobTitle: contact.jobTitle ?? null,
             birthday: contact.birthday || null,
             anniversary: contact.anniversary || null,
@@ -474,7 +573,8 @@ export async function updateCustomerDetail(
           .values({
             tenantId: orgId,
             customerId: id,
-            name: contact.name,
+            firstName: contact.firstName,
+            lastName: contact.lastName || null,
             jobTitle: contact.jobTitle ?? null,
             birthday: contact.birthday || null,
             anniversary: contact.anniversary || null,
@@ -525,16 +625,18 @@ export async function createContactAction(
   }
 
   const customerId = String(formData.get('customerId') ?? '')
-  const name = String(formData.get('name') ?? '')
-  if (!customerId || !name) {
-    return { error: 'Customer ID and name are required.' }
+  const firstName = String(formData.get('firstName') ?? '')
+  const lastName = String(formData.get('lastName') ?? '') || null
+  if (!customerId || !firstName) {
+    return { error: 'Customer ID and first name are required.' }
   }
 
   const { phones, emails } = extractIndexedArrays(formData)
 
   const result = await createContact(orgId, {
     customerId,
-    name,
+    firstName,
+    lastName,
     smsConsent: formData.get('smsConsent') === '1',
     billingContact: formData.get('billingContact') === '1',
     bookingContact: formData.get('bookingContact') === '1',
@@ -569,6 +671,8 @@ export async function createLocationAction(
     postalCode: formData.get('postalCode'),
     country: formData.get('country'),
     gated: formData.get('gated'),
+    latitude: formData.get('latitude'),
+    longitude: formData.get('longitude'),
   })
 
   if (!parsed.success) {
@@ -604,6 +708,8 @@ export async function updateLocationAction(
     postalCode: formData.get('postalCode'),
     country: formData.get('country'),
     gated: formData.get('gated'),
+    latitude: formData.get('latitude'),
+    longitude: formData.get('longitude'),
   })
 
   if (!parsed.success) {
@@ -788,6 +894,27 @@ export async function deactivateCustomer(
 
   revalidatePath('/customers')
   revalidatePath(`/customers/${id}`)
+  return { success: true }
+}
+
+export async function setPrimaryLocationAction(
+  customerId: string,
+  locationId: string | null,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    await setPrimaryLocation(orgId, customerId, locationId)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to set primary location.'
+    return { error: message }
+  }
+
+  revalidatePath('/customers')
+  revalidatePath(`/customers/${customerId}`)
   return { success: true }
 }
 

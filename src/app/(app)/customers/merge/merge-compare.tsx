@@ -156,13 +156,10 @@ export function MergeCompare({ a, b }: MergeCompareProps) {
 
       <div className="flex justify-end">
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogTrigger>
-            <Button
-              type="button"
-              disabled={!choices.name || pending}
-            >
-              Merge &amp; Archive
-            </Button>
+          <DialogTrigger
+            render={<Button type="button" disabled={!choices.name || pending} />}
+          >
+            Merge &amp; Archive
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

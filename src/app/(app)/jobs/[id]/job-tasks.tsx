@@ -113,9 +113,23 @@ export function JobTasks({ jobId, tasks: initialTasks, reminders: initialReminde
     [jobId, router],
   )
 
+  const [togglingTaskId, setTogglingTaskId] = useState<string | null>(null)
+
   const handleToggleTask = useCallback(
     async (taskId: string) => {
-      await toggleJobTask(taskId, jobId)
+      // Optimistic: flip local state immediately so the UI feels responsive
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)),
+      )
+      setTogglingTaskId(taskId)
+      const result = await toggleJobTask(taskId, jobId)
+      setTogglingTaskId(null)
+      if (!result.success) {
+        // Revert on error
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)),
+        )
+      }
       router.refresh()
     },
     [jobId, router],
@@ -240,6 +254,7 @@ export function JobTasks({ jobId, tasks: initialTasks, reminders: initialReminde
                 <button
                   type="button"
                   className="flex items-center gap-2 text-left"
+                  disabled={togglingTaskId === task.id}
                   onClick={() => handleToggleTask(task.id)}
                 >
                   <span

@@ -98,6 +98,7 @@ export const customers = pgTable(
     internalNotes: text('internal_notes'),
     publicNotes: text('public_notes'),
     archivedAt: timestamp('archived_at'),
+    primaryLocationId: text('primary_location_id'),
     mergedInto: text('merged_into'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -118,6 +119,8 @@ export const customers = pgTable(
       columns: [t.tenantId, t.referralSourceId],
       foreignColumns: [referralSources.tenantId, referralSources.id],
     }).onDelete('set null'),
+    // Note: primaryLocationId is validated at the app layer (setPrimaryLocation)
+    // to avoid circular reference between customers and serviceLocations tables.
     foreignKey({
       columns: [t.tenantId, t.mergedInto],
       foreignColumns: [t.tenantId, t.id],
@@ -142,7 +145,8 @@ export const contacts = pgTable(
     customerId: text('customer_id')
       .notNull()
       .references(() => customers.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name'),
     smsConsent: boolean('sms_consent').default(false),
     billingContact: boolean('billing_contact').default(false),
     bookingContact: boolean('booking_contact').default(false),
@@ -242,7 +246,7 @@ export const serviceLocations = pgTable(
     customerId: text('customer_id')
       .notNull()
       .references(() => customers.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
+    name: text('name'),
     addressLine1: text('address_line1'),
     addressLine2: text('address_line2'),
     city: text('city'),
@@ -726,6 +730,7 @@ export const jobLineItems = pgTable(
       .references(() => jobs.id, { onDelete: 'cascade' }),
     type: lineItemType('type'),
     refId: text('ref_id'),
+    title: text('title'),
     description: text('description'),
     qty: numeric('qty'),
     rate: numeric('rate'),
@@ -999,6 +1004,7 @@ export const jobTemplateLineItems = pgTable(
       .references(() => jobTemplates.id, { onDelete: 'cascade' }),
     type: lineItemType('type'),
     refId: text('ref_id'),
+    title: text('title'),
     description: text('description'),
     qty: numeric('qty'),
     rate: numeric('rate'),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,9 @@ interface CreateCatalogItemModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   categories: Array<{ id: string; name: string }>
-  onCreated: (item: { id: string; name: string; unitPrice: string }) => void
+  onCreated: (item: { id: string; name: string; unitPrice: string; unitCost: string | null; description: string | null }) => void
+  defaultName?: string
+  defaultKind?: 'product' | 'service'
 }
 
 export function CreateCatalogItemModal({
@@ -27,8 +29,15 @@ export function CreateCatalogItemModal({
   onOpenChange,
   categories,
   onCreated,
+  defaultName,
+  defaultKind,
 }: CreateCatalogItemModalProps) {
-  const [kind, setKind] = useState<'product' | 'service'>('product')
+  const [kind, setKind] = useState<'product' | 'service'>(defaultKind ?? 'product')
+
+  // Sync kind when modal opens
+  useEffect(() => {
+    if (open && defaultKind) setKind(defaultKind)
+  }, [open, defaultKind])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -116,7 +125,7 @@ export function CreateCatalogItemModal({
 
             <div className="space-y-2">
               <Label htmlFor="cim-name">Name *</Label>
-              <Input id="cim-name" name="name" placeholder="Item name" />
+              <Input id="cim-name" name="name" placeholder="Item name" defaultValue={defaultName} />
               {errors.name && (
                 <p className="text-sm text-destructive">{errors.name}</p>
               )}

@@ -81,9 +81,10 @@ describe('isLegalTransition', () => {
     expect(isLegalTransition('unscheduled', 'paid_in_full')).toBe(false)
   })
 
-  it('returns false for cancelled -> anything [ASSUMED]', () => {
-    expect(isLegalTransition('cancelled', 'scheduled')).toBe(false)
+  it('allows cancelled -> unscheduled to reopen a mistakenly cancelled job', () => {
+    expect(isLegalTransition('cancelled', 'unscheduled')).toBe(true)
     expect(isLegalTransition('cancelled', 'completed')).toBe(false)
+    expect(isLegalTransition('cancelled', 'scheduled')).toBe(false)
   })
 
   it('returns true for on_the_way -> on_site [ASSUMED]', () => {
@@ -110,8 +111,8 @@ describe('ALLOWED_TRANSITIONS', () => {
     }
   })
 
-  it('has empty arrays for terminal statuses (job_closed, cancelled) [ASSUMED]', () => {
+  it('has an empty array only for job_closed (the sole terminal status)', () => {
     expect(ALLOWED_TRANSITIONS['job_closed' as keyof typeof ALLOWED_TRANSITIONS]).toEqual([])
-    expect(ALLOWED_TRANSITIONS['cancelled' as keyof typeof ALLOWED_TRANSITIONS]).toEqual([])
+    expect(ALLOWED_TRANSITIONS['cancelled' as keyof typeof ALLOWED_TRANSITIONS]).not.toEqual([])
   })
 })

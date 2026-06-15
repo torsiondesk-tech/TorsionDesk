@@ -1,3 +1,5 @@
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 import {
   Card,
   CardDescription,
@@ -5,30 +7,14 @@ import {
   CardTitle,
   CardContent,
 } from '@/components/ui/card'
+import { countOpenJobs } from '@/lib/jobs/jobs'
 
-/**
- * Dashboard with placeholder metric cards (D-09).
- *
- * Phase 0 renders the four canonical cards — Open Jobs, Unpaid Invoices, Today's
- * Schedule, Recent Activity — each showing an em-dash value and a muted
- * "Available in Phase N" label. No fake/hardcoded numbers: the dash makes it feel
- * intentional rather than abandoned. Later phases replace the placeholder with
- * real metrics.
- */
-type MetricCard = {
-  title: string
-  /** The phase that lights this card up — surfaced in the muted note. */
-  availableInPhase: string
-}
+export default async function DashboardPage() {
+  const { orgId } = await auth()
+  if (!orgId) redirect('/sign-in')
 
-const CARDS: MetricCard[] = [
-  { title: 'Open Jobs', availableInPhase: 'Phase 3' },
-  { title: 'Unpaid Invoices', availableInPhase: 'Phase 7' },
-  { title: "Today's Schedule", availableInPhase: 'Phase 4' },
-  { title: 'Recent Activity', availableInPhase: 'Phase 3' },
-]
+  const openJobCount = await countOpenJobs(orgId)
 
-export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
       <div className="space-y-1">
@@ -39,19 +25,45 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {CARDS.map((card) => (
-          <Card key={card.title}>
-            <CardHeader>
-              <CardDescription>{card.title}</CardDescription>
-              <CardTitle className="text-3xl font-bold">—</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                Available in {card.availableInPhase}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader>
+            <CardDescription>Open Jobs</CardDescription>
+            <CardTitle className="text-3xl font-bold">{openJobCount}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Active + in progress</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Unpaid Invoices</CardDescription>
+            <CardTitle className="text-3xl font-bold">—</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Available in Phase 7</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Today&apos;s Schedule</CardDescription>
+            <CardTitle className="text-3xl font-bold">—</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Available in Phase 4</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Recent Activity</CardDescription>
+            <CardTitle className="text-3xl font-bold">—</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Available in Phase 3</p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

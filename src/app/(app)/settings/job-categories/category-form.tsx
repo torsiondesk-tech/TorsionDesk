@@ -113,11 +113,9 @@ export function CategoryForm({
       {/* Add button */}
       <div className="flex items-center justify-between">
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger>
-            <Button>
-              <Plus className="mr-2 size-4" />
-              Add Category
-            </Button>
+          <DialogTrigger render={<Button />}>
+            <Plus className="mr-2 size-4" />
+            Add Category
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>

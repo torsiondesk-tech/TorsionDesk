@@ -11,6 +11,9 @@ import {
   jobPhotos,
   tags,
   customers,
+  contacts,
+  contactPhones,
+  contactEmails,
   serviceLocations,
   jobCategories,
 } from '@/db/schema'
@@ -178,6 +181,24 @@ export async function listJobs(
 
 export type JobDetail = typeof jobs.$inferSelect & {
   customerName: string
+  primaryLocationId: string | null
+  contact: {
+    id: string
+    firstName: string
+    lastName: string | null
+    phones: { id: string; number: string; type: string; isPrimary: boolean | null }[]
+    emails: { id: string; address: string; type: string; isPrimary: boolean | null }[]
+  } | null
+  serviceLocation: {
+    id: string
+    name: string | null
+    addressLine1: string | null
+    addressLine2: string | null
+    city: string | null
+    state: string | null
+    postalCode: string | null
+    gated: boolean | null
+  } | null
   lineItems: typeof jobLineItems.$inferSelect[]
   tags: typeof tags.$inferSelect[]
   assignees: typeof jobAssignees.$inferSelect[]
@@ -205,55 +226,129 @@ export async function getJob(
     const job = jobRows[0]
     if (!job) return null
 
-    const [customerRows, lineItems, tagRows, assignees, siteVisits, tasks, reminders, photos] =
-      await Promise.all([
-        tx
-          .select({ name: customers.name })
-          .from(customers)
-          .where(and(eq(customers.tenantId, orgId), eq(customers.id, job.customerId)))
-          .limit(1),
-        tx
-          .select()
-          .from(jobLineItems)
-          .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, jobId))),
-        tx
-          .select({
-            id: tags.id,
-            tenantId: tags.tenantId,
-            name: tags.name,
-            color: tags.color,
-            createdAt: tags.createdAt,
-            updatedAt: tags.updatedAt,
-          })
-          .from(jobTags)
-          .innerJoin(tags, eq(jobTags.tagId, tags.id))
-          .where(and(eq(jobTags.tenantId, orgId), eq(jobTags.jobId, jobId))),
-        tx
-          .select()
-          .from(jobAssignees)
-          .where(and(eq(jobAssignees.tenantId, orgId), eq(jobAssignees.jobId, jobId))),
-        tx
-          .select()
-          .from(jobSiteVisits)
-          .where(and(eq(jobSiteVisits.tenantId, orgId), eq(jobSiteVisits.jobId, jobId))),
-        tx
-          .select()
-          .from(jobTasks)
-          .where(and(eq(jobTasks.tenantId, orgId), eq(jobTasks.jobId, jobId))),
-        tx
-          .select()
-          .from(jobReminders)
-          .where(and(eq(jobReminders.tenantId, orgId), eq(jobReminders.jobId, jobId))),
-        tx
-          .select()
-          .from(jobPhotos)
-          .where(and(eq(jobPhotos.tenantId, orgId), eq(jobPhotos.jobId, jobId)))
-          .orderBy(desc(jobPhotos.createdAt)),
-      ])
+    const [
+      customerRows,
+      contactRows,
+      contactPhoneRows,
+      contactEmailRows,
+      locationRows,
+      lineItems,
+      tagRows,
+      assignees,
+      siteVisits,
+      tasks,
+      reminders,
+      photos,
+    ] = await Promise.all([
+      tx
+        .select({ name: customers.name, primaryLocationId: customers.primaryLocationId })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, job.customerId)))
+        .limit(1),
+      job.contactId
+        ? tx
+            .select()
+            .from(contacts)
+            .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, job.contactId)))
+            .limit(1)
+        : Promise.resolve([]),
+      job.contactId
+        ? tx
+            .select()
+            .from(contactPhones)
+            .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, job.contactId)))
+        : Promise.resolve([]),
+      job.contactId
+        ? tx
+            .select()
+            .from(contactEmails)
+            .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, job.contactId)))
+        : Promise.resolve([]),
+      job.serviceLocationId
+        ? tx
+            .select()
+            .from(serviceLocations)
+            .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.id, job.serviceLocationId)))
+            .limit(1)
+        : Promise.resolve([]),
+      tx
+        .select()
+        .from(jobLineItems)
+        .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, jobId))),
+      tx
+        .select({
+          id: tags.id,
+          tenantId: tags.tenantId,
+          name: tags.name,
+          color: tags.color,
+          createdAt: tags.createdAt,
+          updatedAt: tags.updatedAt,
+        })
+        .from(jobTags)
+        .innerJoin(tags, eq(jobTags.tagId, tags.id))
+        .where(and(eq(jobTags.tenantId, orgId), eq(jobTags.jobId, jobId))),
+      tx
+        .select()
+        .from(jobAssignees)
+        .where(and(eq(jobAssignees.tenantId, orgId), eq(jobAssignees.jobId, jobId))),
+      tx
+        .select()
+        .from(jobSiteVisits)
+        .where(and(eq(jobSiteVisits.tenantId, orgId), eq(jobSiteVisits.jobId, jobId))),
+      tx
+        .select()
+        .from(jobTasks)
+        .where(and(eq(jobTasks.tenantId, orgId), eq(jobTasks.jobId, jobId))),
+      tx
+        .select()
+        .from(jobReminders)
+        .where(and(eq(jobReminders.tenantId, orgId), eq(jobReminders.jobId, jobId))),
+      tx
+        .select()
+        .from(jobPhotos)
+        .where(and(eq(jobPhotos.tenantId, orgId), eq(jobPhotos.jobId, jobId)))
+        .orderBy(desc(jobPhotos.createdAt)),
+    ])
+
+    const contact = contactRows[0]
+      ? {
+          id: contactRows[0].id,
+          firstName: contactRows[0].firstName,
+          lastName: contactRows[0].lastName,
+          phones: contactPhoneRows.map((p) => ({
+            id: p.id,
+            number: p.number,
+            type: p.type,
+            isPrimary: p.isPrimary,
+          })),
+          emails: contactEmailRows.map((e) => ({
+            id: e.id,
+            address: e.address,
+            type: e.type,
+            isPrimary: e.isPrimary,
+          })),
+        }
+      : null
+
+    const serviceLocation = locationRows[0]
+      ? {
+          id: locationRows[0].id,
+          name: locationRows[0].name,
+          addressLine1: locationRows[0].addressLine1,
+          addressLine2: locationRows[0].addressLine2,
+          city: locationRows[0].city,
+          state: locationRows[0].state,
+          postalCode: locationRows[0].postalCode,
+          gated: locationRows[0].gated,
+        }
+      : null
 
     return {
       ...job,
       customerName: customerRows[0]?.name ?? '',
+      primaryLocationId: customerRows[0]?.primaryLocationId ?? null,
+      contact,
+      serviceLocation,
       lineItems,
       tags: tagRows,
       assignees,
@@ -262,6 +357,21 @@ export async function getJob(
       reminders,
       photos,
     }
+  })
+}
+
+/**
+ * Count of open + in-progress jobs for the tenant.
+ * Used by the dashboard Open Jobs metric card.
+ */
+export async function countOpenJobs(orgId: string): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const openStatuses = [...STATUS_GROUPS.open, ...STATUS_GROUPS.in_progress]
+    const [{ c }] = await tx
+      .select({ c: count() })
+      .from(jobs)
+      .where(and(eq(jobs.tenantId, orgId), inArray(jobs.status, openStatuses)))
+    return c
   })
 }
 

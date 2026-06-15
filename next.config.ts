@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
   // its own pnpm-lock.yaml. Pin the tracing root to this project so Next does not
   // infer the parent repo as the workspace root.
   outputFileTracingRoot: fileURLToPath(new URL('.', import.meta.url)),
+  serverActions: {
+    // Job photos (before/after shots) routinely exceed the 1 MB default.
+    // Set to 12 MB to give FormData overhead headroom; app-level guard is 10 MB.
+    bodySizeLimit: '12mb',
+  },
 }
 
 export default nextConfig

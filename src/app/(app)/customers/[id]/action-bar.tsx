@@ -60,10 +60,16 @@ export function CustomerActionBar({
       </Link>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger>
-          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-            Deactivate
-          </Button>
+        <DialogTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+            />
+          }
+        >
+          Deactivate
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>

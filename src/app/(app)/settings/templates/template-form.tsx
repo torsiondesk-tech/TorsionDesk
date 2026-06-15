@@ -34,6 +34,7 @@ export type TemplateRow = {
 export interface TemplateFormLineItem {
   type: 'product' | 'service' | 'discount' | 'expense'
   refId?: string | null
+  title: string
   description: string
   qty: string
   rate: string
@@ -274,7 +275,7 @@ function TemplateFormInner({
   const addLineItem = () =>
     setLineItems((prev) => [
       ...prev,
-      { type: 'service', description: '', qty: '1', rate: '0', cost: '0' },
+      { type: 'service', title: '', description: '', qty: '1', rate: '0', cost: '0' },
     ])
 
   const removeLineItem = (idx: number) =>
@@ -366,45 +367,74 @@ function TemplateFormInner({
         ) : (
           <div className="space-y-2">
             {lineItems.map((li, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <select
-                  value={li.type}
-                  onChange={(e) =>
-                    updateLineItem(i, 'type', e.target.value)
-                  }
-                  className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs"
-                >
-                  <option value="product">Product</option>
-                  <option value="service">Service</option>
-                  <option value="discount">Discount</option>
-                  <option value="expense">Expense</option>
-                </select>
+              <div key={i} className="rounded-md border p-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={li.type}
+                    onChange={(e) => updateLineItem(i, 'type', e.target.value)}
+                    className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs"
+                  >
+                    <option value="product">Product</option>
+                    <option value="service">Service</option>
+                    <option value="discount">Discount</option>
+                    <option value="expense">Expense</option>
+                  </select>
+                  <Input
+                    placeholder="Title"
+                    value={li.title}
+                    onChange={(e) => updateLineItem(i, 'title', e.target.value)}
+                    className="flex-1 text-xs font-medium"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => removeLineItem(i)}
+                  >
+                    <X className="size-3 text-destructive" />
+                  </Button>
+                </div>
                 <Input
                   placeholder="Description"
                   value={li.description}
                   onChange={(e) => updateLineItem(i, 'description', e.target.value)}
-                  className="flex-1 text-xs"
+                  className="text-xs text-muted-foreground"
                 />
-                <Input
-                  placeholder="Qty"
-                  value={li.qty}
-                  onChange={(e) => updateLineItem(i, 'qty', e.target.value)}
-                  className="w-16 text-xs"
-                />
-                <Input
-                  placeholder="Rate"
-                  value={li.rate}
-                  onChange={(e) => updateLineItem(i, 'rate', e.target.value)}
-                  className="w-20 text-xs"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => removeLineItem(i)}
-                >
-                  <X className="size-3 text-destructive" />
-                </Button>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={li.qty}
+                      onChange={(e) => updateLineItem(i, 'qty', e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={li.rate}
+                      onChange={(e) => updateLineItem(i, 'rate', e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={li.cost}
+                      onChange={(e) => updateLineItem(i, 'cost', e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
               </div>
             ))}
           </div>

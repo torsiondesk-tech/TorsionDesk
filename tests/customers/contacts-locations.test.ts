@@ -23,10 +23,15 @@ vi.mock('@/db/with-tenant', () => ({
         })),
       })),
       select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(async () => [{ id: 'cust_1' }]),
-          })),
+        from: vi.fn(() => {
+          const whereResult = vi.fn(async () => [{ c: 1 }])
+          whereResult.limit = vi.fn(async () => [{ id: 'cust_1' }])
+          return { where: vi.fn(() => whereResult) }
+        }),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(async () => undefined),
         })),
       })),
     }
@@ -41,7 +46,8 @@ describe('createContact', () => {
   it('persists contact with billing/booking/SMS flags', async () => {
     const result = await createContact(ORG_A, {
       customerId: 'cust_1',
-      name: 'John Doe',
+      firstName: 'John',
+      lastName: 'Doe',
       smsConsent: true,
       billingContact: true,
       bookingContact: false,
