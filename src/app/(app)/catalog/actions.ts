@@ -18,6 +18,7 @@ import {
   listProducts,
   listServices,
 } from '@/lib/catalog'
+import { logger } from '@/lib/logger'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ export async function createProduct(
     revalidatePath('/catalog')
     return { success: true, id }
   } catch (err) {
-    console.error('createProduct error:', err)
+    logger.error('createProduct', err)
     return { error: 'Could not save product. Please try again.' }
   }
 }
@@ -276,7 +277,7 @@ export async function updateProduct(
     revalidatePath('/catalog')
     return { success: true, id }
   } catch (err) {
-    console.error('updateProduct error:', err)
+    logger.error('updateProduct', err)
     return { error: 'Could not save product. Please try again.' }
   }
 }
@@ -300,7 +301,7 @@ export async function deleteProduct(
     revalidatePath('/catalog')
     return { success: true }
   } catch (err) {
-    console.error('deleteProduct error:', err)
+    logger.error('deleteProduct', err)
     return { error: 'Could not delete product. Please try again.' }
   }
 }
@@ -355,7 +356,7 @@ export async function createService(
     revalidatePath('/catalog')
     return { success: true, id }
   } catch (err) {
-    console.error('createService error:', err)
+    logger.error('createService', err)
     return { error: 'Could not save service. Please try again.' }
   }
 }
@@ -410,7 +411,7 @@ export async function updateService(
     revalidatePath('/catalog')
     return { success: true, id }
   } catch (err) {
-    console.error('updateService error:', err)
+    logger.error('updateService', err)
     return { error: 'Could not save service. Please try again.' }
   }
 }
@@ -434,7 +435,7 @@ export async function deleteService(
     revalidatePath('/catalog')
     return { success: true }
   } catch (err) {
-    console.error('deleteService error:', err)
+    logger.error('deleteService', err)
     return { error: 'Could not delete service. Please try again.' }
   }
 }

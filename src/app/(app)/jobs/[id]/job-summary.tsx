@@ -107,8 +107,13 @@ export function JobSummary({
             {/* Contact */}
             {job.contact && (
               <div className="space-y-1">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Contact
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Contact
+                  </div>
+                  {job.contact.id === job.primaryContactId && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Primary</Badge>
+                  )}
                 </div>
                 <div className="font-medium">
                   {job.contact.firstName} {job.contact.lastName ?? ''}

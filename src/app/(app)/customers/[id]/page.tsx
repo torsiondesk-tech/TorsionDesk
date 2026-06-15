@@ -53,6 +53,7 @@ export default async function CustomerDetailPage({
   const contacts = customerWithContacts.contactList
   const locations = locationsWithEquipment?.locations ?? []
   const primaryLocationId = locationsWithEquipment?.primaryLocationId ?? null
+  const primaryContactId = customerWithContacts.primaryContactId ?? null
   const parentCustomerLabel = parent?.name ?? undefined
 
   return (
@@ -61,6 +62,7 @@ export default async function CustomerDetailPage({
       contacts={contacts}
       locations={locations}
       primaryLocationId={primaryLocationId}
+      primaryContactId={primaryContactId}
       tagNames={tagNames}
       events={events}
       availableTags={availableTags}

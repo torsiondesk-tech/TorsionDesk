@@ -17,6 +17,7 @@ import {
   deleteJobPhotoAction,
 } from '../../actions'
 import { Upload, ImageIcon, Trash2, Download, Eye } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 interface Photo {
   id: string
@@ -79,7 +80,7 @@ export function PicsTab({ jobId, photos }: PicsTabProps) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setError(message)
-      console.error('Photo upload error:', err)
+      logger.error('photoUpload', err)
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''

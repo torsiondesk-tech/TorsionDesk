@@ -26,8 +26,20 @@ import {
 import { nextJobNo } from '@/lib/jobs/job-number'
 import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
+import { logger } from '@/lib/logger'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+// DrizzleQueryError wraps the real Postgres error in .cause. Prefer the cause
+// message so users see "null value in column…" rather than "Failed query: …".
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const cause = (err as { cause?: unknown }).cause
+    if (cause instanceof Error) return cause.message
+    return err.message
+  }
+  return String(err)
+}
 
 // Arrival window inputs are time-only (HH:MM). Combine with the job's start
 // date to produce a full timestamp. If no start date is set, the arrival
@@ -90,14 +102,23 @@ const createJobSchema = z.object({
   newLocationLat: emptyToUndefined,
   newLocationLng: emptyToUndefined,
   contactId: emptyToNull,
-  serviceLocationId: emptyToNull,
+  serviceLocationId: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || val === '__new__' ? null : val),
+    z.string().nullable().optional(),
+  ),
   categoryId: emptyToNull,
   description: emptyToUndefined,
   poNumber: emptyToUndefined,
   jobSourceId: emptyToNull,
   assignedAgentId: emptyToUndefined,
-  status: z.enum(['unscheduled','scheduled','dispatched','cancelled','delayed','on_the_way','on_site','started','paused','resumed','partially_completed','completed','invoiced','paid_in_full','job_closed']).default('unscheduled'),
-  billingType: z.enum(['single_invoice', 'progress_billing', 'no_charge']).default('single_invoice'),
+  status: z.preprocess(
+    (val) => (val === null || val === '' ? undefined : val),
+    z.enum(['unscheduled','scheduled','dispatched','cancelled','delayed','on_the_way','on_site','started','paused','resumed','partially_completed','completed','invoiced','paid_in_full','job_closed']).default('unscheduled'),
+  ),
+  billingType: z.preprocess(
+    (val) => (val === null || val === '' ? undefined : val),
+    z.enum(['single_invoice', 'progress_billing', 'no_charge']).default('single_invoice'),
+  ),
   priority: emptyToUndefined,
   startDate: emptyToNull,
   endDate: emptyToNull,
@@ -138,8 +159,14 @@ const contactUpdateSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().default(''),
   jobTitle: z.string().default(''),
-  phones: z.array(phoneSchema).default([]),
-  emails: z.array(emailSchema).default([]),
+  phones: z.preprocess(
+    (arr) => (Array.isArray(arr) ? arr.filter((p) => (p as { number?: string })?.number?.trim()) : arr),
+    z.array(phoneSchema).default([]),
+  ),
+  emails: z.preprocess(
+    (arr) => (Array.isArray(arr) ? arr.filter((e) => (e as { address?: string })?.address?.trim()) : arr),
+    z.array(emailSchema).default([]),
+  ),
   smsConsent: z.boolean().default(false),
   billingContact: z.boolean().default(false),
   bookingContact: z.boolean().default(false),
@@ -150,6 +177,7 @@ const updateJobSchema = createJobSchema.extend({
   customerId: z.string().min(1),
   contactUpdate: z.preprocess(
     (val) => {
+      if (val === null || val === undefined || val === '') return undefined
       if (typeof val === 'string') {
         try {
           return JSON.parse(val)
@@ -293,7 +321,9 @@ export async function createJob(
   })
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
+    const issue = parsed.error.issues[0]
+    const field = issue?.path.length ? ` (${issue.path.join('.')})` : ''
+    return { error: (issue?.message ?? 'Please check your input.') + field }
   }
 
   const data = parsed.data
@@ -369,6 +399,19 @@ export async function createJob(
               isPrimary: true,
             })
           }
+
+          // Auto-promote to primary if customer has none yet
+          const [custForContact] = await tx
+            .select({ primaryContactId: customers.primaryContactId })
+            .from(customers)
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+            .limit(1)
+          if (!custForContact?.primaryContactId) {
+            await tx
+              .update(customers)
+              .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+              .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          }
         }
 
         // Resolve or create service location
@@ -394,6 +437,19 @@ export async function createJob(
             })
             .returning({ id: serviceLocations.id })
           resolvedLocationId = newLoc.id
+
+          // Auto-promote to primary if customer has none yet
+          const [cust] = await tx
+            .select({ primaryLocationId: customers.primaryLocationId })
+            .from(customers)
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+            .limit(1)
+          if (!cust?.primaryLocationId) {
+            await tx
+              .update(customers)
+              .set({ primaryLocationId: newLoc.id, updatedAt: new Date() })
+              .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          }
         }
 
         await guardCategory(tx, orgId, data.categoryId)
@@ -498,16 +554,21 @@ export async function createJob(
       revalidatePath(`/customers/${resolvedCustomerId}`)
       return { success: true, id }
     } catch (err) {
-      const code = (err as { code?: string }).code
-      if (code !== '23505') {
-        throw err
+      const pgErr = err as { code?: string; cause?: { code?: string } }
+      const code = pgErr.code ?? pgErr.cause?.code
+      if (code === '23505') {
+        // Unique constraint race (job number collision) — retry
+        attempts++
+        if (attempts >= maxAttempts) {
+          logger.error('createJob', err)
+          return { error: 'Could not create job. Please try again.' }
+        }
+        await new Promise((r) => setTimeout(r, 100 * attempts))
+        continue
       }
-      attempts++
-      if (attempts >= maxAttempts) {
-        console.error('createJob failed after retries:', err)
-        return { error: 'Could not create job. Please try again.' }
-      }
-      await new Promise((r) => setTimeout(r, 100 * attempts))
+      logger.error('createJob', err)
+      const message = extractErrorMessage(err)
+      return { error: message || 'Could not create job. Please try again.' }
     }
   }
 
@@ -566,7 +627,9 @@ export async function updateJob(
   })
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
+    const issue = parsed.error.issues[0]
+    const field = issue?.path.length ? ` (${issue.path.join('.')})` : ''
+    return { error: (issue?.message ?? 'Please check your input.') + field }
   }
 
   const data = parsed.data
@@ -803,13 +866,13 @@ export async function transitionJobStatusAction(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const message = extractErrorMessage(err)
     if (message.includes('Illegal transition')) {
       return {
         error: "That status change isn't allowed from the current status. Pick a valid next status.",
       }
     }
-    console.error('transitionJobStatusAction error:', err)
+    logger.error('transitionJobStatusAction', err)
     return { error: message }
   }
 }
@@ -927,19 +990,26 @@ export async function deleteJobLineItem(
 
 export async function getCustomerContacts(
   customerId: string,
-): Promise<Array<{ id: string; firstName: string; lastName: string | null }>> {
+): Promise<{ contacts: Array<{ id: string; firstName: string; lastName: string | null }>; primaryContactId: string | null }> {
   const { orgId } = await auth()
-  if (!orgId) return []
+  if (!orgId) return { contacts: [], primaryContactId: null }
 
-  const { contacts } = await import('@/db/schema')
+  const { contacts, customers } = await import('@/db/schema')
   const { withTenant: wt } = await import('@/db/with-tenant')
-  const { sql } = await import('drizzle-orm')
   return wt(orgId, async (tx) => {
-    return tx
-      .select({ id: contacts.id, firstName: contacts.firstName, lastName: contacts.lastName })
-      .from(contacts)
-      .where(and(eq(contacts.tenantId, orgId), eq(contacts.customerId, customerId)))
-      .orderBy(contacts.firstName, contacts.lastName)
+    const [contactRows, customerRow] = await Promise.all([
+      tx
+        .select({ id: contacts.id, firstName: contacts.firstName, lastName: contacts.lastName })
+        .from(contacts)
+        .where(and(eq(contacts.tenantId, orgId), eq(contacts.customerId, customerId)))
+        .orderBy(contacts.firstName, contacts.lastName),
+      tx
+        .select({ primaryContactId: customers.primaryContactId })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+        .limit(1),
+    ])
+    return { contacts: contactRows, primaryContactId: customerRow[0]?.primaryContactId ?? null }
   })
 }
 
@@ -1023,33 +1093,103 @@ export async function getCustomerContactDetail(
 
 export async function getCustomerLocations(
   customerId: string,
-): Promise<Array<{ id: string; name: string | null; addressLine1: string | null; addressLine2: string | null; city: string | null; state: string | null; postalCode: string | null; gated: boolean | null }>> {
+): Promise<{ locations: Array<{ id: string; name: string | null; addressLine1: string | null; addressLine2: string | null; city: string | null; state: string | null; postalCode: string | null; gated: boolean | null }>; primaryLocationId: string | null }> {
   const { orgId } = await auth()
-  if (!orgId) return []
+  if (!orgId) return { locations: [], primaryLocationId: null }
 
   const { serviceLocations, customers } = await import('@/db/schema')
   const { withTenant: wt } = await import('@/db/with-tenant')
   const { sql } = await import('drizzle-orm')
   return wt(orgId, async (tx) => {
-    return tx
-      .select({
-        id: serviceLocations.id,
-        name: serviceLocations.name,
-        addressLine1: serviceLocations.addressLine1,
-        addressLine2: serviceLocations.addressLine2,
-        city: serviceLocations.city,
-        state: serviceLocations.state,
-        postalCode: serviceLocations.postalCode,
-        gated: serviceLocations.gated,
-      })
-      .from(serviceLocations)
-      .innerJoin(customers, eq(customers.id, serviceLocations.customerId))
-      .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.customerId, customerId)))
-      .orderBy(
-        sql`CASE WHEN ${serviceLocations.id} = ${customers.primaryLocationId} THEN 0 ELSE 1 END`,
-        serviceLocations.name,
-      )
+    const [locationRows, customerRow] = await Promise.all([
+      tx
+        .select({
+          id: serviceLocations.id,
+          name: serviceLocations.name,
+          addressLine1: serviceLocations.addressLine1,
+          addressLine2: serviceLocations.addressLine2,
+          city: serviceLocations.city,
+          state: serviceLocations.state,
+          postalCode: serviceLocations.postalCode,
+          gated: serviceLocations.gated,
+        })
+        .from(serviceLocations)
+        .innerJoin(customers, eq(customers.id, serviceLocations.customerId))
+        .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.customerId, customerId)))
+        .orderBy(
+          sql`CASE WHEN ${serviceLocations.id} = ${customers.primaryLocationId} THEN 0 ELSE 1 END`,
+          serviceLocations.name,
+        ),
+      tx
+        .select({ primaryLocationId: customers.primaryLocationId })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+        .limit(1),
+    ])
+    return { locations: locationRows, primaryLocationId: customerRow[0]?.primaryLocationId ?? null }
   })
+}
+
+export async function createContactForJob(
+  customerId: string,
+  input: {
+    firstName: string
+    lastName?: string | null
+    phone?: string | null
+    email?: string | null
+  },
+): Promise<{ id: string; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { id: '', error: 'No active organization. Please sign in to your workspace.' }
+
+  try {
+    const [row] = await withTenant(orgId, async (tx) => {
+      const custRows = await tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+        .limit(1)
+      if (custRows.length === 0) throw new Error('Invalid customer: cross-tenant access denied')
+
+      const [newContact] = await tx
+        .insert(contacts)
+        .values({
+          tenantId: orgId,
+          customerId,
+          firstName: input.firstName,
+          lastName: input.lastName ?? null,
+        })
+        .returning({ id: contacts.id })
+
+      if (input.phone) {
+        await tx.insert(contactPhones).values({
+          tenantId: orgId,
+          contactId: newContact.id,
+          number: input.phone,
+          type: 'cell',
+          isPrimary: true,
+        })
+      }
+      if (input.email) {
+        await tx.insert(contactEmails).values({
+          tenantId: orgId,
+          contactId: newContact.id,
+          address: input.email,
+          type: 'work',
+          isPrimary: true,
+        })
+      }
+
+      return [newContact]
+    })
+
+    revalidatePath(`/customers/${customerId}`)
+    return { id: row.id }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    logger.error('createContactForJob', err)
+    return { id: '', error: message }
+  }
 }
 
 export async function createServiceLocation(
@@ -1075,13 +1215,13 @@ export async function createServiceLocation(
     const [row] = await withTenant(orgId, async (tx) => {
       // Guard: verify customer belongs to tenant
       const custRows = await tx
-        .select({ id: customers.id })
+        .select({ id: customers.id, primaryLocationId: customers.primaryLocationId })
         .from(customers)
         .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
         .limit(1)
       if (custRows.length === 0) throw new Error('Invalid customer: cross-tenant access denied')
 
-      return tx
+      const [newLoc] = await tx
         .insert(serviceLocations)
         .values({
           tenantId: orgId,
@@ -1097,13 +1237,23 @@ export async function createServiceLocation(
           longitude: input.longitude ?? null,
         })
         .returning({ id: serviceLocations.id })
+
+      // Auto-promote to primary if customer has none yet
+      if (!custRows[0].primaryLocationId) {
+        await tx
+          .update(customers)
+          .set({ primaryLocationId: newLoc.id, updatedAt: new Date() })
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+      }
+
+      return [newLoc]
     })
 
     revalidatePath(`/customers/${customerId}`)
     return { id: row.id }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('createServiceLocation error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('createServiceLocation', err)
     return { id: '', error: message }
   }
 }
@@ -1157,8 +1307,8 @@ export async function updateServiceLocation(
     revalidatePath('/jobs/[id]', 'page')
     return { id: locationId }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('updateServiceLocation error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('updateServiceLocation', err)
     return { id: '', error: message }
   }
 }
@@ -1263,8 +1413,8 @@ export async function uploadJobPhotoAction(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('uploadJobPhotoAction error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('uploadJobPhotoAction', err)
     return { error: message }
   }
 }
@@ -1294,8 +1444,8 @@ export async function getJobPhotoUploadUrlAction(
     const result = await createJobPhotoSignedUploadUrl(orgId, jobId, filename, fileSize)
     return { signedUrl: result.signedUrl, path: result.path }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('getJobPhotoUploadUrlAction error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('getJobPhotoUploadUrlAction', err)
     return { error: message }
   }
 }
@@ -1318,8 +1468,8 @@ export async function confirmJobPhotoAction(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('confirmJobPhotoAction error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('confirmJobPhotoAction', err)
     return { error: message }
   }
 }
@@ -1342,8 +1492,8 @@ export async function deleteJobPhotoAction(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('deleteJobPhotoAction error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('deleteJobPhotoAction', err)
     return { error: message }
   }
 }
@@ -1392,8 +1542,8 @@ export async function applyTemplateAction(
       tasks: result.tasks.map((t) => ({ label: t.label })),
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('applyTemplateAction error:', err)
+    const message = extractErrorMessage(err)
+    logger.error('applyTemplateAction', err)
     return { error: message }
   }
 }
@@ -1457,7 +1607,7 @@ export async function addSiteVisit(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not add site visit.'
+    const message = extractErrorMessage(err) || 'Could not add site visit.'
     return { error: message }
   }
 }
@@ -1511,7 +1661,7 @@ export async function updateSiteVisit(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not update site visit.'
+    const message = extractErrorMessage(err) || 'Could not update site visit.'
     return { error: message }
   }
 }
@@ -1538,7 +1688,7 @@ export async function deleteSiteVisit(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not delete site visit.'
+    const message = extractErrorMessage(err) || 'Could not delete site visit.'
     return { error: message }
   }
 }
@@ -1569,7 +1719,7 @@ export async function addJobTask(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not add task.'
+    const message = extractErrorMessage(err) || 'Could not add task.'
     return { error: message }
   }
 }
@@ -1610,7 +1760,7 @@ export async function toggleJobTask(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not toggle task.'
+    const message = extractErrorMessage(err) || 'Could not toggle task.'
     return { error: message }
   }
 }
@@ -1637,7 +1787,7 @@ export async function deleteJobTask(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not delete task.'
+    const message = extractErrorMessage(err) || 'Could not delete task.'
     return { error: message }
   }
 }
@@ -1666,7 +1816,7 @@ export async function addJobReminder(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not add reminder.'
+    const message = extractErrorMessage(err) || 'Could not add reminder.'
     return { error: message }
   }
 }
@@ -1693,7 +1843,7 @@ export async function deleteJobReminder(
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Could not delete reminder.'
+    const message = extractErrorMessage(err) || 'Could not delete reminder.'
     return { error: message }
   }
 }

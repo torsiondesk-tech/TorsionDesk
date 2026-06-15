@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useActionState, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +38,7 @@ type Initial = {
   address: string
   email: string
   logoUrl: string
+  logoSignedUrl: string
 }
 
 const profileInitial: ProfileActionState = {}
@@ -146,19 +148,23 @@ export function CompanyProfileForm({ initial }: { initial: Initial }) {
         <CardContent>
           <form action={logoAction} className="space-y-5">
             <div className="flex items-center gap-5">
-              <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
+              <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted ring-1 ring-foreground/10">
                 {preview ? (
-                  // preview is a blob: URL from the file input — next/image does not support blob URLs
+                  // blob: URL from file input — next/image cannot optimize blob URLs
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={preview}
                     alt="Logo preview"
                     className="size-full object-contain"
                   />
-                ) : storedPath ? (
-                  <span className="px-2 text-center text-[10px] text-muted-foreground">
-                    Logo on file
-                  </span>
+                ) : initial.logoSignedUrl ? (
+                  <Image
+                    src={initial.logoSignedUrl}
+                    alt="Company logo"
+                    fill
+                    className="object-contain"
+                    sizes="80px"
+                  />
                 ) : (
                   <span className="px-2 text-center text-[10px] text-muted-foreground">
                     No logo

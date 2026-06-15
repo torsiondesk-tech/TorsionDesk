@@ -182,6 +182,7 @@ export async function listJobs(
 export type JobDetail = typeof jobs.$inferSelect & {
   customerName: string
   primaryLocationId: string | null
+  primaryContactId: string | null
   contact: {
     id: string
     firstName: string
@@ -241,7 +242,7 @@ export async function getJob(
       photos,
     ] = await Promise.all([
       tx
-        .select({ name: customers.name, primaryLocationId: customers.primaryLocationId })
+        .select({ name: customers.name, primaryLocationId: customers.primaryLocationId, primaryContactId: customers.primaryContactId })
         .from(customers)
         .where(and(eq(customers.tenantId, orgId), eq(customers.id, job.customerId)))
         .limit(1),
@@ -347,6 +348,7 @@ export async function getJob(
       ...job,
       customerName: customerRows[0]?.name ?? '',
       primaryLocationId: customerRows[0]?.primaryLocationId ?? null,
+      primaryContactId: customerRows[0]?.primaryContactId ?? null,
       contact,
       serviceLocation,
       lineItems,

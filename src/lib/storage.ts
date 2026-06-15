@@ -84,3 +84,30 @@ export async function uploadLogo(orgId: string, file: File): Promise<string> {
 
   return path
 }
+
+/**
+ * Generate a short-lived signed URL for a private tenant-assets object.
+ * Returns null if the path is empty or credentials are missing — callers should
+ * treat null as "no logo" rather than throw.
+ *
+ * @param path   Object path as stored in `tenants.logo_url` (e.g. `org_x/logo.png`).
+ * @param ttl    Expiry in seconds (default 1 hour — sufficient for a settings page render).
+ */
+export async function getLogoSignedUrl(
+  path: string,
+  ttl = 3600,
+): Promise<string | null> {
+  if (!path) return null
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) return null
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, ttl)
+  if (error || !data) return null
+  return data.signedUrl
+}

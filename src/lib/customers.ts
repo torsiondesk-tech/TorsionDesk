@@ -458,6 +458,23 @@ export async function createContact(
       )
     }
 
+    // If this is the customer's first contact, make it primary
+    const existingContactCount = await tx
+      .select({ c: count() })
+      .from(contacts)
+      .where(
+        and(
+          eq(contacts.tenantId, orgId),
+          eq(contacts.customerId, data.customerId),
+        ),
+      )
+    if ((existingContactCount[0]?.c ?? 0) <= 1) {
+      await tx
+        .update(customers)
+        .set({ primaryContactId: contact.id, updatedAt: new Date() })
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, data.customerId)))
+    }
+
     return { id: contact.id }
   })
 }
@@ -544,6 +561,36 @@ export async function setPrimaryLocation(
     await tx
       .update(customers)
       .set({ primaryLocationId: locationId, updatedAt: new Date() })
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+  })
+}
+
+/** Set a customer's primary contact. Verifies the contact belongs to the customer. */
+export async function setPrimaryContact(
+  orgId: string,
+  customerId: string,
+  contactId: string | null,
+): Promise<void> {
+  return withTenant(orgId, async (tx) => {
+    if (contactId) {
+      const contact = await tx
+        .select({ customerId: contacts.customerId })
+        .from(contacts)
+        .where(
+          and(
+            eq(contacts.tenantId, orgId),
+            eq(contacts.id, contactId),
+          ),
+        )
+        .limit(1)
+      if (contact.length === 0 || contact[0].customerId !== customerId) {
+        throw new Error('Invalid contact: does not belong to this customer')
+      }
+    }
+
+    await tx
+      .update(customers)
+      .set({ primaryContactId: contactId, updatedAt: new Date() })
       .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
   })
 }

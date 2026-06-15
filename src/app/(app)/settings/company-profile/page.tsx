@@ -1,4 +1,5 @@
 import { getProfile } from '@/lib/profile'
+import { getLogoSignedUrl } from '@/lib/storage'
 import { CompanyProfileForm } from './profile-form'
 
 /**
@@ -11,6 +12,7 @@ import { CompanyProfileForm } from './profile-form'
  */
 export default async function CompanyProfilePage() {
   const profile = await getProfile()
+  const logoSignedUrl = profile?.logoUrl ? await getLogoSignedUrl(profile.logoUrl) : null
 
   return (
     <CompanyProfileForm
@@ -20,6 +22,7 @@ export default async function CompanyProfilePage() {
         address: profile?.address ?? '',
         email: profile?.email ?? '',
         logoUrl: profile?.logoUrl ?? '',
+        logoSignedUrl: logoSignedUrl ?? '',
       }}
     />
   )

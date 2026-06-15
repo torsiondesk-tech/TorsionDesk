@@ -99,6 +99,7 @@ export const customers = pgTable(
     publicNotes: text('public_notes'),
     archivedAt: timestamp('archived_at'),
     primaryLocationId: text('primary_location_id'),
+    primaryContactId: text('primary_contact_id'),
     mergedInto: text('merged_into'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
@@ -119,8 +120,8 @@ export const customers = pgTable(
       columns: [t.tenantId, t.referralSourceId],
       foreignColumns: [referralSources.tenantId, referralSources.id],
     }).onDelete('set null'),
-    // Note: primaryLocationId is validated at the app layer (setPrimaryLocation)
-    // to avoid circular reference between customers and serviceLocations tables.
+    // Note: primaryLocationId and primaryContactId are validated at the app layer
+    // to avoid circular references between customers and their child tables.
     foreignKey({
       columns: [t.tenantId, t.mergedInto],
       foreignColumns: [t.tenantId, t.id],

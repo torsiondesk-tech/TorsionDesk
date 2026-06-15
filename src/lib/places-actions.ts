@@ -1,5 +1,7 @@
 'use server'
 
+import { logger } from '@/lib/logger'
+
 const PLACES_BASE = 'https://places.googleapis.com/v1'
 
 export interface PlaceSuggestion {
@@ -20,7 +22,7 @@ export interface ParsedAddress {
 export async function searchPlacesAction(query: string): Promise<PlaceSuggestion[]> {
   const key = process.env.GOOGLE_MAPS_API_KEY
   if (!key) {
-    console.error('[Places] GOOGLE_MAPS_API_KEY is not set')
+    logger.error('Places', 'GOOGLE_MAPS_API_KEY is not set')
     return []
   }
   if (!query.trim() || query.length < 3) return []
@@ -40,7 +42,7 @@ export async function searchPlacesAction(query: string): Promise<PlaceSuggestion
 
     if (!res.ok) {
       const err = await res.text()
-      console.error(`[Places] Autocomplete error ${res.status}:`, err)
+      logger.error('Places:autocomplete', `HTTP ${res.status}: ${err}`)
       return []
     }
 
@@ -53,7 +55,7 @@ export async function searchPlacesAction(query: string): Promise<PlaceSuggestion
       .filter((s: PlaceSuggestion) => s.placeId && s.description)
     return suggestions
   } catch (e) {
-    console.error('[Places] Autocomplete fetch failed:', e)
+    logger.error('Places:autocomplete', e)
     return []
   }
 }
@@ -72,7 +74,7 @@ export async function getPlaceDetailsAction(placeId: string): Promise<ParsedAddr
 
     if (!res.ok) {
       const err = await res.text()
-      console.error(`[Places] Details error ${res.status}:`, err)
+      logger.error('Places:details', `HTTP ${res.status}: ${err}`)
       return null
     }
 
@@ -101,7 +103,7 @@ export async function getPlaceDetailsAction(placeId: string): Promise<ParsedAddr
       longitude: data.location?.longitude?.toString() ?? '',
     }
   } catch (e) {
-    console.error('[Places] Details fetch failed:', e)
+    logger.error('Places:details', e)
     return null
   }
 }

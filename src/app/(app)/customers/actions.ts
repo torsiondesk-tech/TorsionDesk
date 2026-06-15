@@ -8,8 +8,9 @@ import { withTenant } from '@/db/with-tenant'
 import { customers, customerTags, contacts, contactPhones, contactEmails, serviceLocations, equipment } from '@/db/schema'
 import { nextAccountNo } from '@/lib/account-number'
 import { equipmentSchema } from '@/lib/equipment-schema'
-import { createContact, createLocation, setPrimaryLocation } from '@/lib/customers'
+import { createContact, createLocation, setPrimaryLocation, setPrimaryContact } from '@/lib/customers'
 import { createTag, createReferralSource } from '@/lib/tags'
+import { logger } from '@/lib/logger'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -325,7 +326,7 @@ export async function createCustomer(
       }
       attempts++
       if (attempts >= maxAttempts) {
-        console.error('createCustomer failed after retries:', err)
+        logger.error('createCustomer', err)
         return { error: 'Could not create customer. Please try again.' }
       }
       // Exponential backoff ~100ms
@@ -910,6 +911,27 @@ export async function setPrimaryLocationAction(
     await setPrimaryLocation(orgId, customerId, locationId)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to set primary location.'
+    return { error: message }
+  }
+
+  revalidatePath('/customers')
+  revalidatePath(`/customers/${customerId}`)
+  return { success: true }
+}
+
+export async function setPrimaryContactAction(
+  customerId: string,
+  contactId: string | null,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    await setPrimaryContact(orgId, customerId, contactId)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to set primary contact.'
     return { error: message }
   }
 

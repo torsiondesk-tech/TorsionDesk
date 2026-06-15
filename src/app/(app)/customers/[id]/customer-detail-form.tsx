@@ -12,6 +12,7 @@ import {
   Mail,
   Merge,
   AlertTriangle,
+  Star,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,7 +48,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { updateCustomerDetail, deactivateCustomer } from '../actions'
+import { updateCustomerDetail, deactivateCustomer, setPrimaryContactAction } from '../actions'
 import { TagSelect, type TagOption } from '@/components/tag-select'
 import { ReferralSelect, type ReferralOption } from '@/components/referral-select'
 import { CustomerSearch } from '@/components/customer-search'
@@ -142,6 +143,7 @@ interface CustomerDetailFormProps {
   }>
   locations: LocationRow[]
   primaryLocationId: string | null
+  primaryContactId: string | null
   tagNames: string[]
   events: EventRow[]
   availableTags: TagOption[]
@@ -163,6 +165,7 @@ export function CustomerDetailForm({
   contacts: initialContacts,
   locations,
   primaryLocationId,
+  primaryContactId: initialPrimaryContactId,
   tagNames,
   events,
   availableTags,
@@ -175,6 +178,7 @@ export function CustomerDetailForm({
 
   // UI state
   const [activeTab, setActiveTab] = useState('account')
+  const [primaryContactId, setPrimaryContactId] = useState(initialPrimaryContactId)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
@@ -645,20 +649,48 @@ export function CustomerDetailForm({
               {contactsState.map((contact, ci) => (
                 <Card key={contact.id || `new-${ci}`}>
                   <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <CardTitle className="text-base font-semibold">
-                      {contact.id ? `Contact ${ci + 1}` : 'New Contact'}
-                    </CardTitle>
-                    {(!contact.id || contactsState.length > 1) && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                        onClick={() => removeContact(ci)}
-                      >
-                        <Trash2 className="size-3" />
-                        Remove
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base font-semibold">
+                        {contact.id ? `Contact ${ci + 1}` : 'New Contact'}
+                      </CardTitle>
+                      {contact.id && primaryContactId === contact.id && (
+                        <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+                          <Star className="size-3 fill-amber-500 text-amber-500" />
+                          Primary
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {contact.id && primaryContactId !== contact.id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1 text-xs"
+                          onClick={() =>
+                            startTransition(async () => {
+                              const result = await setPrimaryContactAction(customer.id, contact.id)
+                              if (result.success) {
+                                setPrimaryContactId(contact.id)
+                              }
+                            })
+                          }
+                        >
+                          <Star className="size-3" />
+                          Set Primary
+                        </Button>
+                      )}
+                      {(!contact.id || contactsState.length > 1) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+                          onClick={() => removeContact(ci)}
+                        >
+                          <Trash2 className="size-3" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-4 sm:grid-cols-2">

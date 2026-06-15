@@ -59,6 +59,7 @@ export function JobDetailShell({
             initial={initial}
             referenceData={referenceData}
             primaryLocationId={job.primaryLocationId}
+            primaryContactId={job.primaryContactId}
             onSuccess={() => setIsEditing(false)}
             onCancel={() => setIsEditing(false)}
             rightPanelExtras={

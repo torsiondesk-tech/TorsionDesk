@@ -33,12 +33,15 @@ import {
   getCustomerLocations,
   createServiceLocation,
   updateServiceLocation,
+  createContactForJob,
   listJobTemplatesAction,
   applyTemplateAction,
 } from '../actions'
+import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
 import { StatusDropdown } from './status-dropdown'
 import { LineItems } from './line-items'
-import { Plus, X, Phone, Mail, Trash2 } from 'lucide-react'
+import { Plus, X, Phone, Mail, Trash2, Star } from 'lucide-react'
+import { logger } from '@/lib/logger'
 
 export interface JobFormLineItem {
   id?: string
@@ -109,6 +112,7 @@ interface JobFormProps {
   initial?: JobFormData
   referenceData: ReferenceData
   primaryLocationId?: string | null
+  primaryContactId?: string | null
   defaults?: {
     customerId?: string
     customerName?: string
@@ -133,7 +137,7 @@ function isRedundantLocationName(
   return n === a1 || n === a1City || n.startsWith(a1 + ',')
 }
 
-export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId, defaults, onSuccess, onCancel, rightPanelExtras }: JobFormProps) {
+export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId, primaryContactId: initialPrimaryContactId, defaults, onSuccess, onCancel, rightPanelExtras }: JobFormProps) {
   const router = useRouter()
   const action = mode === 'create' ? createJob : updateJob
   const [state, formAction, pending] = useActionState<JobActionState, FormData>(
@@ -172,6 +176,8 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   const [locationFormKey, setLocationFormKey] = useState(0)
   const [savingLocation, setSavingLocation] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [savingContact, setSavingContact] = useState(false)
+  const [contactError, setContactError] = useState<string | null>(null)
   const [searchKey, setSearchKey] = useState(0)
   const autoSelectRef = useRef(false)
 
@@ -206,6 +212,8 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   const [locationId, setLocationId] = useState<string | undefined>(
     initial?.serviceLocationId ?? defaults?.locationId ?? undefined,
   )
+  const [primaryContactId, setPrimaryContactId] = useState<string | null>(initialPrimaryContactId ?? null)
+  const [localPrimaryLocationId, setLocalPrimaryLocationId] = useState<string | null>(primaryLocationId ?? null)
 
   // Full contact editing state
   interface ContactEditState {
@@ -302,7 +310,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
           })
         }
       })
-      .catch((err) => console.error('Failed to load contact detail:', err))
+      .catch((err) => logger.error('loadContactDetail', err))
     return () => {
       cancelled = true
     }
@@ -405,8 +413,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
         return
       }
       // Refresh locations list and select the new one
-      const refreshed = await getCustomerLocations(customerId)
+      const { locations: refreshed, primaryLocationId: refreshedPrimary } = await getCustomerLocations(customerId)
       setLocations(refreshed)
+      setLocalPrimaryLocationId(refreshedPrimary)
       setLocationId(result.id)
       setLocationMode('existing')
       setNewLocationAddr({})
@@ -449,8 +458,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
         return
       }
       // Refresh locations list and stay on the same location
-      const refreshed = await getCustomerLocations(customerId!)
+      const { locations: refreshed, primaryLocationId: refreshedPrimary } = await getCustomerLocations(customerId!)
       setLocations(refreshed)
+      setLocalPrimaryLocationId(refreshedPrimary)
       setLocationMode('existing')
       setLocationError(null)
     } catch (err) {
@@ -475,7 +485,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
           if (rows && Array.isArray(rows)) setTemplates(rows)
         })
         .catch((err) => {
-          console.error('Failed to load job templates:', err)
+          logger.error('loadJobTemplates', err)
         })
     }
   }, [mode])
@@ -488,7 +498,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
       const result = await applyTemplateAction(selectedTemplateId)
       if (result.error) {
         setTemplateError(result.error)
-        console.error('applyTemplateAction returned error:', result.error)
+        logger.error('applyTemplate', result.error)
         return
       }
       if (result.lineItems) {
@@ -509,7 +519,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setTemplateError(message)
-      console.error('handleApplyTemplate threw:', err)
+      logger.error('applyTemplate', err)
     } finally {
       setApplyingTemplate(false)
     }
@@ -559,15 +569,18 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     }
     let cancelled = false
     ;(async () => {
-      const [c, l] = await Promise.all([
+      const [{ contacts: c, primaryContactId: pcId }, { locations: l, primaryLocationId: plId }] = await Promise.all([
         getCustomerContacts(customerId),
         getCustomerLocations(customerId),
       ])
       if (!cancelled) {
         setContacts(c)
         setLocations(l)
+        setPrimaryContactId(pcId)
+        setLocalPrimaryLocationId(plId)
         if (autoSelectRef.current) {
-          if (c.length > 0) setContactId(c[0].id)
+          const autoContact = pcId ? c.find((x) => x.id === pcId) : c[0]
+          if (autoContact) setContactId(autoContact.id)
           if (l.length > 0) setLocationId(l[0].id)
           autoSelectRef.current = false
         }
@@ -639,6 +652,44 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     setNewLocationAddr({})
     setSearchKey((k) => k + 1)
   }, [])
+
+  const handleSaveNewContact = async () => {
+    if (!customerId) {
+      setContactError('Select a customer first.')
+      return
+    }
+    if (!newContactFirstName.trim() && !newContactLastName.trim()) {
+      setContactError('First or last name is required.')
+      return
+    }
+    setSavingContact(true)
+    setContactError(null)
+    try {
+      const result = await createContactForJob(customerId, {
+        firstName: newContactFirstName.trim(),
+        lastName: newContactLastName.trim() || null,
+        phone: newContactPhone || null,
+        email: newContactEmail.trim() || null,
+      })
+      if (result.error) {
+        setContactError(result.error)
+        return
+      }
+      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
+      setContacts(refreshed)
+      setPrimaryContactId(refreshedPrimary)
+      setContactId(result.id)
+      setContactMode('existing')
+      setNewContactFirstName('')
+      setNewContactLastName('')
+      setNewContactPhone('')
+      setNewContactEmail('')
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingContact(false)
+    }
+  }
 
   const defaultTags = referenceData.availableTags.filter((t) =>
     initial?.tagIds?.includes(t.id),
@@ -743,20 +794,34 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     type="email"
                   />
                   {contactMode === 'new' && customerMode === 'existing' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setContactMode('existing')
-                        setNewContactFirstName('')
-                        setNewContactLastName('')
-                        setNewContactPhone('')
-                        setNewContactEmail('')
-                        setContactEdit(null)
-                      }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      ← Use existing contact
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setContactMode('existing')
+                          setNewContactFirstName('')
+                          setNewContactLastName('')
+                          setNewContactPhone('')
+                          setNewContactEmail('')
+                          setContactEdit(null)
+                          setContactError(null)
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        ← Use existing contact
+                      </button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={savingContact}
+                        onClick={handleSaveNewContact}
+                      >
+                        {savingContact ? 'Saving…' : 'Save Contact'}
+                      </Button>
+                    </div>
+                  )}
+                  {contactError && (
+                    <p className="text-xs text-destructive">{contactError}</p>
                   )}
                   {contactMode === 'new' && <input type="hidden" name="contactId" value="" />}
                 </div>
@@ -785,18 +850,53 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     }}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select contact…" />
+                      <SelectValue placeholder="Select contact…">
+                        {contactId
+                          ? (() => {
+                              const c = contacts.find((c) => c.id === contactId)
+                              if (c) return c.firstName + (c.lastName ? ' ' + c.lastName : '')
+                              if (contactEdit) return contactEdit.firstName + (contactEdit.lastName ? ' ' + contactEdit.lastName : '')
+                              return null
+                            })()
+                          : null}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Select contact…</SelectItem>
                       {contacts.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.firstName + (c.lastName ? ' ' + c.lastName : '')}
+                          {c.firstName + (c.lastName ? ' ' + c.lastName : '')}{c.id === primaryContactId ? ' (Primary)' : ''}
                         </SelectItem>
                       ))}
                       <SelectItem value="__new__">+ Create new contact…</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* Primary contact badge / toggle */}
+                  {contactId && customerId && (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      {contactId === primaryContactId ? (
+                        <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+                          <Star className="size-3 fill-amber-500 text-amber-500" />
+                          Primary Contact
+                        </Badge>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1 text-xs"
+                          onClick={async () => {
+                            const result = await setPrimaryContactAction(customerId, contactId)
+                            if (result.success) setPrimaryContactId(contactId)
+                          }}
+                        >
+                          <Star className="size-3" />
+                          Set as Primary
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Full contact editor when an existing contact is selected */}
                   {contactEdit && contactId && (
@@ -1058,131 +1158,181 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-4">
               <Label htmlFor="serviceLocationId">Service Location</Label>
-              {!customerId ? (
+              {!customerId && customerMode !== 'new' ? (
                 <Select name="serviceLocationId" disabled>
                   <SelectTrigger className="w-full opacity-50">
                     <SelectValue placeholder="Select a customer first…" />
                   </SelectTrigger>
                 </Select>
+              ) : locationMode === 'existing' && locationId ? (
+                // Location chosen — show summary card only (no select so no UUID leaks into trigger)
+                <>
+                  <input type="hidden" name="serviceLocationId" value={locationId} />
+                  {(() => {
+                    const loc = locations.find((l) => l.id === locationId)
+                    const cityStateZip = loc
+                      ? [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', ')
+                      : ''
+                    return (
+                      <div className="rounded-lg border border-input bg-muted/30 px-3 py-2 text-sm">
+                        <div className="space-y-0.5">
+                          {loc ? (
+                            <>
+                              {!isRedundantLocationName(loc.name, loc.addressLine1, loc.city) && (
+                                <div className="font-medium">{loc.name}</div>
+                              )}
+                              {loc.addressLine1 && (
+                                <div className="text-muted-foreground">{loc.addressLine1}</div>
+                              )}
+                              {loc.addressLine2 && (
+                                <div className="text-muted-foreground">{loc.addressLine2}</div>
+                              )}
+                              {cityStateZip && (
+                                <div className="text-muted-foreground">{cityStateZip}</div>
+                              )}
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {loc.id === localPrimaryLocationId && (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Primary</Badge>
+                                )}
+                                {loc.gated && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                    Gated Property
+                                  </Badge>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">Loading…</span>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          {customerId && (
+                            locationId === localPrimaryLocationId ? (
+                              <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                <Star className="size-3 fill-amber-500 text-amber-500" />
+                                Primary
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const result = await setPrimaryLocationAction(customerId, locationId)
+                                  if (result.success) setLocalPrimaryLocationId(locationId)
+                                }}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                <Star className="size-3" />
+                                Set as Primary
+                              </button>
+                            )
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setLocationMode('edit')}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Edit address
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setLocationId(undefined); setLocationError(null) }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Change location
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLocationMode('new')
+                              setLocationId(undefined)
+                              setNewLocationAddr({})
+                              setLocationEditName('')
+                              setLocationGated(false)
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            + New address
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </>
               ) : (
                 <>
-                  <Select
-                    name="serviceLocationId"
-                    value={
-                      locationMode === 'new'
-                        ? '__new__'
-                        : (locationId ?? '')
-                    }
-                    onValueChange={(val) => {
-                      const v = val ?? ''
-                      setLocationError(null)
-                      if (v === '__new__') {
-                        setLocationMode('new')
-                        setLocationId(undefined)
-                        setNewLocationAddr({})
-                        setLocationEditName('')
-                        setLocationGated(false)
-                      } else if (v === '') {
-                        setLocationMode('existing')
-                        setLocationId(undefined)
-                        setNewLocationAddr({})
-                        setLocationEditName('')
-                        setLocationGated(false)
-                      } else {
-                        setLocationMode('existing')
-                        setLocationId(v)
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select location…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Select location…</SelectItem>
-                      {locations.map((l) => {
-                        const cityStateZip = [l.city, l.state, l.postalCode].filter(Boolean).join(', ')
-                        const addrFull = l.addressLine1
-                          ? `${l.addressLine1}${cityStateZip ? `, ${cityStateZip}` : ''}`
-                          : cityStateZip
-                        const hasName = !isRedundantLocationName(l.name, l.addressLine1, l.city)
-                        const label = hasName
-                          ? (addrFull ? `${l.name} — ${addrFull}` : l.name)
-                          : addrFull
-                        const isPrimary = l.id === primaryLocationId
-                        return (
-                          <SelectItem key={l.id} value={l.id}>
-                            {label || 'Location'}{isPrimary ? ' (Primary)' : ''}
-                          </SelectItem>
-                        )
-                      })}
-                      <SelectItem value="__new__">+ Create new location…</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {locationMode === 'existing' && (
+                    <>
+                      <Select
+                        name="serviceLocationId"
+                        value={locationId ?? ''}
+                        onValueChange={(val) => {
+                          const v = val ?? ''
+                          setLocationError(null)
+                          if (v === '__new__') {
+                            setLocationMode('new')
+                            setLocationId(undefined)
+                            setNewLocationAddr({})
+                            setLocationEditName('')
+                            setLocationGated(false)
+                          } else if (v === '') {
+                            setLocationId(undefined)
+                          } else {
+                            setLocationMode('existing')
+                            setLocationId(v)
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select location…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Select location…</SelectItem>
+                          {locations.map((l) => {
+                            const cityStateZip = [l.city, l.state, l.postalCode].filter(Boolean).join(', ')
+                            const addrFull = l.addressLine1
+                              ? `${l.addressLine1}${cityStateZip ? `, ${cityStateZip}` : ''}`
+                              : cityStateZip
+                            const hasName = !isRedundantLocationName(l.name, l.addressLine1, l.city)
+                            const label = hasName
+                              ? (addrFull ? `${l.name} — ${addrFull}` : l.name)
+                              : addrFull
+                            const isPrimary = l.id === localPrimaryLocationId
+                            return (
+                              <SelectItem key={l.id} value={l.id}>
+                                {label || 'Location'}{isPrimary ? ' (Primary)' : ''}
+                              </SelectItem>
+                            )
+                          })}
+                          <SelectItem value="__new__">+ Create new location…</SelectItem>
+                        </SelectContent>
+                      </Select>
 
-                  {/* Summary card when an existing location is selected */}
-                  {locationMode === 'existing' && locationId && (
-                    (() => {
-                      const loc = locations.find((l) => l.id === locationId)
-                      const cityStateZip = loc
-                        ? [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', ')
-                        : ''
-                      return (
-                        <div className="mt-2 rounded-lg border border-input bg-muted/30 px-3 py-2 text-sm">
-                          <div className="space-y-0.5">
-                            {loc ? (
-                              <>
-                                {!isRedundantLocationName(loc.name, loc.addressLine1, loc.city) && (
-                                  <div className="font-medium">{loc.name}</div>
-                                )}
-                                {loc.addressLine1 && (
-                                  <div className="text-muted-foreground">{loc.addressLine1}</div>
-                                )}
-                                {loc.addressLine2 && (
-                                  <div className="text-muted-foreground">{loc.addressLine2}</div>
-                                )}
-                                {cityStateZip && (
-                                  <div className="text-muted-foreground">{cityStateZip}</div>
-                                )}
-                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                  {loc.id === primaryLocationId && (
-                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Primary</Badge>
-                                  )}
-                                  {loc.gated && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                      Gated Property
-                                    </Badge>
-                                  )}
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">Loading…</span>
-                            )}
-                          </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-3">
-                            <button
+                      {/* Primary location badge / toggle */}
+                      {locationId && customerId && (
+                        <div className="flex items-center gap-2 pt-0.5">
+                          {locationId === localPrimaryLocationId ? (
+                            <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+                              <Star className="size-3 fill-amber-500 text-amber-500" />
+                              Primary Location
+                            </Badge>
+                          ) : (
+                            <Button
                               type="button"
-                              onClick={() => setLocationMode('edit')}
-                              className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              Edit address
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setLocationMode('new')
-                                setLocationId(undefined)
-                                setNewLocationAddr({})
-                                setLocationEditName('')
-                                setLocationGated(false)
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 gap-1 text-xs"
+                              onClick={async () => {
+                                const result = await setPrimaryLocationAction(customerId, locationId)
+                                if (result.success) setLocalPrimaryLocationId(locationId)
                               }}
-                              className="text-xs text-muted-foreground hover:text-foreground"
                             >
-                              + Different address
-                            </button>
-                          </div>
+                              <Star className="size-3" />
+                              Set as Primary
+                            </Button>
+                          )}
                         </div>
-                      )
-                    })()
+                      )}
+                    </>
                   )}
 
                   {/* Full editable form (edit or new mode) */}
@@ -1295,28 +1445,32 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                         )}
                         {locationMode === 'new' && (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setLocationMode('existing')
-                                setLocationId(undefined)
-                                setNewLocationAddr({})
-                                setLocationEditName('')
-                                setLocationGated(false)
-                                setLocationError(null)
-                              }}
-                              className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              ← Use existing location
-                            </button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={savingLocation}
-                              onClick={handleSaveNewLocation}
-                            >
-                              {savingLocation ? 'Saving…' : 'Save Location'}
-                            </Button>
+                            {locations.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setLocationMode('existing')
+                                  setLocationId(undefined)
+                                  setNewLocationAddr({})
+                                  setLocationEditName('')
+                                  setLocationGated(false)
+                                  setLocationError(null)
+                                }}
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                ← Use existing location
+                              </button>
+                            )}
+                            {customerMode !== 'new' && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={savingLocation}
+                                onClick={handleSaveNewLocation}
+                              >
+                                {savingLocation ? 'Saving…' : 'Save Location'}
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>

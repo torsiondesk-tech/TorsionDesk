@@ -14,6 +14,16 @@ const nextConfig: NextConfig = {
   // its own pnpm-lock.yaml. Pin the tracing root to this project so Next does not
   // infer the parent repo as the workspace root.
   outputFileTracingRoot: fileURLToPath(new URL('.', import.meta.url)),
+  images: {
+    remotePatterns: [
+      {
+        // Supabase Storage signed URLs for private tenant assets (logo display)
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/sign/**',
+      },
+    ],
+  },
   experimental: {
     serverActions: {
       // Job photos (before/after shots) routinely exceed the 1 MB default.
