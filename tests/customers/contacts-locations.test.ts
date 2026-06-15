@@ -23,11 +23,16 @@ vi.mock('@/db/with-tenant', () => ({
         })),
       })),
       select: vi.fn(() => ({
-        from: vi.fn(() => {
-          const whereResult = vi.fn(async () => [{ c: 1 }])
-          whereResult.limit = vi.fn(async () => [{ id: 'cust_1' }])
-          return { where: vi.fn(() => whereResult) }
-        }),
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            // Awaitable directly → count result
+            then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+              Promise.resolve([{ c: 1 }]).then(resolve, reject),
+            catch: (fn: (e: unknown) => unknown) => Promise.resolve([{ c: 1 }]).catch(fn),
+            // Chained .limit(1) → single-row lookup
+            limit: vi.fn(async () => [{ id: 'cust_1' }]),
+          })),
+        })),
       })),
       update: vi.fn(() => ({
         set: vi.fn(() => ({

@@ -366,6 +366,35 @@ export async function getJob(
  * Count of open + in-progress jobs for the tenant.
  * Used by the dashboard Open Jobs metric card.
  */
+export interface RecentJobRow {
+  id: string
+  jobNo: number
+  customerName: string
+  status: string
+  createdAt: Date | null
+}
+
+export async function listRecentJobs(
+  orgId: string,
+  limit = 5,
+): Promise<RecentJobRow[]> {
+  return withTenant(orgId, async (tx) => {
+    return tx
+      .select({
+        id: jobs.id,
+        jobNo: jobs.jobNo,
+        customerName: customers.name,
+        status: jobs.status,
+        createdAt: jobs.createdAt,
+      })
+      .from(jobs)
+      .leftJoin(customers, eq(customers.id, jobs.customerId))
+      .where(eq(jobs.tenantId, orgId))
+      .orderBy(desc(jobs.createdAt))
+      .limit(limit) as Promise<RecentJobRow[]>
+  })
+}
+
 export async function countOpenJobs(orgId: string): Promise<number> {
   return withTenant(orgId, async (tx) => {
     const openStatuses = [...STATUS_GROUPS.open, ...STATUS_GROUPS.in_progress]
