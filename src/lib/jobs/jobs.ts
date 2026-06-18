@@ -42,6 +42,8 @@ export interface JobRow {
   id: string
   jobNo: number
   customerId: string
+  contactId: string | null
+  serviceLocationId: string | null
   customerName: string
   description: string | null
   city: string | null
@@ -51,6 +53,8 @@ export interface JobRow {
   startDate: Date | null
   arrivalWindowStart: string | null
   arrivalWindowEnd: string | null
+  notesForTechs: string | null
+  completionNotes: string | null
   createdAt: Date | null
 }
 
@@ -224,6 +228,8 @@ export async function listJobs(
         id: jobs.id,
         jobNo: jobs.jobNo,
         customerId: jobs.customerId,
+        contactId: jobs.contactId,
+        serviceLocationId: jobs.serviceLocationId,
         customerName: customers.name,
         description: jobs.description,
         city: serviceLocations.city,
@@ -233,6 +239,8 @@ export async function listJobs(
         startDate: jobs.startDate,
         arrivalWindowStart: jobs.arrivalWindowStart,
         arrivalWindowEnd: jobs.arrivalWindowEnd,
+        notesForTechs: jobs.notesForTechs,
+        completionNotes: jobs.completionNotes,
         createdAt: jobs.createdAt,
       })
       .from(jobs)

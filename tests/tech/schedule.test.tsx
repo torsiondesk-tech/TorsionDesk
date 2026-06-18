@@ -10,6 +10,8 @@ function makeRow(overrides: Partial<JobRow> & { startDate: Date }): JobRow {
     id: 'job-1',
     jobNo: 1001,
     customerId: 'cust-1',
+    contactId: null,
+    serviceLocationId: null,
     customerName: 'Alice',
     description: null,
     city: 'Chicago',
@@ -19,6 +21,8 @@ function makeRow(overrides: Partial<JobRow> & { startDate: Date }): JobRow {
     createdAt: null,
     arrivalWindowStart: null,
     arrivalWindowEnd: null,
+    notesForTechs: null,
+    completionNotes: null,
     ...overrides,
   }
 }

@@ -1,13 +1,20 @@
-import { auth } from '@clerk/nextjs/server'
+﻿import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
 import { Briefcase, MapPin, User, FileText, ClipboardList } from 'lucide-react'
 import { getJob } from '@/lib/jobs/jobs'
+import { getEquipmentByServiceLocation } from '@/lib/customers'
+import { getJobPhotoSignedUrls } from '@/lib/jobs/photos'
+import { getJobSignatureSignedUrls } from '@/lib/jobs/signatures'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { statusBadgeVariant, statusLabel, type JobStatusValue } from '@/lib/jobs/transitions'
 import { StatusBottomSheet } from '../../../components/status-bottom-sheet'
+import { PhotoUploader } from '../../../components/photo-uploader'
+import { TechSignaturePad } from '../../../components/tech-signature-pad'
+import { CompletionNotes } from '../../../components/completion-notes'
+import { EquipmentSection } from '../../../components/equipment-section'
+import { type CachedEquipment } from '@/app/(tech)/lib/dexie'
 
 interface TechJobDetailPageProps {
   params: Promise<{ id: string }>
@@ -24,6 +31,39 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
   if (!job) {
     notFound()
   }
+
+  const [signedPhotos, signedSignatures, serverEquipment] = await Promise.all([
+    getJobPhotoSignedUrls(orgId, id),
+    getJobSignatureSignedUrls(orgId, id),
+    job.serviceLocation?.id
+      ? getEquipmentByServiceLocation(orgId, job.serviceLocation.id)
+      : Promise.resolve([]),
+  ])
+
+  const typedEquipment: CachedEquipment[] = serverEquipment.map((row) => ({
+    id: row.id,
+    tenantId: orgId,
+    serviceLocationId: row.serviceLocationId,
+    kind: row.kind,
+    brand: row.brand ?? null,
+    installDate: row.installDate ? toDateString(row.installDate) : null,
+    warrantyExpires: row.warrantyExpires ? toDateString(row.warrantyExpires) : null,
+    notes: row.notes ?? null,
+    widthFt: row.widthFt ? String(row.widthFt) : null,
+    heightFt: row.heightFt ? String(row.heightFt) : null,
+    material: row.material ?? null,
+    style: row.style ?? null,
+    color: row.color ?? null,
+    modelSeries: row.modelSeries ?? null,
+    model: row.model ?? null,
+    hp: row.hp ? String(row.hp) : null,
+    serial: row.serial ?? null,
+    wireSize: row.wireSize ? String(row.wireSize) : null,
+    insideDiameter: row.insideDiameter ? String(row.insideDiameter) : null,
+    length: row.length ? String(row.length) : null,
+    windDirection: row.windDirection,
+    cycleRating: row.cycleRating ?? null,
+  }))
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -88,6 +128,12 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
             </CardContent>
           </Card>
 
+          <EquipmentSection
+            orgId={orgId}
+            serviceLocationId={job.serviceLocation?.id}
+            serverEquipment={typedEquipment}
+          />
+
           <Card>
             <CardHeader className="flex flex-row items-center gap-2">
               <FileText className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -123,15 +169,41 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
         </TabsContent>
 
         <TabsContent value="photos" className="mt-4">
-          <p className="p-4 text-center text-sm text-muted-foreground">Photo capture added in the next wave.</p>
+          <PhotoUploader
+            orgId={orgId}
+            jobId={job.id}
+            userId={userId}
+            signedPhotos={signedPhotos}
+          />
         </TabsContent>
+
         <TabsContent value="sign" className="mt-4">
-          <p className="p-4 text-center text-sm text-muted-foreground">Signature capture added in the next wave.</p>
+          <TechSignaturePad
+            orgId={orgId}
+            jobId={job.id}
+            userId={userId}
+            savedSignatures={signedSignatures}
+          />
         </TabsContent>
+
         <TabsContent value="notes" className="mt-4">
-          <p className="p-4 text-center text-sm text-muted-foreground">Completion notes added in the next wave.</p>
+          <CompletionNotes
+            orgId={orgId}
+            jobId={job.id}
+            initialNotes={job.completionNotes}
+          />
         </TabsContent>
       </Tabs>
     </div>
   )
+}
+
+function toDateString(value: string | Date | null | undefined): string | null {
+  if (!value) return null
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (isNaN(date.getTime())) return null
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }

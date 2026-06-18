@@ -1,13 +1,44 @@
-'use client'
+﻿'use client'
 
-import { createTechDb, type OutboxItem, type CachedJob } from './dexie'
-import { transitionJobStatusAction, listTechJobsAction } from '@/app/(tech)/tech/jobs/actions'
+import { createTechDb, type OutboxItem, type CachedJob, type CachedEquipment } from './dexie'
+import {
+  transitionJobStatusAction,
+  listTechJobsAction,
+  getJobSignatureUploadUrlAction,
+  confirmJobSignatureAction,
+  saveCompletionNotesAction,
+  getEquipmentByServiceLocationAction,
+} from '@/app/(tech)/tech/jobs/actions'
+import {
+  getJobPhotoUploadUrlAction,
+  confirmJobPhotoAction,
+} from '@/app/(app)/jobs/actions'
 import { createBrowserClient } from '@/lib/supabase/browser'
 import { toISODate, parseCalendarDate } from '@/lib/utils'
 
 export interface StatusUpdatePayload {
   jobId: string
   toStatus: string
+}
+
+export interface PhotoPayload {
+  jobId: string
+  filename: string
+  fileSize: number
+  blob: Blob
+}
+
+export interface SignaturePayload {
+  jobId: string
+  filename: string
+  fileSize: number
+  blob: Blob
+  signedBy: string
+}
+
+export interface NotePayload {
+  jobId: string
+  notes: string
 }
 
 export async function enqueueOutboxItem(
@@ -59,6 +90,12 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
         if ('error' in result && result.error) {
           throw new Error(result.error)
         }
+      } else if (item.type === 'job_photo') {
+        await syncPhoto(item)
+      } else if (item.type === 'job_signature') {
+        await syncSignature(item)
+      } else if (item.type === 'job_note') {
+        await syncNote(item)
       }
       await db.outbox.update(item.id, { syncStatus: 'synced' })
     } catch (err) {
@@ -79,6 +116,70 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
   }
 }
 
+async function syncPhoto(item: OutboxItem): Promise<void> {
+  const payload = item.payload as PhotoPayload
+  const { jobId, filename, fileSize, blob } = payload
+
+  const urlResult = await getJobPhotoUploadUrlAction(jobId, filename, fileSize)
+  if ('error' in urlResult && urlResult.error) {
+    throw new Error(urlResult.error)
+  }
+  if (!urlResult.signedUrl || !urlResult.path) {
+    throw new Error('Missing signed URL or path')
+  }
+
+  const upload = await fetch(urlResult.signedUrl, {
+    method: 'PUT',
+    body: blob,
+    headers: { 'content-type': blob.type || 'application/octet-stream' },
+  })
+  if (!upload.ok) {
+    throw new Error(`Direct upload failed: ${upload.status} ${upload.statusText}`)
+  }
+
+  const confirmResult = await confirmJobPhotoAction(jobId, urlResult.path)
+  if ('error' in confirmResult && confirmResult.error) {
+    throw new Error(confirmResult.error)
+  }
+}
+
+async function syncSignature(item: OutboxItem): Promise<void> {
+  const payload = item.payload as SignaturePayload
+  const { jobId, filename, fileSize, blob, signedBy } = payload
+
+  const urlResult = await getJobSignatureUploadUrlAction(jobId, filename, fileSize)
+  if ('error' in urlResult && urlResult.error) {
+    throw new Error(urlResult.error)
+  }
+  if (!urlResult.signedUrl || !urlResult.path) {
+    throw new Error('Missing signed URL or path')
+  }
+
+  const upload = await fetch(urlResult.signedUrl, {
+    method: 'PUT',
+    body: blob,
+    headers: { 'content-type': blob.type || 'application/octet-stream' },
+  })
+  if (!upload.ok) {
+    throw new Error(`Direct upload failed: ${upload.status} ${upload.statusText}`)
+  }
+
+  const confirmResult = await confirmJobSignatureAction(jobId, urlResult.path, signedBy)
+  if ('error' in confirmResult && confirmResult.error) {
+    throw new Error(confirmResult.error)
+  }
+}
+
+async function syncNote(item: OutboxItem): Promise<void> {
+  const payload = item.payload as NotePayload
+  const { jobId, notes } = payload
+
+  const result = await saveCompletionNotesAction(jobId, notes)
+  if ('error' in result && result.error) {
+    throw new Error(result.error)
+  }
+}
+
 export async function hydrateTechData(orgId: string, userId: string): Promise<void> {
   const db = createTechDb(orgId)
   await db.open()
@@ -88,19 +189,57 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
     tenantId: orgId,
     jobNo: row.jobNo,
     customerId: row.customerId,
-    contactId: null,
-    serviceLocationId: null,
+    contactId: (row as { contactId?: string | null }).contactId ?? null,
+    serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
     status: row.status,
     description: row.description,
     startDate: row.startDate ? toISODate(parseCalendarDate(row.startDate)!) : null,
     arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
     arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
-    notesForTechs: null,
-    completionNotes: null,
+    notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
+    completionNotes: (row as { completionNotes?: string | null }).completionNotes ?? null,
     assigneeUserIds: [userId],
   }))
   await db.jobs.clear()
   await db.jobs.bulkPut(cached)
+
+  const locationIds = Array.from(
+    new Set(cached.map((job) => job.serviceLocationId).filter(Boolean) as string[]),
+  )
+
+  if (locationIds.length > 0) {
+    await db.equipment.clear()
+    for (const locationId of locationIds) {
+      const rows = await getEquipmentByServiceLocationAction(orgId, locationId)
+      const mapped: CachedEquipment[] = rows.map((row) => ({
+        id: row.id,
+        tenantId: orgId,
+        serviceLocationId: row.serviceLocationId,
+        kind: row.kind,
+        brand: row.brand ?? null,
+        installDate: row.installDate ? toISODate(new Date(row.installDate)) : null,
+        warrantyExpires: row.warrantyExpires ? toISODate(new Date(row.warrantyExpires)) : null,
+        notes: row.notes ?? null,
+        widthFt: row.widthFt ? String(row.widthFt) : null,
+        heightFt: row.heightFt ? String(row.heightFt) : null,
+        material: row.material ?? null,
+        style: row.style ?? null,
+        color: row.color ?? null,
+        modelSeries: row.modelSeries ?? null,
+        model: row.model ?? null,
+        hp: row.hp ? String(row.hp) : null,
+        serial: row.serial ?? null,
+        wireSize: row.wireSize ? String(row.wireSize) : null,
+        insideDiameter: row.insideDiameter ? String(row.insideDiameter) : null,
+        length: row.length ? String(row.length) : null,
+        windDirection: row.windDirection,
+        cycleRating: row.cycleRating ?? null,
+      }))
+      if (mapped.length > 0) {
+        await db.equipment.bulkPut(mapped)
+      }
+    }
+  }
 }
 
 export function startSyncLoop(orgId: string, userId: string): () => void {
