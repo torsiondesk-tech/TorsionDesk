@@ -26,11 +26,14 @@ export default defineConfig({
     ],
   },
   test: {
-    // Node environment: these are server/DB-layer contracts, not DOM components.
-    environment: 'node',
+    // jsdom supports both DOM component tests and Node server tests, and is
+    // required for fake-indexeddb to polyfill window.indexedDB in Dexie tests.
+    environment: 'jsdom',
     // Expose describe/it/expect/vi globally so tests need no per-file imports.
     globals: true,
-    // Only collect the contract tests under tests/.
-    include: ['tests/**/*.test.ts'],
+    // Collect both server contract tests and component tests.
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    // Load jest-dom matchers and fake-indexeddb polyfill for Dexie tests.
+    setupFiles: ['./tests/setup.ts', './tests/tech/idb-setup.ts'],
   },
 })
