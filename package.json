@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "TorsionDesk — FSM CRM for Infantino's Garage Door Service",
   "private": true,
+  "packageManager": "pnpm@11.7.0",
   "type": "module",
   "scripts": {
     "dev": "next dev",
