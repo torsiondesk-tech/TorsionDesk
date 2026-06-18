@@ -15,7 +15,7 @@
 | 2 | Catalog and Settings | Complete | 2026-06-14 |
 | 3 | Jobs Core and Status FSM | Complete | 2026-06-15 |
 | 4 | Dispatch Board | A dispatcher schedules and dispatches jobs on a live week-view board and closes-and-invoices in one click | DISP-01 through DISP-07 |
-| 5 | Technician Mobile PWA | In Progress: 1/6 plans complete — offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments | TECH-01 through TECH-14 |
+| 5 | Technician Mobile PWA | In Progress: 2/6 plans complete — offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments | TECH-01 through TECH-14 |
 | 6 | Estimates | Sales can run estimates through their own pipeline and convert a won estimate into a job in one action | EST-01 through EST-09 |
 | 7 | Invoicing and Payments | A job becomes a tracked invoice; payments record via Stripe, office entry, and Square from the PWA into one ledger with live AR aging | INV-01 through INV-14 |
 | 8 | Communications and Notifications | The system auto-emails and texts the right people on job, estimate, invoice, and payment events | COMM-01 through COMM-09 |
@@ -247,7 +247,7 @@ Plans:
 **Wave 1**
 
 - [x] 05-01-PLAN.md — PWA install foundation: Serwist SW + manifest + offline page, Dexie per-org outbox (9 types) + tests (TECH-01, TECH-08)
-- [ ] 05-01b-PLAN.md — /tech/* role gate + mobile shell + bottom nav, Jobs/Estimates/Invoices empty-state shell, jobSignatures table + [BLOCKING] pnpm db:push (TECH-01, TECH-14)
+- [x] 05-01b-PLAN.md — /tech/* role gate + mobile shell + bottom nav, Jobs/Estimates/Invoices empty-state shell, jobSignatures table + [BLOCKING] pnpm db:push (TECH-01, TECH-14)
 
 **Wave 2** *(blocked on Wave 1)*
 
