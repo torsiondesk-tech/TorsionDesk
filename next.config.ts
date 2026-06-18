@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import { fileURLToPath } from 'node:url'
+import withSerwistInit from '@serwist/next'
 
 /**
  * Next.js 15 (App Router, React 19) configuration.
@@ -33,4 +34,13 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+const withSerwist = withSerwistInit({
+  swSrc: 'src/app/sw.ts',
+  swDest: 'public/sw.js',
+  swUrl: '/tech/sw.js',
+  scope: '/tech/',
+  register: true,
+  cacheOnNavigation: true,
+})
+
+export default withSerwist(nextConfig)

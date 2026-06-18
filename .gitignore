@@ -14,6 +14,12 @@
 /build
 /dist
 
+# Serwist-generated service worker artifacts
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+/public/swe-worker-*.js.map
+
 # TypeScript incremental build cache
 *.tsbuildinfo
 next-env.d.ts.timestamp
