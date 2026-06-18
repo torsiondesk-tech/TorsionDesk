@@ -111,7 +111,7 @@ Service Fusion parity: popup action names and pool tab names are FIXED strings a
 | Primary CTA | **Close & Invoice** (transitions job → Invoiced; no invoice record yet — Phase 7) |
 | Empty state heading (whole board, no jobs this week) | **No jobs scheduled this week** |
 | Empty state body (board) | Drag a job from the pool below onto a technician's day to schedule it. |
-| Empty state heading (a pool tab with 0 jobs) | **Nothing here** |
+| Empty state heading (a pool tab with 0 jobs) | **No {tab name} Jobs** (e.g., "No Unscheduled Jobs", "No Paused Jobs") |
 | Empty state body (pool tab) | No jobs in {tab name} right now. |
 | Empty state (no active technicians) | **No active technicians.** Add a technician under Settings → Users to start dispatching. |
 | Error state (Realtime subscription dropped) | **Live updates paused — reconnecting…** Changes will catch up automatically. (auto-retry; show a small inline banner, not a blocking modal) |

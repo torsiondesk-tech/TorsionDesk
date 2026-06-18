@@ -2,7 +2,7 @@
 
 **Project:** TorsionDesk — FSM CRM for Infantino's Garage Door Service
 **Generated:** 2026-06-10
-**Requirements:** 97 v1 requirements
+**Requirements:** 109 v1 requirements
 **Phases:** 11
 **Mode:** Vertical MVP (each phase delivers a working capability)
 
@@ -15,14 +15,14 @@
 | 2 | Catalog and Settings | Complete | 2026-06-14 |
 | 3 | Jobs Core and Status FSM | Complete | 2026-06-15 |
 | 4 | Dispatch Board | A dispatcher schedules and dispatches jobs on a live week-view board and closes-and-invoices in one click | DISP-01 through DISP-07 |
-| 5 | Technician Mobile PWA | A tech runs their day offline on their phone — status, photos, signature, notes, and on-site spec lookup | TECH-01 through TECH-08 |
+| 5 | Technician Mobile PWA | A tech runs their day offline on their phone — status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments | TECH-01 through TECH-14 |
 | 6 | Estimates | Sales can run estimates through their own pipeline and convert a won estimate into a job in one action | EST-01 through EST-09 |
-| 7 | Invoicing and Payments | A job becomes a tracked invoice; payments record via Stripe and Square into one ledger with live AR aging | INV-01 through INV-09 |
+| 7 | Invoicing and Payments | A job becomes a tracked invoice; payments record via Stripe, office entry, and Square from the PWA into one ledger with live AR aging | INV-01 through INV-14 |
 | 8 | Communications and Notifications | The system auto-emails and texts the right people on job, estimate, invoice, and payment events | COMM-01 through COMM-09 |
 | 9 | Reports | The owner sees revenue, AR, day sheets, and tax totals by period and exports them | RPT-01 through RPT-09 |
 | 10 | Data Migration | The full Service Fusion history — customers, catalog, and job records — is imported for cutover | MIGR-01 through MIGR-03 |
 
-**Parallelization:** Phases 4 (Dispatch Board) and 5 (Technician PWA) are independent surfaces over the same Phase 3 job data and can be built simultaneously.
+**Parallelization:** Phase 4 (Dispatch Board) is complete. Phase 5 (Technician PWA) depends on Phase 3 job data and is ready to plan.
 
 ## Phases
 
@@ -30,8 +30,8 @@
 - [x] **Phase 1: Customers, Locations, and Equipment** - Customer book with contacts, service locations, and per-location equipment/spring specs
 - [x] **Phase 2: Catalog and Settings** - Product/service catalog plus admin configuration of categories, tags, templates, users, and lookups (completed 2026-06-14)
 - [x] **Phase 3: Jobs Core and Status FSM** - Job form, line items, totals, and the server-enforced status machine that everything consumes (completed 2026-06-15)
-- [ ] **Phase 4: Dispatch Board** - Live week-view scheduling grid with job pool, popup actions, and one-click Close & Invoice
-- [ ] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, and on-site spec lookup
+- [x] **Phase 4: Dispatch Board** - Live week-view scheduling grid with job pool, popup actions, and one-click Close & Invoice (completed 2026-06-15)
+- [ ] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments
 - [ ] **Phase 6: Estimates** - Separate estimate module with its own pipeline, dashboard, templates, and convert-to-job
 - [ ] **Phase 7: Invoicing and Payments** - Invoices from jobs, dual-processor payment ledger, and live AR aging dashboard
 - [ ] **Phase 8: Communications and Notifications** - Event-triggered email (Resend) and SMS (Twilio) automations with per-trigger settings
@@ -194,16 +194,40 @@ Plans:
   4. "Close & Invoice" from the popup transitions the job to Invoiced and creates the invoice in one click without navigating away.
   5. A tech assignment or status change made in one open session appears in another open session in real time via Supabase Realtime Broadcast.
 
-**Plans:** TBD
+**Plans:** 6/6 plans written
+**Wave 0**
+
+- [ ] 04-01-PLAN.md — Wave 0: Install @dnd-kit/*, shadcn calendar/skeleton/tooltip/sonner, browser Supabase singleton, stub tests
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 04-02-PLAN.md — Wave 1: updateJobAssignment, getWeekJobs, countPoolJobs, getJobMinimal, listTechnicians
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 04-03-PLAN.md — Wave 2: board.tsx DndContext + week-grid.tsx + day-cell.tsx + job-block.tsx + week-navigator.tsx
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 04-04-PLAN.md — Wave 3: job-pool.tsx + pool-card.tsx + pool-tabs.tsx + pool→grid drag integration
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 04-05-PLAN.md — Wave 4: dispatch-popup.tsx + map-pane.tsx + actions-bar.tsx
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 04-06-PLAN.md — Wave 5: use-realtime-sync.ts + use-dispatch-board.ts + broadcast emit + nav + role gate + real tests
+
 **UI hint:** yes
 
 ### Phase 5: Technician Mobile PWA
 
-**Goal:** A technician runs their entire day from an installable, offline-capable phone app — viewing their schedule, updating status, capturing photos and signatures, adding notes, and looking up spring specs on site — with reliable sync.
+**Goal:** A technician runs their entire day from an installable, offline-capable phone app — viewing their schedule, updating status, capturing photos and signatures, adding notes, looking up spring specs, creating/converting estimates, creating/sending invoices, and collecting on-site Square payments — with reliable sync.
 **Mode:** mvp
 **Depends on:** Phase 3
-**Parallelization:** Can be built in parallel with Phase 4 (Dispatch Board) — both are independent surfaces over the same Phase 3 job data.
-**Requirements:** TECH-01, TECH-02, TECH-03, TECH-04, TECH-05, TECH-06, TECH-07, TECH-08
+**Parallelization:** Phase 4 is now complete. Phase 5 can still parallelize with Phase 6/7/8 API development because the PWA consumes shared server actions; early waves focus on jobs-only runtime while later waves wire estimates/invoices/payments as those office modules land.
+**Requirements:** TECH-01, TECH-02, TECH-03, TECH-04, TECH-05, TECH-06, TECH-07, TECH-08, TECH-09, TECH-10, TECH-11, TECH-12, TECH-13, TECH-14
 **Success Criteria:**
 
   1. A tech installs the app to their phone home screen and can open it and view their assigned jobs (today + next 7 days) even with no signal.
@@ -211,15 +235,41 @@ Plans:
   3. A tech captures before/after photos from the phone camera and collects a customer touchscreen signature on completion; both attach to the job.
   4. A tech adds completion notes and views the service location's equipment and spring specs from the job detail screen.
   5. Status updates, notes, and photos created offline are queued in IndexedDB, visually flagged as unsynced, and auto-sync on reconnect (including the iOS sync-on-focus fallback).
+  6. A tech can create an estimate, view estimate details, and convert a won estimate into a job in one action; the PWA can email/text the estimate PDF to the customer.
+  7. A tech can create an invoice from a completed job, view invoice details, and email/text the invoice PDF to the customer.
+  8. A tech can collect an on-site Square card payment against an invoice from the PWA; payment posts to the same canonical ledger as office-recorded payments.
+  9. Estimate creation, estimate-to-job conversion, invoice creation, payment records, and send actions are queued offline when needed and auto-sync on reconnect.
 
-**Plans:** TBD
+**Plans:** 5 plans across 5 waves
 **UI hint:** yes
+
+Plans:
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — PWA foundation: Serwist SW + manifest + offline page, /tech/* role gate, mobile shell + bottom nav, Dexie outbox, jobSignatures table + [BLOCKING] pnpm db:push (TECH-01, TECH-08, TECH-14)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 05-02-PLAN.md — Job runtime: date-grouped 7-day schedule, job detail + status bottom sheet via transitionJobStatusAction, offline sync loop with FIFO/coalescing + online/pending indicator (TECH-02, TECH-03, TECH-08)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 05-03-PLAN.md — On-site capture: camera photos (presigned URL sync), signature_pad + jobSignatures, completion notes, equipment/spring specs (TECH-04, TECH-05, TECH-06, TECH-07)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 05-04-PLAN.md — Estimates surface: list/create (offline-capable) + convert-to-job, stub-safe Phase 6 delegation, estimate outbox types (TECH-09, TECH-10, TECH-14)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 05-05-PLAN.md — Invoices + payments: invoice create/send (stub-safe Phase 7/8), online-only Square Apple/Google Pay + offline cash/check, full outbox flagging, device verification (TECH-11, TECH-12, TECH-13, TECH-14)
 
 ### Phase 6: Estimates
 
-**Goal:** Sales can run estimates through their own dedicated pipeline and dashboard, build them with grouped catalog line items, email them as PDFs, and convert a won estimate into a job in one action.
+**Goal:** Sales (and technicians in the field) can run estimates through their own dedicated pipeline and dashboard, build them with grouped catalog line items, email/text them as PDFs, and convert a won estimate into a job in one action from the office or the PWA.
 **Mode:** mvp
 **Depends on:** Phase 3
+**Cross-phase note:** Estimate creation, conversion, and send server actions are shared between the office estimate module and the Phase 5 PWA. Phase 6 should implement the canonical actions first; Phase 5 adds offline-queued wrappers.
 **Requirements:** EST-01, EST-02, EST-03, EST-04, EST-05, EST-06, EST-07, EST-08, EST-09
 **Success Criteria:**
 
@@ -227,41 +277,45 @@ Plans:
   2. An estimate moves through its server-enforced pipeline (Requested → Provided → Accepted → Won / Lost) and supports grouped Product/Service/Discount line items with margins and tax.
   3. A user can save and apply estimate templates and configure task-list and reminder presets.
   4. The estimates dashboard shows the status-folder sidebar with counts (My / All Estimates) and tag filtering, plus the main list columns (Requested On, Customer, Description, Value, Status, Rating).
-  5. A user can email an estimate as a PDF to the customer, and convert a won estimate into a new job in one action carrying over all fields, line items, and contact info.
+  5. A user or technician can email/text an estimate as a PDF to the customer, and convert a won estimate into a new job in one action carrying over all fields, line items, and contact info.
 
 **Plans:** TBD
 **UI hint:** yes
 
 ### Phase 7: Invoicing and Payments
 
-**Goal:** A completed job becomes a tracked invoice; payments are recorded online via Stripe and on-site via Square into one canonical ledger, with a live AR aging dashboard the owner checks constantly.
+**Goal:** A completed job becomes a tracked invoice; payments are recorded online via Stripe, by office staff, and on-site via Square from the PWA into one canonical ledger, with a live AR aging dashboard the owner checks constantly.
 **Mode:** mvp
 **Depends on:** Phase 3
-**Requirements:** INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08, INV-09
+**Cross-phase note:** Invoice creation from completed jobs, invoice send, and Square payment posting are shared between the office invoicing module and the Phase 5 PWA. Phase 7 should implement the canonical actions first; Phase 5 adds offline-queued wrappers.
+**Requirements:** INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08, INV-09, INV-10, INV-11, INV-12, INV-13, INV-14
 **Success Criteria:**
 
   1. An invoice is created from a job carrying over all line items, customer, and contact details, with a per-tenant auto-incrementing invoice number.
   2. The invoicing dashboard shows the AR aging sidebar (Grand Total Unpaid, Grand Total Past Due, 1–30 / 31–60 / 61–90 / 91+ buckets, color-coded) and Unpaid / Paid / All views with search, sort, and pagination.
   3. A payment is recorded directly on an invoice (method + amount applied) and stores full transaction detail (card last 4, token, auth #, billing address, balance after).
-  4. A Stripe payment link in the invoice creates a payment record via an idempotent webhook (deduped by event.id); a Square on-site card payment from the tech's phone posts to the same canonical ledger.
-  5. A user can generate an invoice PDF (with optional work order including line items, completion notes, and signature) and email it to the customer with the PDF attached.
+  4. A Stripe payment link in the invoice creates a payment record via an idempotent webhook (deduped by event.id); a Square on-site card payment from the PWA posts to the same canonical ledger.
+  5. A user or technician can generate an invoice PDF (with optional work order including line items, completion notes, and signature) and email/text it to the customer with the PDF attached.
+  6. Deposits can be recorded against a job before an invoice exists and appear on the resulting invoice.
+  7. Every payment has a view page showing transaction details, audit line, and invoice allocations.
 
 **Plans:** TBD
 **UI hint:** yes
 
 ### Phase 8: Communications and Notifications
 
-**Goal:** The system automatically emails and texts the right people on the right events — job confirmations, tech notifications, estimate/invoice sends, payment receipts, and "On The Way" SMS — all governed by per-trigger settings.
+**Goal:** The system automatically emails and texts the right people on the right events — job confirmations, tech notifications, estimate/invoice sends, payment receipts, and "On The Way" SMS — from the office or the PWA, all governed by per-trigger settings.
 **Mode:** mvp
 **Depends on:** Phase 7
+**Cross-phase note:** A shared `sendCustomerCommunicationAction` should power estimate/invoice sends from both office modules and the Phase 5 PWA so per-trigger settings and PDF attachments are applied consistently.
 **Requirements:** COMM-01, COMM-02, COMM-03, COMM-04, COMM-05, COMM-06, COMM-07, COMM-08, COMM-09
 **Success Criteria:**
 
   1. All outbound email sends via Resend from contact@infantinosgaragedoor.com with the configured business name in the sender header.
-  2. Job creation emails a customer confirmation, tech assignment/modification emails the tech, invoice creation emails the customer, and an estimate can be emailed — each only when its trigger is enabled in settings.
+  2. Job creation emails a customer confirmation, tech assignment/modification emails the tech, invoice creation/sending emails/texts the customer, and an estimate can be emailed/texted — each only when its trigger is enabled in settings.
   3. A confirmed Stripe payment automatically emails the customer a payment receipt (webhook-triggered, not manual).
   4. A job's transition to "On The Way" sends the customer an SMS via Twilio (A2P 10DLC registered), and appointment reminder SMS is configurable per job.
-  5. Outbound job/estimate/invoice emails include the relevant PDF attachment, with the work order PDF optionally included on invoice emails.
+  5. Outbound job/estimate/invoice emails and texts include the relevant PDF attachment, with the work order PDF optionally included on invoice emails.
 
 **Plans:** TBD
 
@@ -303,8 +357,8 @@ Plans:
 | 1. Customers, Locations, and Equipment | 5/5 | Completed | 2026-06-12 |
 | 2. Catalog and Settings | 5/6 | Completed | 2026-06-14 |
 | 3. Jobs Core and Status FSM | 6/6 | Completed | 2026-06-15 |
-| 4. Dispatch Board | 0/0 | Ready to plan | - |
-| 5. Technician Mobile PWA | 0/0 | Ready to plan | - |
+| 4. Dispatch Board | 6/6 | Completed | 2026-06-15 |
+| 5. Technician Mobile PWA | 0/5 | Planned | - |
 | 6. Estimates | 0/0 | Not started | - |
 | 7. Invoicing and Payments | 0/0 | Not started | - |
 | 8. Communications and Notifications | 0/0 | Not started | - |
@@ -312,7 +366,7 @@ Plans:
 | 10. Data Migration | 0/0 | Not started | - |
 
 ---
-*Roadmap generated: 2026-06-10 | 11 phases, 97 v1 requirements, 100% coverage*
+*Roadmap generated: 2026-06-10 | 11 phases, 109 v1 requirements, 100% coverage*
 *Phase 0 planned: 2026-06-10 — 5 plans across 5 waves (Walking Skeleton)*
 *Phase 3 completed: 2026-06-15 — 6/6 plans, 8/8 UAT passed, 17/17 truths verified*
-*Next: Phase 4 (Dispatch Board) and Phase 5 (Technician PWA) ready for parallel planning*
+*Phase 5 scope expanded: 2026-06-17 — PWA now includes estimates, invoices, payments, and customer comms*
