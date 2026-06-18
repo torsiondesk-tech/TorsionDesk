@@ -1164,3 +1164,37 @@ export const teamProfiles = pgTable(
 
 export type TeamProfile = typeof teamProfiles.$inferSelect
 export type NewTeamProfile = typeof teamProfiles.$inferInsert
+
+// ── Job Signatures (customer signature captured by technician in the field) ──
+
+export const jobSignatures = pgTable(
+  'job_signatures',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    storagePath: text('storage_path').notNull(),
+    signedBy: text('signed_by'),
+    capturedBy: text('captured_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('job_signatures_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('cascade'),
+    pgPolicy('job_signatures_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type JobSignature = typeof jobSignatures.$inferSelect
+export type NewJobSignature = typeof jobSignatures.$inferInsert
