@@ -11,6 +11,10 @@ import withSerwistInit from '@serwist/next'
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Next.js 15.5.x DevTools overlay has a bug where it fails to find
+  // segment-explorer-node.js#SegmentViewNode in the React Client Manifest,
+  // crashing page renders in dev mode. Disable until upstream fix ships.
+  devIndicators: false,
   // This app runs inside a git worktree that sits under the repo root, which has
   // its own pnpm-lock.yaml. Pin the tracing root to this project so Next does not
   // infer the parent repo as the workspace root.

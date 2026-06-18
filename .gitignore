@@ -36,3 +36,6 @@ pnpm-debug.log*
 # Local tooling / planning (not source code)
 /.claude/
 /.planning/
+
+# clerk configuration (can include secrets)
+/.clerk/
