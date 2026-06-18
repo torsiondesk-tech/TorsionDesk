@@ -15,7 +15,7 @@
 | 2 | Catalog and Settings | Complete | 2026-06-14 |
 | 3 | Jobs Core and Status FSM | Complete | 2026-06-15 |
 | 4 | Dispatch Board | A dispatcher schedules and dispatches jobs on a live week-view board and closes-and-invoices in one click | DISP-01 through DISP-07 |
-| 5 | Technician Mobile PWA | In Progress: 2/6 plans complete — offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments | TECH-01 through TECH-14 |
+| 5 | Technician Mobile PWA | In Progress: 3/6 plans complete — offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments | TECH-01 through TECH-14 |
 | 6 | Estimates | Sales can run estimates through their own pipeline and convert a won estimate into a job in one action | EST-01 through EST-09 |
 | 7 | Invoicing and Payments | A job becomes a tracked invoice; payments record via Stripe, office entry, and Square from the PWA into one ledger with live AR aging | INV-01 through INV-14 |
 | 8 | Communications and Notifications | The system auto-emails and texts the right people on job, estimate, invoice, and payment events | COMM-01 through COMM-09 |
@@ -251,7 +251,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 05-02-PLAN.md — Job runtime: date-grouped 7-day schedule, job detail + status bottom sheet via transitionJobStatusAction, offline sync loop with FIFO/coalescing + online/pending indicator (TECH-02, TECH-03, TECH-08)
+- [x] 05-02-PLAN.md — Job runtime: date-grouped 7-day schedule, job detail + status bottom sheet via transitionJobStatusAction, offline sync loop with FIFO/coalescing + online/pending indicator (TECH-02, TECH-03, TECH-08)
 
 **Wave 3** *(blocked on Wave 2)*
 

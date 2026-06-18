@@ -8,7 +8,7 @@ progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 36
-  completed_plans: 18
+  completed_plans: 19
   percent: 0
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Phase 5: Technician Mobile PWA (expanded scope)**
 
-:- Status: In Progress
-- Current position: 05-01 and 05-01b complete, executing 05-02
+- Status: In Progress
+- Current position: 05-01, 05-01b, and 05-02 complete, executing 05-03
 - Goal: Offline-capable mobile PWA for technicians to view assigned jobs, update status, capture signatures/photos, view/create/convert estimates, create invoices, send estimate/invoice PDFs, and collect on-site Square payments.
 - Requirements: TECH-01 through TECH-14
 - Depends on: Phase 3 (completed), Phase 4 (completed)
@@ -46,7 +46,7 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 
 - [x] 05-01-PLAN.md — Wave 1: PWA shell — Serwist install, Dexie.js outbox schema, offline fallback, passing unit tests
 - [x] 05-01b-PLAN.md — Wave 2: /tech/ role gate + mobile shell layout + bottom nav + jobSignatures schema push
-- [ ] 05-02-PLAN.md — Wave 3: 7-day schedule + offline status transitions + sync loop
+- [x] 05-02-PLAN.md — Wave 3: 7-day schedule + offline status transitions + sync loop
 - [ ] 05-03-PLAN.md — Wave 4: Photos, signatures, completion notes, equipment specs
 - [ ] 05-04-PLAN.md — Wave 5: Estimates surface (view/create/convert offline)
 - [ ] 05-05-PLAN.md — Wave 6: Invoices/payments surface + Square on-site payment + outbox UI
@@ -74,7 +74,7 @@ Phase 1  [██████████] Completed
 Phase 2  [██████████] Completed
 Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
-Phase 5  [█         ] In Progress  ← current (1/6 plans complete)
+Phase 5  [██        ] In Progress  ← current (3/6 plans complete)
 Phase 6  [          ] Not started
 Phase 7  [          ] Not started
 Phase 8  [          ] Not started
