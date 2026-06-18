@@ -48,3 +48,29 @@ export function toISODate(d: Date | string): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+/**
+ * Rehydrate a server-returned date into a local-midnight Date that preserves the
+ * intended CALENDAR date. Database timestamps are stored as UTC midnight, so using
+ * local getters on a raw Date can shift the day when the client timezone is not UTC.
+ * We normalize by extracting the ISO YYYY-MM-DD component (via UTC getters) and
+ * building a fresh local-midnight Date so the calendar day is exact everywhere.
+ */
+export function parseCalendarDate(d: Date | string | null | undefined): Date | null {
+  if (!d) return null
+  if (d instanceof Date) {
+    const iso = toISODate(d)
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (m) {
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    }
+    return d
+  }
+  const str = d as string
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  }
+  const parsed = new Date(str)
+  return isNaN(parsed.getTime()) ? null : parsed
+}

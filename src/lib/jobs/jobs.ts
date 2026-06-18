@@ -49,6 +49,8 @@ export interface JobRow {
   priority: string | null
   status: string
   startDate: Date | null
+  arrivalWindowStart: string | null
+  arrivalWindowEnd: string | null
   createdAt: Date | null
 }
 
@@ -229,6 +231,8 @@ export async function listJobs(
         priority: jobs.priority,
         status: jobs.status,
         startDate: jobs.startDate,
+        arrivalWindowStart: jobs.arrivalWindowStart,
+        arrivalWindowEnd: jobs.arrivalWindowEnd,
         createdAt: jobs.createdAt,
       })
       .from(jobs)
