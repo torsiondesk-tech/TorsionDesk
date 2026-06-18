@@ -16,8 +16,11 @@ import { NextResponse } from 'next/server'
  *                         `organization.created` provisioning 401s (Pitfall 4)
  *
  * Everything else requires a Clerk session (`auth.protect()`). Then:
- *   - Technicians (`org:technician`) are redirected to /mobile-coming-soon before
- *     any web shell renders (D-14, threat T-00-07).
+ *   - /tech(.*) is restricted to Technicians (`org:technician`) and Admins
+ *     (`org:admin`) only; dispatchers and other roles are redirected to `/`
+ *     (D-05, threat T-05-02).
+ *   - Technicians (`org:technician`) signing in to any non-tech route are
+ *     auto-redirected to `/tech/jobs` (D-07).
  *   - /settings(.*) additionally requires `org:admin` (D-15, threat T-00-06) —
  *     this is the SERVER-SIDE enforcement, not merely nav hiding (defense in
  *     depth; the sidebar hiding in Plan 03 is the UX-only second layer).
@@ -28,6 +31,7 @@ const isPublic = createRouteMatcher([
   '/api/webhooks(.*)',
 ])
 const isSettings = createRouteMatcher(['/settings(.*)'])
+const isTechRoute = createRouteMatcher(['/tech(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
   // Public routes opt OUT of protection entirely.
@@ -39,11 +43,14 @@ export default clerkMiddleware(async (auth, req) => {
   // Read the active org role from the verified session (the JWT `o.rol` claim).
   const { orgRole } = await auth()
 
-  // D-14: technicians never see the web shell — bounce them to the holding page.
-  // Use NextResponse.redirect so Clerk/Next.js can append headers; the native
-  // Response.redirect() object has immutable headers and throws when mutated.
-  if (orgRole === 'org:technician') {
-    return NextResponse.redirect(new URL('/mobile-coming-soon', req.url))
+  // D-05: /tech/* is Technician + Admin only; everyone else is bounced to /.
+  // D-07: technicians on non-tech routes are auto-redirected to /tech/jobs.
+  if (isTechRoute(req)) {
+    if (orgRole !== 'org:technician' && orgRole !== 'org:admin') {
+      return NextResponse.redirect(new URL('/', req.url))
+    }
+  } else if (orgRole === 'org:technician') {
+    return NextResponse.redirect(new URL('/tech/jobs', req.url))
   }
 
   // D-15: /settings is admin-only — server-side gate (not just nav hiding).
