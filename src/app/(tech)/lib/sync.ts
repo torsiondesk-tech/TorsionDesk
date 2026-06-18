@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { createTechDb, type OutboxItem, type CachedJob, type CachedEquipment } from './dexie'
+import { createTechDb, type OutboxItem, type CachedJob, type CachedEquipment, type CachedCustomer, type CachedLocation, type CachedEstimate } from './dexie'
 import {
   transitionJobStatusAction,
   listTechJobsAction,
@@ -13,6 +13,15 @@ import {
   getJobPhotoUploadUrlAction,
   confirmJobPhotoAction,
 } from '@/app/(app)/jobs/actions'
+import {
+  createEstimateAction,
+  convertEstimateToJobAction,
+  listTechEstimatesAction,
+} from '@/app/(tech)/tech/estimates/actions'
+import {
+  listTechCustomersAction,
+  listTechServiceLocationsAction,
+} from '@/app/(tech)/tech/customers/actions'
 import { createBrowserClient } from '@/lib/supabase/browser'
 import { toISODate, parseCalendarDate } from '@/lib/utils'
 
@@ -39,6 +48,32 @@ export interface SignaturePayload {
 export interface NotePayload {
   jobId: string
   notes: string
+}
+
+export interface EstimateCreatePayload {
+  input: {
+    customerId: string
+    serviceLocationId: string | null
+    contactName: string | null
+    contactPhone: string | null
+    description: string
+    lineItems: Array<{ name: string; qty: string; unitPrice: string }>
+    followUpDate: string | null
+    expiryDate: string | null
+    notes: string | null
+    internalNotes: string | null
+  }
+}
+
+export interface EstimateConversionPayload {
+  estimateId: string
+}
+
+export class DeferSyncError extends Error {
+  constructor(message = 'Deferred until backend feature is available') {
+    super(message)
+    this.name = 'DeferSyncError'
+  }
 }
 
 export async function enqueueOutboxItem(
@@ -96,9 +131,18 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
         await syncSignature(item)
       } else if (item.type === 'job_note') {
         await syncNote(item)
+      } else if (item.type === 'estimate_create') {
+        await syncEstimateCreate(item)
+      } else if (item.type === 'estimate_conversion') {
+        await syncEstimateConversion(item)
       }
       await db.outbox.update(item.id, { syncStatus: 'synced' })
     } catch (err) {
+      if (err instanceof DeferSyncError) {
+        await db.outbox.update(item.id, { syncStatus: 'pending' })
+        continue
+      }
+
       const message = err instanceof Error ? err.message : String(err)
       const illegal = message.includes('Illegal transition')
       await db.outbox.update(item.id, {
@@ -113,6 +157,28 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
         })
       }
     }
+  }
+}
+
+async function syncEstimateCreate(item: OutboxItem): Promise<void> {
+  const payload = item.payload as EstimateCreatePayload
+  const result = await createEstimateAction(payload.input)
+  if (!result.success) {
+    if (result.error === 'Estimates are not available yet.') {
+      throw new DeferSyncError(result.error)
+    }
+    throw new Error(result.error)
+  }
+}
+
+async function syncEstimateConversion(item: OutboxItem): Promise<void> {
+  const payload = item.payload as EstimateConversionPayload
+  const result = await convertEstimateToJobAction(payload.estimateId)
+  if (!result.success) {
+    if (result.error === 'Estimates are not available yet.') {
+      throw new DeferSyncError(result.error)
+    }
+    throw new Error(result.error)
   }
 }
 
@@ -183,8 +249,16 @@ async function syncNote(item: OutboxItem): Promise<void> {
 export async function hydrateTechData(orgId: string, userId: string): Promise<void> {
   const db = createTechDb(orgId)
   await db.open()
-  const { rows } = await listTechJobsAction(orgId, userId)
-  const cached: CachedJob[] = rows.map((row) => ({
+
+  const [{ rows: jobRows }, { rows: customerRows }, { rows: locationRows }, estimatesResult] =
+    await Promise.all([
+      listTechJobsAction(orgId, userId),
+      listTechCustomersAction(orgId, userId),
+      listTechServiceLocationsAction(orgId, userId),
+      listTechEstimatesAction(orgId, userId),
+    ])
+
+  const cachedJobs: CachedJob[] = jobRows.map((row) => ({
     id: row.id,
     tenantId: orgId,
     jobNo: row.jobNo,
@@ -201,10 +275,57 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
     assigneeUserIds: [userId],
   }))
   await db.jobs.clear()
-  await db.jobs.bulkPut(cached)
+  await db.jobs.bulkPut(cachedJobs)
+
+  const cachedCustomers: CachedCustomer[] = customerRows.map((row) => ({
+    id: row.id,
+    tenantId: orgId,
+    name: row.name,
+    accountNo: row.accountNo ?? null,
+    primaryPhone: row.primaryPhone ?? null,
+    primaryCity: row.primaryCity ?? null,
+  }))
+  await db.customers.clear()
+  await db.customers.bulkPut(cachedCustomers)
+
+  const cachedLocations: CachedLocation[] = locationRows.map((row) => ({
+    id: row.id,
+    tenantId: orgId,
+    customerId: row.customerId,
+    name: row.name ?? null,
+    addressLine1: row.addressLine1 ?? null,
+    addressLine2: row.addressLine2 ?? null,
+    city: row.city ?? null,
+    state: row.state ?? null,
+    postalCode: row.postalCode ?? null,
+    country: row.country ?? null,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
+    gated: row.gated ?? false,
+  }))
+  await db.serviceLocations.clear()
+  await db.serviceLocations.bulkPut(cachedLocations)
+
+  if (!estimatesResult.error) {
+    const cachedEstimates: CachedEstimate[] = estimatesResult.rows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      status: row.status,
+      customerId: row.customerId,
+      customerName: row.customerName ?? null,
+      description: row.description ?? null,
+      value: row.value ?? null,
+      followUpDate: row.followUpDate ?? null,
+      expiryDate: row.expiryDate ?? null,
+      notes: row.notes ?? null,
+      createdAt: row.createdAt ?? null,
+    }))
+    await db.estimates.clear()
+    await db.estimates.bulkPut(cachedEstimates)
+  }
 
   const locationIds = Array.from(
-    new Set(cached.map((job) => job.serviceLocationId).filter(Boolean) as string[]),
+    new Set(cachedJobs.map((job) => job.serviceLocationId).filter(Boolean) as string[]),
   )
 
   if (locationIds.length > 0) {

@@ -38,6 +38,15 @@ export interface OutboxItem {
   syncStatus: OutboxStatus
 }
 
+export interface CachedCustomer {
+  id: string
+  tenantId: string
+  name: string
+  accountNo: number | null
+  primaryPhone: string | null
+  primaryCity: string | null
+}
+
 export interface CachedJob {
   id: string
   tenantId: string
@@ -99,10 +108,26 @@ export interface CachedEquipment {
   cycleRating: number | null
 }
 
+export interface CachedEstimate {
+  id: string
+  tenantId: string
+  status: string
+  customerId: string
+  customerName: string | null
+  description: string | null
+  value: number | null
+  followUpDate: string | null
+  expiryDate: string | null
+  notes: string | null
+  createdAt: string | null
+}
+
 export class TechSyncDb extends Dexie {
+  customers!: EntityTable<CachedCustomer, 'id'>
   jobs!: EntityTable<CachedJob, 'id'>
   serviceLocations!: EntityTable<CachedLocation, 'id'>
   equipment!: EntityTable<CachedEquipment, 'id'>
+  estimates!: EntityTable<CachedEstimate, 'id'>
   outbox!: EntityTable<OutboxItem, 'id'>
 
   constructor(orgId: string) {
@@ -112,6 +137,10 @@ export class TechSyncDb extends Dexie {
       serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
       equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
       outbox: 'id, type, syncStatus, createdAt',
+    })
+    this.version(2).stores({
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
     })
   }
 }
