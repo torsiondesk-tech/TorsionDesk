@@ -6,6 +6,7 @@ import { BottomNav } from './components/bottom-nav'
 import { Toaster } from '@/components/ui/sonner'
 import { TechSyncProvider } from './components/sync-provider'
 import { OfflineBadge } from './components/offline-badge'
+import { SyncToast } from './components/sync-toast'
 
 export const metadata: Metadata = {
   title: 'TorsionDesk Field',
@@ -39,6 +40,7 @@ export default async function TechLayout({
         <main className="flex-1 overflow-y-auto pb-16">{children}</main>
         <BottomNav />
         <Toaster />
+        <SyncToast orgId={orgId} />
       </div>
     </TechSyncProvider>
   )

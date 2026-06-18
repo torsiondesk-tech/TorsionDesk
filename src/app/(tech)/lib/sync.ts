@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { createTechDb, type OutboxItem, type CachedJob, type CachedEquipment, type CachedCustomer, type CachedLocation, type CachedEstimate } from './dexie'
+import { createTechDb, type OutboxItem, type CachedJob, type CachedEquipment, type CachedCustomer, type CachedLocation, type CachedEstimate, type CachedInvoice } from './dexie'
 import {
   transitionJobStatusAction,
   listTechJobsAction,
@@ -18,6 +18,11 @@ import {
   convertEstimateToJobAction,
   listTechEstimatesAction,
 } from '@/app/(tech)/tech/estimates/actions'
+import {
+  createInvoiceFromJobAction,
+  sendCustomerCommunicationAction,
+  listTechInvoicesAction,
+} from '@/app/(tech)/tech/invoices/actions'
 import {
   listTechCustomersAction,
   listTechServiceLocationsAction,
@@ -67,6 +72,22 @@ export interface EstimateCreatePayload {
 
 export interface EstimateConversionPayload {
   estimateId: string
+}
+
+export interface InvoiceCreatePayload {
+  jobId: string
+}
+
+export interface SendRecordPayload {
+  kind: 'estimate' | 'invoice'
+  refId: string
+  channel: 'email' | 'sms'
+}
+
+export interface ManualPaymentPayload {
+  invoiceId: string
+  method: 'cash' | 'check'
+  note: string
 }
 
 export class DeferSyncError extends Error {
@@ -135,6 +156,12 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
         await syncEstimateCreate(item)
       } else if (item.type === 'estimate_conversion') {
         await syncEstimateConversion(item)
+      } else if (item.type === 'invoice_create') {
+        await syncInvoiceCreate(item)
+      } else if (item.type === 'send_record') {
+        await syncSendRecord(item)
+      } else if (item.type === 'manual_payment') {
+        await syncManualPayment(item)
       }
       await db.outbox.update(item.id, { syncStatus: 'synced' })
     } catch (err) {
@@ -176,6 +203,51 @@ async function syncEstimateConversion(item: OutboxItem): Promise<void> {
   const result = await convertEstimateToJobAction(payload.estimateId)
   if (!result.success) {
     if (result.error === 'Estimates are not available yet.') {
+      throw new DeferSyncError(result.error)
+    }
+    throw new Error(result.error)
+  }
+}
+
+async function syncInvoiceCreate(item: OutboxItem): Promise<void> {
+  const payload = item.payload as InvoiceCreatePayload
+  const result = await createInvoiceFromJobAction(payload.jobId)
+  if (!result.success) {
+    if (result.error === 'Invoices are not available yet.') {
+      throw new DeferSyncError(result.error)
+    }
+    throw new Error(result.error)
+  }
+}
+
+async function syncSendRecord(item: OutboxItem): Promise<void> {
+  const payload = item.payload as SendRecordPayload
+  const result = await sendCustomerCommunicationAction({
+    kind: payload.kind,
+    refId: payload.refId,
+    channel: payload.channel,
+    to: '',
+  })
+  if (!result.success) {
+    if (result.error === 'Sending is not available yet.') {
+      throw new DeferSyncError(result.error)
+    }
+    throw new Error(result.error)
+  }
+}
+
+async function syncManualPayment(item: OutboxItem): Promise<void> {
+  const payload = item.payload as ManualPaymentPayload
+  const result = await sendCustomerCommunicationAction({
+    kind: 'invoice',
+    refId: payload.invoiceId,
+    channel: 'email',
+    to: '',
+    subject: `Manual ${payload.method} payment note`,
+    body: payload.note,
+  })
+  if (!result.success) {
+    if (result.error === 'Sending is not available yet.') {
       throw new DeferSyncError(result.error)
     }
     throw new Error(result.error)
@@ -250,13 +322,19 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
   const db = createTechDb(orgId)
   await db.open()
 
-  const [{ rows: jobRows }, { rows: customerRows }, { rows: locationRows }, estimatesResult] =
-    await Promise.all([
-      listTechJobsAction(orgId, userId),
-      listTechCustomersAction(orgId, userId),
-      listTechServiceLocationsAction(orgId, userId),
-      listTechEstimatesAction(orgId, userId),
-    ])
+  const [
+    { rows: jobRows },
+    { rows: customerRows },
+    { rows: locationRows },
+    estimatesResult,
+    invoicesResult,
+  ] = await Promise.all([
+    listTechJobsAction(orgId, userId),
+    listTechCustomersAction(orgId, userId),
+    listTechServiceLocationsAction(orgId, userId),
+    listTechEstimatesAction(orgId, userId),
+    listTechInvoicesAction(orgId, userId),
+  ])
 
   const cachedJobs: CachedJob[] = jobRows.map((row) => ({
     id: row.id,
@@ -322,6 +400,26 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
     }))
     await db.estimates.clear()
     await db.estimates.bulkPut(cachedEstimates)
+  }
+
+  if (!invoicesResult.error) {
+    const cachedInvoices: CachedInvoice[] = invoicesResult.rows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      jobId: row.jobId ?? '',
+      customerId: row.customerId ?? '',
+      customerName: row.customerName ?? null,
+      invoiceNo: row.invoiceNo ?? null,
+      status: row.status,
+      total: row.total ?? null,
+      balance: row.balance ?? null,
+      issuedAt: row.issuedAt ?? null,
+      dueAt: row.dueAt ?? null,
+      paidAt: row.paidAt ?? null,
+      notes: row.notes ?? null,
+    }))
+    await db.invoices.clear()
+    await db.invoices.bulkPut(cachedInvoices)
   }
 
   const locationIds = Array.from(

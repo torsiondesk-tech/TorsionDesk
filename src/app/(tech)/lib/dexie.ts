@@ -122,12 +122,29 @@ export interface CachedEstimate {
   createdAt: string | null
 }
 
+export interface CachedInvoice {
+  id: string
+  tenantId: string
+  jobId: string
+  customerId: string
+  customerName: string | null
+  invoiceNo: string | null
+  status: string
+  total: number | null
+  balance: number | null
+  issuedAt: string | null
+  dueAt: string | null
+  paidAt: string | null
+  notes: string | null
+}
+
 export class TechSyncDb extends Dexie {
   customers!: EntityTable<CachedCustomer, 'id'>
   jobs!: EntityTable<CachedJob, 'id'>
   serviceLocations!: EntityTable<CachedLocation, 'id'>
   equipment!: EntityTable<CachedEquipment, 'id'>
   estimates!: EntityTable<CachedEstimate, 'id'>
+  invoices!: EntityTable<CachedInvoice, 'id'>
   outbox!: EntityTable<OutboxItem, 'id'>
 
   constructor(orgId: string) {
@@ -141,6 +158,15 @@ export class TechSyncDb extends Dexie {
     this.version(2).stores({
       customers: 'id, tenantId, [tenantId+id]',
       estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+    })
+    this.version(3).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      outbox: 'id, type, syncStatus, createdAt',
     })
   }
 }

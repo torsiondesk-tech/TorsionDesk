@@ -65,9 +65,15 @@ export function EstimateForm({
   const customersReady = liveCustomers !== undefined
   const locationsReady = liveLocations !== undefined
   const customers = customersReady ? liveCustomers : initialCustomers
-  const locations = locationsReady
-    ? liveLocations
-    : initialLocations.filter((loc) => loc.customerId === customerId)
+  const locations = useMemo(() => {
+    const fromLive = locationsReady ? liveLocations : []
+    const fromInitial = initialLocations.filter((loc) => loc.customerId === customerId)
+    const map = new Map<string, CachedLocation>()
+    for (const loc of [...fromInitial, ...fromLive]) {
+      map.set(loc.id, loc)
+    }
+    return Array.from(map.values())
+  }, [locationsReady, liveLocations, initialLocations, customerId])
 
   const [serviceLocationId, setServiceLocationId] = useState('')
   const [contactName, setContactName] = useState('')

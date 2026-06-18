@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb } from './dexie'
@@ -59,6 +59,29 @@ export function useTechEstimate(orgId: string, id: string) {
       const db = createTechDb(orgId)
       await db.open()
       return db.estimates.get(id)
+    },
+    [orgId, id],
+  )
+}
+
+export function useTechInvoices(orgId: string) {
+  return useLiveQuery(
+    async () => {
+      const db = createTechDb(orgId)
+      await db.open()
+      const rows = await db.invoices.toArray()
+      return rows.sort((a, b) => (b.issuedAt ?? '').localeCompare(a.issuedAt ?? ''))
+    },
+    [orgId],
+  )
+}
+
+export function useTechInvoice(orgId: string, id: string) {
+  return useLiveQuery(
+    async () => {
+      const db = createTechDb(orgId)
+      await db.open()
+      return db.invoices.get(id)
     },
     [orgId, id],
   )
