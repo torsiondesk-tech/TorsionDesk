@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useQueryState } from 'nuqs'
+import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs'
 import { useTransition } from 'react'
 import {
   useReactTable,
@@ -28,6 +28,7 @@ interface JobsTableProps {
   pageCount: number
   page: number
   pageSize: number
+  bucket?: string
 }
 
 function priorityLabel(priority: string | null) {
@@ -97,14 +98,22 @@ const columns: ColumnDef<JobRow>[] = [
   },
 ]
 
-export function JobsTable({ rows, pageCount, page, pageSize }: JobsTableProps) {
-  const [, setPage] = useQueryState('page')
-  const [sort, setSort] = useQueryState('sort')
-  const [dir, setDir] = useQueryState('dir')
+export function JobsTable({ rows, pageCount, page, pageSize, bucket }: JobsTableProps) {
   const [isPending, startTransition] = useTransition()
+  const [{ sort, dir }, setParams] = useQueryStates(
+    {
+      page: parseAsInteger.withDefault(0),
+      sort: parseAsString.withDefault(''),
+      dir: parseAsString.withDefault('desc'),
+    },
+    {
+      shallow: false,
+      startTransition,
+    },
+  )
 
-  const currentSort = sort ?? ''
-  const currentDir = dir ?? 'desc'
+  const currentSort = sort
+  const currentDir = dir
 
   const table = useReactTable({
     data: rows,
@@ -121,7 +130,7 @@ export function JobsTable({ rows, pageCount, page, pageSize }: JobsTableProps) {
 
   const goToPage = (p: number) => {
     startTransition(() => {
-      setPage(p > 0 ? String(p) : null)
+      setParams({ page: p > 0 ? p : null })
     })
   }
 
@@ -129,10 +138,9 @@ export function JobsTable({ rows, pageCount, page, pageSize }: JobsTableProps) {
     startTransition(() => {
       if (currentSort === columnId) {
         const nextDir = currentDir === 'asc' ? 'desc' : 'asc'
-        setDir(nextDir)
+        setParams({ dir: nextDir })
       } else {
-        setSort(columnId)
-        setDir('asc')
+        setParams({ sort: columnId, dir: 'asc', page: null })
       }
     })
   }
@@ -188,9 +196,15 @@ export function JobsTable({ rows, pageCount, page, pageSize }: JobsTableProps) {
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <p className="text-muted-foreground">No open jobs</p>
+                    <p className="text-muted-foreground">
+                      {bucket === 'advanced_search'
+                        ? 'No jobs match your filters.'
+                        : 'No open jobs'}
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      Jobs you create will appear here. Create your first job to get started.
+                      {bucket === 'advanced_search'
+                        ? 'Try adjusting or clearing your filters.'
+                        : 'Jobs you create will appear here. Create your first job to get started.'}
                     </p>
                     <Link href="/jobs/new">
                       <Button variant="outline" size="sm">Create Job</Button>

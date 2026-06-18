@@ -1101,3 +1101,66 @@ export const jobPhotos = pgTable(
 
 export type JobPhoto = typeof jobPhotos.$inferSelect
 export type NewJobPhoto = typeof jobPhotos.$inferInsert
+
+// ── Status Colors (per-tenant dispatch card customization) ───────────────────
+
+export const statusColors = pgTable(
+  'status_colors',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    status: jobStatus('status').notNull(),
+    bgColor: text('bg_color').notNull().default('#f8fafc'),
+    textColor: text('text_color').notNull().default('#1e293b'),
+    borderColor: text('border_color').notNull().default('#e2e8f0'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('status_colors_tenant_status_unique').on(t.tenantId, t.status),
+    unique('status_colors_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('status_colors_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type StatusColor = typeof statusColors.$inferSelect
+export type NewStatusColor = typeof statusColors.$inferInsert
+
+// ── Team Profiles (per-tenant member name/contact overrides) ────────────────
+
+export const teamProfiles = pgTable(
+  'team_profiles',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    userId: text('user_id').notNull(), // Clerk user id
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    phone: text('phone'),
+    email: text('email'),
+    address: text('address'),
+    dateOfBirth: date('date_of_birth'),
+    role: text('role'), // cached copy of Clerk role for display
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('team_profiles_tenant_user_unique').on(t.tenantId, t.userId),
+    unique('team_profiles_tenant_id_unique').on(t.tenantId, t.id),
+    index('team_profiles_user_idx').on(t.userId),
+    pgPolicy('team_profiles_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type TeamProfile = typeof teamProfiles.$inferSelect
+export type NewTeamProfile = typeof teamProfiles.$inferInsert

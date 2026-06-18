@@ -16,9 +16,20 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from '@/components/ui/combobox'
+import {
   createTemplateAction,
   updateTemplateAction,
   deleteTemplateAction,
+  getTemplateAction,
+  searchProductsAction,
+  searchServicesAction,
   type TemplateActionState,
 } from './actions'
 import { Pencil, Trash2, Plus, X } from 'lucide-react'
@@ -70,12 +81,42 @@ export function TemplatesPage({
 
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editing, setEditing] = useState<TemplateRow | null>(null)
+  const [editingDetails, setEditingDetails] = useState<{
+    lineItems: TemplateFormLineItem[]
+    tasks: TemplateFormTask[]
+  } | null>(null)
   const [deleting, setDeleting] = useState<TemplateRow | null>(null)
 
   // Sync server data into local state
   useEffect(() => {
     setTemplates(initialTemplates)
   }, [initialTemplates])
+
+  // Fetch full template details when editing opens
+  useEffect(() => {
+    if (!editing) {
+      setEditingDetails(null)
+      return
+    }
+    let cancelled = false
+    getTemplateAction(editing.id).then((detail) => {
+      if (cancelled || !detail) return
+      setEditingDetails({
+        lineItems: detail.lineItems.map((li) => ({
+          type: li.type,
+          refId: li.refId,
+          title: li.title ?? '',
+          description: li.description,
+          qty: li.qty,
+          rate: li.rate,
+          cost: li.cost,
+          taxItemId: li.taxItemId,
+        })),
+        tasks: detail.tasks.map((t) => ({ label: t.label })),
+      })
+    })
+    return () => { cancelled = true }
+  }, [editing])
 
   // Close dialogs and refresh data on success
   useEffect(() => {
@@ -88,6 +129,7 @@ export function TemplatesPage({
   useEffect(() => {
     if (updateState.success) {
       setEditing(null)
+      setEditingDetails(null)
       router.refresh()
     }
   }, [updateState, router])
@@ -109,13 +151,15 @@ export function TemplatesPage({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger>
-            <Button>
-              <Plus className="mr-2 size-4" />
-              Add Template
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogTrigger
+            render={
+              <Button>
+                <Plus className="mr-2 size-4" />
+                Add Template
+              </Button>
+            }
+          />
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Job Template</DialogTitle>
               <DialogDescription>
@@ -195,7 +239,7 @@ export function TemplatesPage({
           if (!open) setEditing(null)
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Job Template</DialogTitle>
             <DialogDescription>Update the template details, line items, and tasks.</DialogDescription>
@@ -208,6 +252,8 @@ export function TemplatesPage({
               state={updateState}
               jobCategories={jobCategories}
               initialTemplate={editing}
+              initialLineItems={editingDetails?.lineItems}
+              initialTasks={editingDetails?.tasks}
               onCancel={() => setEditing(null)}
             />
           ) : null}
@@ -251,12 +297,78 @@ export function TemplatesPage({
   )
 }
 
+type SearchResult = {
+  id: string
+  name: string
+  unitPrice: string | null
+  unitCost: string | null
+  description: string | null
+}
+
+function SearchDropdown({
+  kind,
+  query,
+  results,
+  loading,
+  onQueryChange,
+  onSelect,
+}: {
+  kind: 'product' | 'service'
+  query: string
+  results: SearchResult[]
+  loading: boolean
+  onQueryChange: (q: string) => void
+  onSelect: (r: SearchResult) => void
+}) {
+  return (
+    <Combobox>
+      <ComboboxInput
+        className="w-full"
+        placeholder={`Search ${kind}s…`}
+        value={query}
+        onChange={(e) => onQueryChange(e.currentTarget.value)}
+        showTrigger={false}
+        showClear={!!query}
+      />
+      <ComboboxContent>
+        <ComboboxList>
+          {loading && (
+            <div className="px-3 py-2 text-sm text-muted-foreground">
+              Searching…
+            </div>
+          )}
+          {!loading &&
+            results.map((r) => (
+              <ComboboxItem
+                key={r.id}
+                value={r.id}
+                onClick={() => onSelect(r)}
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">{r.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ${parseFloat(r.unitPrice || '0').toFixed(2)}
+                  </span>
+                </div>
+              </ComboboxItem>
+            ))}
+          {!loading && !results.length && query.trim() && (
+            <ComboboxEmpty>No {kind}s found.</ComboboxEmpty>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
+}
+
 function TemplateFormInner({
   action,
   pending,
   state,
   jobCategories,
   initialTemplate,
+  initialLineItems,
+  initialTasks,
   onCancel,
 }: {
   action: (formData: FormData) => void
@@ -264,33 +376,137 @@ function TemplateFormInner({
   state: TemplateActionState
   jobCategories: Array<{ id: string; name: string; parentId: string | null }>
   initialTemplate?: TemplateRow
+  initialLineItems?: TemplateFormLineItem[]
+  initialTasks?: TemplateFormTask[]
   onCancel: () => void
 }) {
-  const [lineItems, setLineItems] = useState<TemplateFormLineItem[]>([])
-  const [tasks, setTasks] = useState<TemplateFormTask[]>([])
+  const [lineItems, setLineItems] = useState<TemplateFormLineItem[]>(initialLineItems ?? [])
+  const [tasks, setTasks] = useState<TemplateFormTask[]>(initialTasks ?? [])
+
+  // Inline add state
+  const [inlineAdd, setInlineAdd] = useState<{
+    type: 'product' | 'service' | 'discount' | 'expense'
+    title: string
+    description: string
+    qty: string
+    rate: string
+    cost: string
+    refId: string | null
+  } | null>(null)
+  const inlineAddSearch = useCatalogSearch()
+
+  // Inline edit: index being edited
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState<TemplateFormLineItem | null>(null)
+  const inlineEditSearch = useCatalogSearch()
+
+  // Sync async-loaded line items / tasks into form state when they arrive
+  useEffect(() => {
+    if (initialLineItems) setLineItems(initialLineItems)
+  }, [initialLineItems])
+
+  useEffect(() => {
+    if (initialTasks) setTasks(initialTasks)
+  }, [initialTasks])
 
   const topCategories = jobCategories.filter((c) => !c.parentId)
   const childCategories = jobCategories.filter((c) => c.parentId)
 
-  const addLineItem = () =>
-    setLineItems((prev) => [
-      ...prev,
-      { type: 'service', title: '', description: '', qty: '1', rate: '0', cost: '0' },
-    ])
-
-  const removeLineItem = (idx: number) =>
-    setLineItems((prev) => prev.filter((_, i) => i !== idx))
-
-  const updateLineItem = (
-    idx: number,
-    field: keyof TemplateFormLineItem,
-    value: string,
-  ) =>
-    setLineItems((prev) => {
-      const next = [...prev]
-      next[idx] = { ...next[idx], [field]: value }
-      return next
+  const startInlineAdd = (type: 'product' | 'service' | 'discount' | 'expense') => {
+    setInlineAdd({
+      type,
+      title: '',
+      description: '',
+      qty: '1',
+      rate: type === 'discount' ? '' : '0',
+      cost: '0',
+      refId: null,
     })
+    inlineAddSearch.setQuery('')
+    inlineAddSearch.setResults([])
+  }
+
+  const handleInlineAddSelect = (result: SearchResult) => {
+    if (!inlineAdd) return
+    setInlineAdd({
+      ...inlineAdd,
+      title: result.name,
+      description: result.description ?? '',
+      rate: result.unitPrice ?? '0',
+      cost: result.unitCost ?? '0',
+      refId: result.id,
+    })
+    inlineAddSearch.setQuery(result.name)
+    inlineAddSearch.setResults([])
+  }
+
+  const handleInlineAdd = () => {
+    if (!inlineAdd || !inlineAdd.title.trim()) return
+    const newItem: TemplateFormLineItem = {
+      type: inlineAdd.type,
+      refId: inlineAdd.refId,
+      title: inlineAdd.title.trim(),
+      description: inlineAdd.description.trim(),
+      qty: inlineAdd.qty || '1',
+      rate: inlineAdd.type === 'discount'
+        ? `-${Math.abs(parseFloat(inlineAdd.rate || '0'))}`
+        : (inlineAdd.rate || '0'),
+      cost: inlineAdd.cost || '0',
+    }
+    setLineItems((prev) => [...prev, newItem])
+    setInlineAdd(null)
+    inlineAddSearch.setQuery('')
+    inlineAddSearch.setResults([])
+  }
+
+  const startInlineEdit = (idx: number) => {
+    const item = lineItems[idx]
+    setEditIdx(idx)
+    setEditForm({ ...item })
+    inlineEditSearch.setQuery(item.title)
+    inlineEditSearch.setResults([])
+  }
+
+  const handleInlineEditSelect = (result: SearchResult) => {
+    if (!editForm) return
+    setEditForm({
+      ...editForm,
+      title: result.name,
+      description: result.description ?? '',
+      rate: result.unitPrice ?? '0',
+      cost: result.unitCost ?? '0',
+      refId: result.id,
+    })
+    inlineEditSearch.setQuery(result.name)
+    inlineEditSearch.setResults([])
+  }
+
+  const handleInlineEditSave = () => {
+    if (editIdx === null || !editForm || !editForm.title.trim()) return
+    const updated: TemplateFormLineItem = {
+      ...editForm,
+      title: editForm.title.trim(),
+      description: editForm.description.trim(),
+      qty: editForm.qty || '1',
+      rate: editForm.type === 'discount'
+        ? `-${Math.abs(parseFloat(editForm.rate || '0'))}`
+        : (editForm.rate || '0'),
+      cost: editForm.cost || '0',
+    }
+    setLineItems((prev) => prev.map((li, i) => (i === editIdx ? updated : li)))
+    setEditIdx(null)
+    setEditForm(null)
+    inlineEditSearch.setQuery('')
+    inlineEditSearch.setResults([])
+  }
+
+  const removeLineItem = (idx: number) => {
+    setLineItems((prev) => prev.filter((_, i) => i !== idx))
+    if (editIdx === idx) {
+      setEditIdx(null)
+      setEditForm(null)
+    }
+  }
 
   const addTask = () => setTasks((prev) => [...prev, { label: '' }])
   const removeTask = (idx: number) =>
@@ -303,7 +519,7 @@ function TemplateFormInner({
     })
 
   return (
-    <form action={action} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+    <form action={action} className="space-y-4">
       {initialTemplate ? <input type="hidden" name="id" value={initialTemplate.id} /> : null}
 
       <div className="space-y-2">
@@ -354,89 +570,278 @@ function TemplateFormInner({
         />
       </div>
 
-      {/* Line Items */}
+      {/* ── Line Items (job-page style inline add/edit) ── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Line Items</Label>
-          <Button type="button" variant="ghost" size="sm" onClick={addLineItem}>
-            <Plus className="mr-1 size-3" /> Add Line Item
-          </Button>
+          {!inlineAdd && (
+            <div className="flex items-center gap-1">
+              <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('product')}>
+                + Product
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('service')}>
+                + Service
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('discount')}>
+                + Discount
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('expense')}>
+                + Expense
+              </Button>
+            </div>
+          )}
         </div>
-        {lineItems.length === 0 ? (
+
+        {lineItems.length === 0 && !inlineAdd ? (
           <p className="text-xs text-muted-foreground">No line items yet.</p>
         ) : (
-          <div className="space-y-2">
-            {lineItems.map((li, i) => (
-              <div key={i} className="rounded-md border p-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={li.type}
-                    onChange={(e) => updateLineItem(i, 'type', e.target.value)}
-                    className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs"
-                  >
-                    <option value="product">Product</option>
-                    <option value="service">Service</option>
-                    <option value="discount">Discount</option>
-                    <option value="expense">Expense</option>
-                  </select>
+          <div className="space-y-1">
+            {lineItems.map((li, i) => {
+              const isEditing = editIdx === i
+              if (isEditing && editForm) {
+                const e = editForm
+                const isCatalog = e.type === 'product' || e.type === 'service'
+                return (
+                  <div key={i} className="rounded-md border bg-muted/30 p-3 space-y-2">
+                    <div className="space-y-2">
+                      {isCatalog ? (
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {e.type === 'product' ? 'Product' : 'Service'} Search
+                          </Label>
+                          <SearchDropdown
+                            kind={e.type as 'product' | 'service'}
+                            query={inlineEditSearch.query}
+                            results={inlineEditSearch.results}
+                            loading={inlineEditSearch.loading}
+                            onQueryChange={(q) => {
+                              setEditForm({ ...e, title: q })
+                              inlineEditSearch.search(q, e.type as 'product' | 'service')
+                            }}
+                            onSelect={handleInlineEditSelect}
+                          />
+                        </div>
+                      ) : null}
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={e.type}
+                          onChange={(ev) => setEditForm({ ...e, type: ev.target.value as TemplateFormLineItem['type'] })}
+                          className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs"
+                        >
+                          <option value="product">Product</option>
+                          <option value="service">Service</option>
+                          <option value="discount">Discount</option>
+                          <option value="expense">Expense</option>
+                        </select>
+                        <Input
+                          placeholder="Title"
+                          value={e.title}
+                          onChange={(ev) => setEditForm({ ...e, title: ev.target.value })}
+                          className="flex-1 text-xs font-medium"
+                        />
+                        <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeLineItem(i)}>
+                          <X className="size-3 text-destructive" />
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="Description"
+                        value={e.description}
+                        onChange={(ev) => setEditForm({ ...e, description: ev.target.value })}
+                        className="text-xs text-muted-foreground"
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
+                          <Input
+                            type="number" min="0" step="0.01"
+                            value={e.qty}
+                            onChange={(ev) => setEditForm({ ...e, qty: ev.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
+                          <Input
+                            type="number" min="0" step="0.01"
+                            value={e.rate}
+                            onChange={(ev) => setEditForm({ ...e, rate: ev.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
+                          <Input
+                            type="number" min="0" step="0.01"
+                            value={e.cost}
+                            onChange={(ev) => setEditForm({ ...e, cost: ev.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" size="sm" variant="ghost" onClick={handleInlineEditSave}>
+                        Save
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditIdx(null)
+                          setEditForm(null)
+                          inlineEditSearch.setQuery('')
+                          inlineEditSearch.setResults([])
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )
+              }
+
+              // Display row
+              return (
+                <div key={i} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground w-16 shrink-0">
+                    {li.type}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium truncate">{li.title}</div>
+                    {li.description && (
+                      <div className="text-[10px] text-muted-foreground truncate">{li.description}</div>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground w-12 text-right shrink-0">{li.qty}</span>
+                  <span className="text-xs text-muted-foreground w-16 text-right shrink-0">
+                    ${parseFloat(li.rate || '0').toFixed(2)}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => startInlineEdit(i)}>
+                      <Pencil className="size-3" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeLineItem(i)}>
+                      <X className="size-3 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Inline add row */}
+            {inlineAdd && (
+              <div className="rounded-md border bg-muted/20 p-3 space-y-2">
+                <div className="space-y-2">
+                  {inlineAdd.type === 'product' || inlineAdd.type === 'service' ? (
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {inlineAdd.type === 'product' ? 'Product' : 'Service'} Search
+                      </Label>
+                      <SearchDropdown
+                        kind={inlineAdd.type as 'product' | 'service'}
+                        query={inlineAddSearch.query}
+                        results={inlineAddSearch.results}
+                        loading={inlineAddSearch.loading}
+                        onQueryChange={(q) => {
+                          setInlineAdd({ ...inlineAdd, title: q })
+                          inlineAddSearch.search(q, inlineAdd.type as 'product' | 'service')
+                        }}
+                        onSelect={handleInlineAddSelect}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={inlineAdd.type}
+                      onChange={(e) => setInlineAdd({ ...inlineAdd, type: e.target.value as TemplateFormLineItem['type'] })}
+                      className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs"
+                    >
+                      <option value="product">Product</option>
+                      <option value="service">Service</option>
+                      <option value="discount">Discount</option>
+                      <option value="expense">Expense</option>
+                    </select>
+                    <Input
+                      placeholder="Title"
+                      value={inlineAdd.title}
+                      onChange={(e) => setInlineAdd({ ...inlineAdd, title: e.target.value })}
+                      className="flex-1 text-xs font-medium"
+                    />
+                  </div>
                   <Input
-                    placeholder="Title"
-                    value={li.title}
-                    onChange={(e) => updateLineItem(i, 'title', e.target.value)}
-                    className="flex-1 text-xs font-medium"
+                    placeholder="Description"
+                    value={inlineAdd.description}
+                    onChange={(e) => setInlineAdd({ ...inlineAdd, description: e.target.value })}
+                    className="text-xs text-muted-foreground"
                   />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
+                      <Input
+                        type="number" min="0" step="0.01"
+                        value={inlineAdd.qty}
+                        onChange={(e) => setInlineAdd({ ...inlineAdd, qty: e.target.value })}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
+                      <Input
+                        type="number" min="0" step="0.01"
+                        value={inlineAdd.rate}
+                        onChange={(e) => setInlineAdd({ ...inlineAdd, rate: e.target.value })}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
+                      <Input
+                        type="number" min="0" step="0.01"
+                        value={inlineAdd.cost}
+                        onChange={(e) => setInlineAdd({ ...inlineAdd, cost: e.target.value })}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" variant="ghost" onClick={handleInlineAdd}>
+                    Add
+                  </Button>
                   <Button
                     type="button"
+                    size="sm"
                     variant="ghost"
-                    size="icon-sm"
-                    onClick={() => removeLineItem(i)}
+                    onClick={() => {
+                      setInlineAdd(null)
+                      inlineAddSearch.setQuery('')
+                      inlineAddSearch.setResults([])
+                    }}
                   >
-                    <X className="size-3 text-destructive" />
+                    Cancel
                   </Button>
                 </div>
-                <Input
-                  placeholder="Description"
-                  value={li.description}
-                  onChange={(e) => updateLineItem(i, 'description', e.target.value)}
-                  className="text-xs text-muted-foreground"
-                />
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={li.qty}
-                      onChange={(e) => updateLineItem(i, 'qty', e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={li.rate}
-                      onChange={(e) => updateLineItem(i, 'rate', e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={li.cost}
-                      onChange={(e) => updateLineItem(i, 'cost', e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                </div>
               </div>
-            ))}
+            )}
+
+            {/* Add buttons at bottom of list */}
+            {!inlineAdd && (
+              <div className="flex items-center gap-1 pt-1">
+                <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('product')}>
+                  + Product
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('service')}>
+                  + Service
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('discount')}>
+                  + Discount
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('expense')}>
+                  + Expense
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -496,4 +901,30 @@ function TemplateFormInner({
       </DialogFooter>
     </form>
   )
+}
+
+function useCatalogSearch() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [loading, setLoading] = useState(false)
+
+  async function search(q: string, kind: 'product' | 'service') {
+    if (!q.trim()) {
+      setResults([])
+      setQuery('')
+      return
+    }
+    setQuery(q)
+    setLoading(true)
+    try {
+      const rows = kind === 'product'
+        ? await searchProductsAction(q)
+        : await searchServicesAction(q)
+      setResults(rows)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { query, results, loading, search, setQuery, setResults }
 }

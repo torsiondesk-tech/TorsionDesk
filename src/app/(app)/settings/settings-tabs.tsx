@@ -39,6 +39,7 @@ const TABS: SettingsTab[] = [
   { label: 'Payment Methods', phase: 7 },
   { label: 'Tax Items', href: '/settings/tax-items' },
   { label: 'Lookup Lists', href: '/settings/lookup-lists' },
+  { label: 'Status Colors', href: '/settings/status-colors' },
 ]
 
 export function SettingsTabs() {

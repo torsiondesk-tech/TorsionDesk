@@ -30,7 +30,7 @@ export function InviteForm() {
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-4 sm:flex-row sm:items-end"
+      className="flex flex-col flex-wrap gap-4 sm:flex-row sm:items-end"
     >
       <div className="flex-1 space-y-2">
         <Label htmlFor="email">Email</Label>

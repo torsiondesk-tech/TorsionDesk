@@ -1,6 +1,6 @@
 'use client'
 
-import { useQueryState } from 'nuqs'
+import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs'
 import { cn } from '@/lib/utils'
 import {
   Search,
@@ -39,23 +39,52 @@ const BUCKETS: Bucket[] = [
 ]
 
 export function JobsSidebar({ tagCounts }: JobsSidebarProps) {
-  const [bucket, setBucket] = useQueryState('bucket')
-  const [tag, setTag] = useQueryState('tag')
+  const [{ bucket, tag }, setParams] = useQueryStates(
+    {
+      bucket: parseAsString.withDefault(''),
+      tag: parseAsString.withDefault(''),
+      page: parseAsInteger.withDefault(0),
+      q: parseAsString.withDefault(''),
+      status: parseAsString.withDefault(''),
+      priority: parseAsString.withDefault(''),
+      category: parseAsString.withDefault(''),
+      from: parseAsString.withDefault(''),
+      to: parseAsString.withDefault(''),
+      tech: parseAsString.withDefault(''),
+      customer: parseAsString.withDefault(''),
+    },
+    { shallow: false },
+  )
 
-  const activeBucket = bucket ?? 'all_open'
+  const activeBucket = bucket || 'all_open'
+
+  const clearAdvancedFilters = {
+    q: null,
+    status: null,
+    priority: null,
+    category: null,
+    from: null,
+    to: null,
+    tech: null,
+    customer: null,
+  }
 
   const selectBucket = (key: string) => {
-    setTag(null)
+    if (activeBucket === key) return
     if (key === 'all_open') {
-      setBucket(null)
+      setParams({ bucket: null, tag: null, page: null, ...clearAdvancedFilters })
     } else {
-      setBucket(key)
+      setParams({ bucket: key, tag: null, page: null, ...clearAdvancedFilters })
     }
   }
 
   const selectTag = (tagId: string) => {
-    setBucket(null)
-    setTag(tagId)
+    setParams({
+      bucket: null,
+      tag: tagId,
+      page: null,
+      ...clearAdvancedFilters,
+    })
   }
 
   return (

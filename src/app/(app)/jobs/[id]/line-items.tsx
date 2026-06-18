@@ -1000,15 +1000,24 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                       onValueChange={(v) => setAddTaxItemId(v || undefined)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="No Tax" />
+                        <SelectValue placeholder="No Tax">
+                          {(() => {
+                            if (!addTaxItemId) return null
+                            const t = referenceData.taxItems.find((x) => x.id === addTaxItemId)
+                            return t ? `${t.name} (${t.rate}%)` : null
+                          })()}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">No Tax</SelectItem>
-                        {referenceData.taxItems.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name} ({t.rate}%)
-                          </SelectItem>
-                        ))}
+                        {referenceData.taxItems.map((t) => {
+                          const itemText = `${t.name} (${t.rate}%)`
+                          return (
+                            <SelectItem key={t.id} value={t.id}>
+                              {itemText}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

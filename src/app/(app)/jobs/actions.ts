@@ -27,6 +27,15 @@ import { nextJobNo } from '@/lib/jobs/job-number'
 import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
 import { logger } from '@/lib/logger'
+import { normalizePhone } from '@/lib/utils'
+
+/**
+ * ── Phone handling policy ──────────────────────────────────────────────────
+ *  • DB stores RAW DIGITS ONLY (e.g. "7735597272").
+ *  • Client-side formatting is display-only (e.g. "(773) 559-7272").
+ *  • `normalizePhone` strips non-digits before every insert / upsert.
+ *  • Downstream integrations (Twilio SMS, Stripe) never see parens or dashes.
+ */
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -386,7 +395,7 @@ export async function createJob(
             await tx.insert(contactPhones).values({
               tenantId: orgId,
               contactId: resolvedContactId,
-              number: data.newContactPhone,
+              number: normalizePhone(data.newContactPhone)!,
               isPrimary: true,
             })
           }
@@ -717,12 +726,15 @@ export async function updateJob(
       await tx
         .delete(contactPhones)
         .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, data.contactId)))
-      if (cu.phones.length > 0) {
+      const normPhones = cu.phones
+        .map((p) => ({ ...p, number: normalizePhone(p.number) }))
+        .filter((p) => p.number)
+      if (normPhones.length > 0) {
         await tx.insert(contactPhones).values(
-          cu.phones.map((p) => ({
+          normPhones.map((p) => ({
             tenantId: orgId,
             contactId: data.contactId!,
-            number: p.number,
+            number: p.number!,
             type: p.type,
             isPrimary: p.isPrimary,
           })),
@@ -1165,7 +1177,7 @@ export async function createContactForJob(
         await tx.insert(contactPhones).values({
           tenantId: orgId,
           contactId: newContact.id,
-          number: input.phone,
+          number: normalizePhone(input.phone)!,
           type: 'cell',
           isPrimary: true,
         })

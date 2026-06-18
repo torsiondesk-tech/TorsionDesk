@@ -84,6 +84,14 @@ export function CustomerSearch({
         setResults([])
         return
       }
+      if (!val) {
+        setValue(null)
+        setLabel('')
+        setQuery('')
+        setResults([])
+        onChange?.(null)
+        return
+      }
       const row = results.find((r) => r.id === val)
       if (!row) return
       setValue(row.id)

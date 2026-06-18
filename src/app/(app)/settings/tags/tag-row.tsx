@@ -37,6 +37,79 @@ const PRESET_COLORS = [
 const createInitial: TagActionState = {}
 const updateInitial: TagActionState = {}
 
+/** Isolated edit form so useActionState resets when switching tags (keyed by id). */
+function EditTagForm({
+  tag,
+  onSuccess,
+}: {
+  tag: TagWithUsage
+  onSuccess: () => void
+}) {
+  const router = useRouter()
+  const [state, action, pending] = useActionState(updateTagAction, updateInitial)
+
+  useEffect(() => {
+    if (state.success) {
+      onSuccess()
+      router.refresh()
+    }
+  }, [state, onSuccess, router])
+
+  return (
+    <form action={action} className="space-y-4">
+      <input type="hidden" name="id" value={tag.id} />
+      <div className="space-y-2">
+        <Label htmlFor="edit-name">Tag Name</Label>
+        <Input
+          id="edit-name"
+          name="name"
+          defaultValue={tag.name}
+          required
+          minLength={1}
+          maxLength={255}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Color</Label>
+        <div className="flex flex-wrap gap-2">
+          {PRESET_COLORS.map((c) => (
+            <label
+              key={c.hex}
+              className="group relative cursor-pointer"
+              title={c.name}
+            >
+              <input
+                type="radio"
+                name="color"
+                value={c.hex}
+                defaultChecked={c.hex === (tag.color ?? '#3b82f6')}
+                className="sr-only peer"
+              />
+              <span
+                className="block size-8 rounded-full border-2 border-transparent peer-checked:border-foreground transition-colors"
+                style={{ backgroundColor: c.hex }}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
+
+      <DialogFooter>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Saving…' : 'Save'}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
 export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
   const router = useRouter()
 
@@ -44,10 +117,6 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
   const [createState, createAction, createPending] = useActionState(
     createTagAction,
     createInitial,
-  )
-  const [updateState, updateAction, updatePending] = useActionState(
-    updateTagAction,
-    updateInitial,
   )
 
   // Sync server data into local state
@@ -66,13 +135,6 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
       router.refresh()
     }
   }, [createState, router])
-
-  useEffect(() => {
-    if (updateState.success) {
-      setEditing(null)
-      router.refresh()
-    }
-  }, [updateState, router])
 
   const handleDelete = useCallback(async (id: string) => {
     const result = await deleteTagAction(id)
@@ -233,57 +295,11 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
             <DialogDescription>Update the tag name or color.</DialogDescription>
           </DialogHeader>
           {editing ? (
-            <form action={updateAction} className="space-y-4">
-              <input type="hidden" name="id" value={editing.id} />
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Tag Name</Label>
-                <Input
-                  id="edit-name"
-                  name="name"
-                  defaultValue={editing.name}
-                  required
-                  minLength={1}
-                  maxLength={255}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Color</Label>
-                <div className="flex flex-wrap gap-2">
-                  {PRESET_COLORS.map((c) => (
-                    <label
-                      key={c.hex}
-                      className="group relative cursor-pointer"
-                      title={c.name}
-                    >
-                      <input
-                        type="radio"
-                        name="color"
-                        value={c.hex}
-                        defaultChecked={c.hex === (editing.color ?? '#3b82f6')}
-                        className="sr-only peer"
-                      />
-                      <span
-                        className="block size-8 rounded-full border-2 border-transparent peer-checked:border-foreground transition-colors"
-                        style={{ backgroundColor: c.hex }}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {updateState.error ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {updateState.error}
-                </p>
-              ) : null}
-
-              <DialogFooter>
-                <Button type="submit" disabled={updatePending}>
-                  {updatePending ? 'Saving…' : 'Save'}
-                </Button>
-              </DialogFooter>
-            </form>
+            <EditTagForm
+              key={editing.id}
+              tag={editing}
+              onSuccess={() => setEditing(null)}
+            />
           ) : null}
         </DialogContent>
       </Dialog>

@@ -25,16 +25,18 @@ import {
   statusBadgeVariant,
   statusLabel,
 } from '@/lib/jobs/transitions'
+import { toISODate } from '@/lib/utils'
 
 interface JobDetailPageProps {
   params: Promise<{ id: string }>
 }
 
+/** Extract YYYY-MM-DD for a `type="date"` input. Uses local calendar getters
+ *  so timezone offsets never shift the day (e.g. UTC+2 midnight → previous day).
+ */
 function toDateInputValue(d: Date | string | null): string | null {
   if (!d) return null
-  // Use ISO string to avoid timezone off-by-one (Pitfall: getDate() is local).
-  const iso = typeof d === 'string' ? d : d.toISOString()
-  return iso.slice(0, 10)
+  return toISODate(d)
 }
 
 function toDateTimeLocalValue(d: Date | string | null): string | null {

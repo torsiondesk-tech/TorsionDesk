@@ -1,5 +1,6 @@
 import { eq, ilike, and, desc, asc, sql, max, count, inArray } from 'drizzle-orm'
 import { withTenant, type Tx } from '@/db/with-tenant'
+import { normalizePhone } from '@/lib/utils'
 import {
   customers,
   contacts,
@@ -434,12 +435,15 @@ export async function createContact(
       })
       .returning({ id: contacts.id })
 
-    if (data.phones.length > 0) {
+    const normPhones = data.phones
+      .map((p) => ({ ...p, number: normalizePhone(p.number) }))
+      .filter((p) => p.number)
+    if (normPhones.length > 0) {
       await tx.insert(contactPhones).values(
-        data.phones.map((p) => ({
+        normPhones.map((p) => ({
           tenantId: orgId,
           contactId: contact.id,
-          number: p.number,
+          number: p.number!,
           type: p.type as 'cell' | 'home' | 'work',
           isPrimary: p.isPrimary,
         })),

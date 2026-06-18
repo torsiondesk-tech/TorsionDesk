@@ -6,7 +6,9 @@ import {
   taxItems,
   jobSources,
   referralSources,
+  statusColors,
 } from '@/db/schema'
+import type { JobStatusValue } from '@/lib/jobs/transitions'
 import {
   createReferralSource as _createReferralSource,
   listReferralSources as _listReferralSources,
@@ -254,5 +256,95 @@ export async function deleteReferralSource(
     await tx
       .delete(referralSources)
       .where(and(eq(referralSources.tenantId, orgId), eq(referralSources.id, id)))
+  })
+}
+
+// ── Status Colors (per-tenant dispatch card customization) ───────────────────
+
+/** Distinct default palette for each of the 15 job statuses. */
+const DEFAULT_STATUS_COLORS: Record<
+  JobStatusValue,
+  { bgColor: string; textColor: string; borderColor: string }
+> = {
+  unscheduled:           { bgColor: '#e2e8f0', textColor: '#334155', borderColor: '#cbd5e1' },
+  scheduled:               { bgColor: '#fde68a', textColor: '#78350f', borderColor: '#fcd34d' },
+  dispatched:              { bgColor: '#bfdbfe', textColor: '#1e3a8a', borderColor: '#93c5fd' },
+  delayed:                 { bgColor: '#fed7aa', textColor: '#7c2d12', borderColor: '#fdba74' },
+  on_the_way:              { bgColor: '#c7d2fe', textColor: '#312e81', borderColor: '#a5b4fc' },
+  on_site:                 { bgColor: '#bbf7d0', textColor: '#14532d', borderColor: '#86efac' },
+  started:                 { bgColor: '#fbcfe8', textColor: '#831843', borderColor: '#f9a8d4' },
+  paused:                  { bgColor: '#e5e7eb', textColor: '#374151', borderColor: '#d1d5db' },
+  resumed:                 { bgColor: '#bae6fd', textColor: '#0c4a6e', borderColor: '#7dd3fc' },
+  partially_completed:     { bgColor: '#fef08a', textColor: '#713f12', borderColor: '#fde047' },
+  completed:               { bgColor: '#a7f3d0', textColor: '#064e3b', borderColor: '#6ee7b7' },
+  invoiced:                { bgColor: '#99f6e4', textColor: '#134e4a', borderColor: '#5eead4' },
+  paid_in_full:            { bgColor: '#d9f99d', textColor: '#365314', borderColor: '#bef264' },
+  job_closed:              { bgColor: '#e7e5e4', textColor: '#44403c', borderColor: '#d6d3d1' },
+  cancelled:               { bgColor: '#fecaca', textColor: '#7f1d1d', borderColor: '#fca5a5' },
+}
+
+export type StatusColorEntry = {
+  id: string
+  status: JobStatusValue
+  bgColor: string
+  textColor: string
+  borderColor: string
+}
+
+/** List all status colors for the tenant, seeding defaults if none exist yet. */
+export async function listStatusColors(orgId: string): Promise<StatusColorEntry[]> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        id: statusColors.id,
+        status: statusColors.status,
+        bgColor: statusColors.bgColor,
+        textColor: statusColors.textColor,
+        borderColor: statusColors.borderColor,
+      })
+      .from(statusColors)
+      .where(eq(statusColors.tenantId, orgId))
+      .orderBy(statusColors.status)
+
+    if (rows.length === 0) {
+      // Seed defaults for this tenant
+      const entries = Object.entries(DEFAULT_STATUS_COLORS).map(([status, colors]) => ({
+        tenantId: orgId,
+        status: status as JobStatusValue,
+        ...colors,
+      }))
+
+      await tx.insert(statusColors).values(entries)
+
+      const seeded = await tx
+        .select({
+          id: statusColors.id,
+          status: statusColors.status,
+          bgColor: statusColors.bgColor,
+          textColor: statusColors.textColor,
+          borderColor: statusColors.borderColor,
+        })
+        .from(statusColors)
+        .where(eq(statusColors.tenantId, orgId))
+        .orderBy(statusColors.status)
+
+      return seeded
+    }
+
+    return rows
+  })
+}
+
+/** Update a single status color row. */
+export async function updateStatusColor(
+  orgId: string,
+  id: string,
+  input: { bgColor: string; textColor: string; borderColor: string },
+): Promise<void> {
+  return withTenant(orgId, async (tx) => {
+    await tx
+      .update(statusColors)
+      .set({ ...input, updatedAt: new Date() })
+      .where(and(eq(statusColors.tenantId, orgId), eq(statusColors.id, id)))
   })
 }

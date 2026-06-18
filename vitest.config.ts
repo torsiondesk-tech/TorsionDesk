@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
 // Resolve the absolute path to ./src so test imports like `@/db/with-tenant`
 // resolve to `src/db/with-tenant` once Waves 1-4 create those modules.
@@ -9,6 +10,7 @@ const webhookHelper = fileURLToPath(
 )
 
 export default defineConfig({
+  plugins: [react()],
   resolve: {
     // Array form so the specific webhook-route mapping is matched BEFORE the
     // general `@/` prefix.

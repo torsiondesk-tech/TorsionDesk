@@ -103,6 +103,30 @@ Phase 10 → Data Migration (SF import)
 - Equipment FK must be `service_location_id` — **never** `customer_id`
 - Commercial clients have multiple properties; equipment belongs to the property
 
+### Date Handling — Calendar Dates vs. UTC Instants
+
+**NEVER** use `.toISOString().slice(0, 10)` or `new Date('YYYY-MM-DD')` to extract or create calendar dates. These treat the value as a UTC instant and shift the day when the client timezone is east/west of UTC.
+
+**Root cause example:** `new Date('2026-06-19')` creates a Date at **local** midnight. Calling `.toISOString()` returns `2026-06-18T22:00:00.000Z` in UTC+2 — slice to `2026-06-18` and the user sees the wrong day.
+
+**ALWAYS use the shared utility:**
+```ts
+import { toISODate } from '@/lib/utils'
+const yyyymmdd = toISODate(someDate)   // uses getFullYear/getMonth/getDate
+```
+
+**Rules:**
+- `type="date"` inputs → pass `toISODate(dbDate)` so the browser shows the exact calendar day.
+- Server receives `'YYYY-MM-DD'` from the form → store it via `new Date(\`${date}T00:00:00\`)` or parse with `parseCalendarDate` on re-hydration.
+- Display-only dates in UI → `toLocaleDateString()` is safe because it formats the Date object in the user's locale.
+- **Do NOT** mix `toISOString()` extraction with local Date construction — this is the bug that caused dates to shift by one day on the job form and dispatch board (fixed 2026-06-15).
+
+**Affected modules (patched):**
+- `src/lib/utils.ts` — `toISODate` is the canonical helper.
+- `src/app/(app)/dispatch/grid/week-grid.tsx` — cell date matching.
+- `src/app/(app)/dispatch/board.tsx` — server prop re-hydration (`parseCalendarDate`).
+- `src/app/(app)/jobs/[id]/page.tsx` — date input value prep (`toDateInputValue`).
+
 ---
 
 ## Service Fusion Parity Notes

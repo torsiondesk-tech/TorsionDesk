@@ -2,6 +2,8 @@ import { auth } from '@clerk/nextjs/server'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import { Sidebar } from '@/components/shell/sidebar'
 import { CreateNewButton } from '@/components/header/create-new-button'
+import { GlobalSearch } from '@/components/header/global-search'
+import { ModeToggle } from '@/components/theme/mode-toggle'
 
 /**
  * Protected app shell (D-07/D-16; RESEARCH Pattern 5).
@@ -28,7 +30,11 @@ export default async function AppLayout({
       <div className="flex flex-1 flex-col min-w-0">
         <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
           <div />
-          <CreateNewButton />
+          <div className="flex items-center gap-3">
+            <GlobalSearch />
+            <ModeToggle />
+            <CreateNewButton />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-8">
           <NuqsAdapter>{children}</NuqsAdapter>

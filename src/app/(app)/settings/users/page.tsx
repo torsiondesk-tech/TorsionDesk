@@ -5,8 +5,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { auth } from '@clerk/nextjs/server'
 import { listOrgPeople } from './actions'
 import { InviteForm } from './invite-form'
+import { MemberRow, PendingRow } from './user-rows'
 
 /**
  * Users settings page (AUTH-02, D-06).
@@ -18,17 +20,8 @@ import { InviteForm } from './invite-form'
  * custom token table, no Resend (D-06).
  */
 
-// Pretty-print a Clerk org-role key for display.
-function roleLabel(key: string): string {
-  const map: Record<string, string> = {
-    'org:admin': 'Admin',
-    'org:dispatcher': 'Dispatcher',
-    'org:technician': 'Technician',
-  }
-  return map[key] ?? key
-}
-
 export default async function UsersPage() {
+  const { userId: currentUserId } = await auth()
   const { members, pending } = await listOrgPeople()
 
   return (
@@ -60,15 +53,20 @@ export default async function UsersPage() {
           ) : (
             <ul className="divide-y divide-foreground/10">
               {members.map((m) => (
-                <li
+                <MemberRow
                   key={m.id}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <span className="truncate">{m.label}</span>
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                    {roleLabel(m.role)}
-                  </span>
-                </li>
+                  id={m.id}
+                  userId={m.userId}
+                  label={m.label}
+                  role={m.role}
+                  firstName={m.firstName}
+                  lastName={m.lastName}
+                  phone={m.phone}
+                  email={m.email}
+                  address={m.address}
+                  dateOfBirth={m.dateOfBirth}
+                  currentUserId={currentUserId}
+                />
               ))}
             </ul>
           )}
@@ -90,15 +88,7 @@ export default async function UsersPage() {
           ) : (
             <ul className="divide-y divide-foreground/10">
               {pending.map((i) => (
-                <li
-                  key={i.id}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <span className="truncate">{i.email}</span>
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                    {roleLabel(i.role)}
-                  </span>
-                </li>
+                <PendingRow key={i.id} id={i.id} email={i.email} role={i.role} />
               ))}
             </ul>
           )}

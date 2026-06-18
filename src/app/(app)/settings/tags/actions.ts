@@ -19,6 +19,31 @@ export type TagActionState = {
   usageCount?: number
 }
 
+// Drizzle/postgres-js wraps the real Postgres error in .cause. Prefer the cause
+// message so users see "null value in column…" rather than "Failed query: …".
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const cause = (err as { cause?: unknown }).cause
+    if (cause instanceof Error) return cause.message
+    return err.message
+  }
+  return String(err)
+}
+
+/** Turn raw Postgres errors into user-friendly sentences for the tag UI. */
+function friendlyTagError(raw: string, name?: string): string {
+  if (raw.includes('duplicate key value violates unique constraint')) {
+    return `A tag named "${name || 'with that name'}" already exists. Choose a different name.`
+  }
+  if (raw.includes('violates foreign key constraint')) {
+    return 'This tag is still in use and cannot be changed right now.'
+  }
+  if (raw.includes('null value in column')) {
+    return 'Please fill in all required fields.'
+  }
+  return raw
+}
+
 const PRESET_COLORS = [
   '#64748b',
   '#ef4444',
@@ -63,9 +88,9 @@ export async function createTagAction(
     revalidatePath('/settings/tags')
     return { success: true, id: result.id, name: result.name, color: result.color }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Could not create tag.'
-    return { error: message }
+    return {
+      error: friendlyTagError(extractErrorMessage(err), parsed.data.name) || 'Could not create tag.',
+    }
   }
 }
 
@@ -95,9 +120,9 @@ export async function updateTagAction(
     revalidatePath('/settings/tags')
     return { success: true, id, name: data.name, color: data.color }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Could not update tag.'
-    return { error: message }
+    return {
+      error: friendlyTagError(extractErrorMessage(err), data.name) || 'Could not update tag.',
+    }
   }
 }
 
@@ -115,8 +140,6 @@ export async function deleteTagAction(
     revalidatePath('/settings/tags')
     return { success: true, usageCount }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Could not delete tag.'
-    return { error: message }
+    return { error: extractErrorMessage(err) || 'Could not delete tag.' }
   }
 }

@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
 /**
  * Security perimeter (AUTH-06, D-14/D-15/D-16; RESEARCH Pattern 2).
@@ -39,8 +40,10 @@ export default clerkMiddleware(async (auth, req) => {
   const { orgRole } = await auth()
 
   // D-14: technicians never see the web shell — bounce them to the holding page.
+  // Use NextResponse.redirect so Clerk/Next.js can append headers; the native
+  // Response.redirect() object has immutable headers and throws when mutated.
   if (orgRole === 'org:technician') {
-    return Response.redirect(new URL('/mobile-coming-soon', req.url))
+    return NextResponse.redirect(new URL('/mobile-coming-soon', req.url))
   }
 
   // D-15: /settings is admin-only — server-side gate (not just nav hiding).

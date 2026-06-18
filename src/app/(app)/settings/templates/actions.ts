@@ -189,3 +189,54 @@ export async function deleteTemplateAction(
     return { error: message }
   }
 }
+
+export async function getTemplateAction(
+  id: string,
+): Promise<{ id: string; name: string; categoryId: string | null; description: string | null; lineItems: Array<{ type: 'product' | 'service' | 'discount' | 'expense'; refId: string | null; title: string | null; description: string; qty: string; rate: string; cost: string; taxItemId: string | null }>; tasks: Array<{ label: string }> } | null> {
+  const { orgId } = await auth()
+  if (!orgId) return null
+
+  const { getJobTemplate } = await import('@/lib/job-templates')
+  const tmpl = await getJobTemplate(orgId, id)
+  if (!tmpl) return null
+
+  return {
+    id: tmpl.id,
+    name: tmpl.name,
+    categoryId: tmpl.categoryId,
+    description: tmpl.description,
+    lineItems: tmpl.lineItems.map((li) => ({
+      type: li.type,
+      refId: li.refId,
+      title: li.title,
+      description: li.description,
+      qty: li.qty,
+      rate: li.rate,
+      cost: li.cost,
+      taxItemId: li.taxItemId,
+    })),
+    tasks: tmpl.tasks.map((t) => ({ label: t.label })),
+  }
+}
+
+export async function searchProductsAction(
+  q: string,
+): Promise<Array<{ id: string; name: string; unitPrice: string | null; unitCost: string | null; description: string | null }>> {
+  const { orgId } = await auth()
+  if (!orgId) return []
+
+  const { listProducts } = await import('@/lib/catalog')
+  const result = await listProducts(orgId, { q, pageSize: 20 })
+  return result.rows.map((r) => ({ id: r.id, name: r.name, unitPrice: r.unitPrice, unitCost: r.unitCost, description: r.salesDescription }))
+}
+
+export async function searchServicesAction(
+  q: string,
+): Promise<Array<{ id: string; name: string; unitPrice: string | null; unitCost: string | null; description: string | null }>> {
+  const { orgId } = await auth()
+  if (!orgId) return []
+
+  const { listServices } = await import('@/lib/catalog')
+  const result = await listServices(orgId, { q, pageSize: 20 })
+  return result.rows.map((r) => ({ id: r.id, name: r.name, unitPrice: r.unitPrice, unitCost: r.unitCost, description: r.description }))
+}

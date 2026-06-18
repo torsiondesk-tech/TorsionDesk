@@ -1283,7 +1283,22 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                         }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select location…" />
+                          <SelectValue placeholder="Select location…">
+                            {(() => {
+                              if (!locationId) return null
+                              const l = locations.find((x) => x.id === locationId)
+                              if (!l) return null
+                              const cityStateZip = [l.city, l.state, l.postalCode].filter(Boolean).join(', ')
+                              const addrFull = l.addressLine1
+                                ? `${l.addressLine1}${cityStateZip ? `, ${cityStateZip}` : ''}`
+                                : cityStateZip
+                              const hasName = !isRedundantLocationName(l.name, l.addressLine1, l.city)
+                              const display = hasName
+                                ? (addrFull ? `${l.name} — ${addrFull}` : l.name)
+                                : addrFull
+                              return display || 'Location'
+                            })()}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="">Select location…</SelectItem>
@@ -1297,9 +1312,10 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                               ? (addrFull ? `${l.name} — ${addrFull}` : l.name)
                               : addrFull
                             const isPrimary = l.id === localPrimaryLocationId
+                            const itemText = `${label || 'Location'}${isPrimary ? ' (Primary)' : ''}`
                             return (
                               <SelectItem key={l.id} value={l.id}>
-                                {label || 'Location'}{isPrimary ? ' (Primary)' : ''}
+                                {itemText}
                               </SelectItem>
                             )
                           })}
@@ -1487,7 +1503,14 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
               <Label htmlFor="categoryId">Job Category</Label>
               <Select name="categoryId" defaultValue={initial?.categoryId ?? ''}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category…" />
+                  <SelectValue placeholder="Select category…">
+                    {(() => {
+                      if (!initial?.categoryId) return null
+                      const all = [...topCategories, ...childCategories]
+                      const match = all.find((c) => c.id === initial.categoryId)
+                      return match?.name ?? null
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select category…</SelectItem>
@@ -1497,11 +1520,14 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                       <SelectItem value={parent.id}>{parent.name}</SelectItem>
                       {childCategories
                         .filter((c) => c.parentId === parent.id)
-                        .map((child) => (
-                          <SelectItem key={child.id} value={child.id}>
-                            &nbsp;&nbsp;{child.name}
-                          </SelectItem>
-                        ))}
+                        .map((child) => {
+                          const childText = `${'\xa0\xa0'}${child.name}`
+                          return (
+                            <SelectItem key={child.id} value={child.id}>
+                              {childText}
+                            </SelectItem>
+                          )
+                        })}
                     </SelectGroup>
                   ))}
                 </SelectContent>
@@ -1533,7 +1559,12 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
               <Label htmlFor="jobSourceId">Job Source</Label>
               <Select name="jobSourceId" defaultValue={initial?.jobSourceId ?? ''}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select source…" />
+                  <SelectValue placeholder="Select source…">
+                    {(() => {
+                      if (!initial?.jobSourceId) return null
+                      return referenceData.jobSources.find((s) => s.id === initial.jobSourceId)?.name ?? null
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select source…</SelectItem>
@@ -1821,7 +1852,13 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     onValueChange={(val) => { setSelectedTemplateId(val ?? ''); setTemplateError(null) }}
                   >
                     <SelectTrigger className="h-9 flex-1">
-                      <SelectValue placeholder="Select a template…" />
+                      <SelectValue placeholder="Select a template…">
+                        {(value: string) => {
+                          if (!value) return 'Select a template…'
+                          const tmpl = templates.find((t) => t.id === value)
+                          return tmpl?.name ?? value
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Select a template…</SelectItem>

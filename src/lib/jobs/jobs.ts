@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, count, inArray, exists } from 'drizzle-orm'
+import { eq, and, desc, asc, sql, count, inArray, gte, lte } from 'drizzle-orm'
 import { withTenant } from '@/db/with-tenant'
 import {
   jobs,
@@ -31,6 +31,11 @@ export interface ListOpts {
   bucket?: string
   tag?: string
   userId?: string
+  priority?: string
+  categoryId?: string
+  assigneeUserId?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 export interface JobRow {
@@ -47,6 +52,12 @@ export interface JobRow {
   createdAt: Date | null
 }
 
+function parseDateInput(value: string | undefined, endOfDay = false): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const date = new Date(`${value}T${endOfDay ? '23:59:59' : '00:00:00'}`)
+  return isNaN(date.getTime()) ? null : date
+}
+
 /**
  * List jobs with server-side pagination, filtering, and sorting.
  *
@@ -61,11 +72,11 @@ export async function listJobs(
   const pageSize = opts.pageSize ?? 25
 
   return withTenant(orgId, async (tx) => {
-    const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof sql>> = [
+    const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof sql> | ReturnType<typeof gte> | ReturnType<typeof lte>> = [
       eq(jobs.tenantId, orgId),
     ]
 
-    // Bucket / status filtering
+    // Bucket-level default scope
     if (opts.bucket === 'completed_ready_to_close') {
       conditions.push(eq(jobs.status, 'completed'))
     } else if (opts.bucket === 'to_be_invoiced') {
@@ -87,10 +98,14 @@ export async function listJobs(
           AND ${jobSiteVisits.tenantId} = ${orgId}
         )`,
       )
-    } else if (opts.bucket === 'all_open' || !opts.bucket) {
+    } else if (opts.bucket !== 'advanced_search') {
+      // Default to open + in_progress for all other buckets (including all_open and unknown)
       const openStatuses = [...STATUS_GROUPS.open, ...STATUS_GROUPS.in_progress]
       conditions.push(inArray(jobs.status, openStatuses))
-    } else if (opts.statusGroup) {
+    }
+
+    // Explicit status / status-group filters (used by advanced search and direct URLs)
+    if (opts.statusGroup) {
       const groupStatuses = STATUS_GROUPS[opts.statusGroup]
       if (groupStatuses) {
         conditions.push(inArray(jobs.status, groupStatuses))
@@ -114,9 +129,56 @@ export async function listJobs(
       )
     }
 
+    if (opts.priority) {
+      conditions.push(eq(jobs.priority, opts.priority))
+    }
+
+    if (opts.categoryId) {
+      conditions.push(eq(jobs.categoryId, opts.categoryId))
+    }
+
+    if (opts.assigneeUserId) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${jobAssignees}
+          WHERE ${jobAssignees.jobId} = ${jobs.id}
+          AND ${jobAssignees.userId} = ${opts.assigneeUserId}
+          AND ${jobAssignees.tenantId} = ${orgId}
+        )`,
+      )
+    }
+
+    const fromDate = parseDateInput(opts.dateFrom)
+    if (fromDate) {
+      conditions.push(gte(jobs.startDate, fromDate))
+    }
+
+    const toDate = parseDateInput(opts.dateTo, true)
+    if (toDate) {
+      conditions.push(lte(jobs.startDate, toDate))
+    }
+
     if (opts.q) {
       const term = `%${opts.q}%`
-      conditions.push(sql`${jobs.description} ILIKE ${term}`)
+      conditions.push(
+        sql`(
+          ${jobs.jobNo}::text ILIKE ${term}
+          OR ${jobs.description} ILIKE ${term}
+          OR ${jobs.poNumber} ILIKE ${term}
+          OR EXISTS (
+            SELECT 1 FROM ${customers}
+            WHERE ${customers.id} = ${jobs.customerId}
+            AND ${customers.tenantId} = ${orgId}
+            AND ${customers.name} ILIKE ${term}
+          )
+          OR EXISTS (
+            SELECT 1 FROM ${serviceLocations}
+            WHERE ${serviceLocations.id} = ${jobs.serviceLocationId}
+            AND ${serviceLocations.tenantId} = ${orgId}
+            AND ${serviceLocations.city} ILIKE ${term}
+          )
+        )`,
+      )
     }
 
     // Sort
@@ -126,7 +188,7 @@ export async function listJobs(
       case 'jobNo':
         order = sortDir(jobs.jobNo)
         break
-      case 'customer':
+      case 'customerName':
         order = sortDir(customers.name)
         break
       case 'priority':
@@ -137,6 +199,9 @@ export async function listJobs(
         break
       case 'city':
         order = sortDir(serviceLocations.city)
+        break
+      case 'startDate':
+        order = sortDir(jobs.startDate)
         break
       default:
         order = desc(jobs.startDate)

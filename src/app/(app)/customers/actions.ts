@@ -11,6 +11,15 @@ import { equipmentSchema } from '@/lib/equipment-schema'
 import { createContact, createLocation, setPrimaryLocation, setPrimaryContact } from '@/lib/customers'
 import { createTag, createReferralSource } from '@/lib/tags'
 import { logger } from '@/lib/logger'
+import { normalizePhone } from '@/lib/utils'
+
+/**
+ * ── Phone handling policy ──────────────────────────────────────────────────
+ *  • DB stores RAW DIGITS ONLY (e.g. "7735597272").
+ *  • Client-side formatting is display-only (e.g. "(773) 559-7272").
+ *  • `normalizePhone` strips non-digits before every insert / upsert.
+ *  • Downstream integrations (Twilio SMS, Stripe) never see parens or dashes.
+ */
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -270,11 +279,12 @@ export async function createCustomer(
               lastName: ic.lastName || null,
             })
             .returning({ id: contacts.id })
-          if (ic.phone.trim()) {
+          const normPhone = normalizePhone(ic.phone)
+          if (normPhone) {
             await tx.insert(contactPhones).values({
               tenantId: orgId,
               contactId: contact.id,
-              number: ic.phone.trim(),
+              number: normPhone,
               type: 'cell',
               isPrimary: true,
             })
@@ -542,12 +552,15 @@ export async function updateCustomerDetail(
         await tx
           .delete(contactPhones)
           .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, cid)))
-        if (contact.phones.length > 0) {
+        const normPhones = contact.phones
+          .map((p) => ({ ...p, number: normalizePhone(p.number) }))
+          .filter((p) => p.number)
+        if (normPhones.length > 0) {
           await tx.insert(contactPhones).values(
-            contact.phones.map((p) => ({
+            normPhones.map((p) => ({
               tenantId: orgId,
               contactId: cid,
-              number: p.number,
+              number: p.number!,
               type: p.type as 'cell' | 'home' | 'work',
               isPrimary: p.isPrimary,
             })),
@@ -585,12 +598,15 @@ export async function updateCustomerDetail(
           })
           .returning({ id: contacts.id })
 
-        if (contact.phones.length > 0 && newContact) {
+        const newNormPhones = contact.phones
+          .map((p) => ({ ...p, number: normalizePhone(p.number) }))
+          .filter((p) => p.number)
+        if (newNormPhones.length > 0 && newContact) {
           await tx.insert(contactPhones).values(
-            contact.phones.map((p) => ({
+            newNormPhones.map((p) => ({
               tenantId: orgId,
               contactId: newContact.id,
-              number: p.number,
+              number: p.number!,
               type: p.type as 'cell' | 'home' | 'work',
               isPrimary: p.isPrimary,
             })),

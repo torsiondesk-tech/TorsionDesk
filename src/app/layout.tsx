@@ -3,6 +3,8 @@ import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -26,8 +28,16 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={cn("font-sans", geist.variable)}>
-        <body>{children}</body>
+      <html
+        lang="en"
+        className={cn("font-sans", geist.variable)}
+        suppressHydrationWarning
+      >
+        <body>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ThemeProvider>
+        </body>
       </html>
     </ClerkProvider>
   )

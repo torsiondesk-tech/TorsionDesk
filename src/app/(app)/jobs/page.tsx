@@ -2,11 +2,29 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { listJobs, countJobsByTag } from '@/lib/jobs/jobs'
+import { listJobCategories } from '@/lib/categories'
+import { getCustomerById } from '@/lib/customers'
 import { JobsTable } from './jobs-table'
 import { JobsSidebar } from './jobs-sidebar'
+import { JobsAdvancedSearch } from './jobs-advanced-search'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
+import { STATUS_GROUPS, type JobStatusValue } from '@/lib/jobs/transitions'
+
+const ALL_JOB_STATUSES = [
+  ...STATUS_GROUPS.open,
+  ...STATUS_GROUPS.in_progress,
+  ...STATUS_GROUPS.closed,
+]
+
+function toJobStatus(value: string | undefined): JobStatusValue | undefined {
+  if (!value) return undefined
+  if (ALL_JOB_STATUSES.includes(value as JobStatusValue)) {
+    return value as JobStatusValue
+  }
+  return undefined
+}
 
 interface JobsPageProps {
   searchParams: Promise<{
@@ -15,6 +33,14 @@ interface JobsPageProps {
     sort?: string | string[]
     dir?: string | string[]
     page?: string | string[]
+    q?: string | string[]
+    status?: string | string[]
+    priority?: string | string[]
+    category?: string | string[]
+    from?: string | string[]
+    to?: string | string[]
+    tech?: string | string[]
+    customer?: string | string[]
   }>
 }
 
@@ -33,6 +59,14 @@ async function JobList({ searchParams, userId }: JobsPageProps & { userId: strin
   const sort = normalizeParam(params.sort)
   const dir = normalizeParam(params.dir)
   const page = Math.max(0, parseInt(normalizeParam(params.page) ?? '0', 10) || 0)
+  const q = normalizeParam(params.q)
+  const status = toJobStatus(normalizeParam(params.status))
+  const priority = normalizeParam(params.priority)
+  const categoryId = normalizeParam(params.category)
+  const dateFrom = normalizeParam(params.from)
+  const dateTo = normalizeParam(params.to)
+  const assigneeUserId = normalizeParam(params.tech)
+  const customerId = normalizeParam(params.customer)
 
   const { rows, pageCount } = await listJobs(orgId, {
     page,
@@ -42,6 +76,14 @@ async function JobList({ searchParams, userId }: JobsPageProps & { userId: strin
     sort,
     dir: dir === 'asc' || dir === 'desc' ? dir : undefined,
     userId,
+    q,
+    status,
+    priority,
+    categoryId,
+    dateFrom,
+    dateTo,
+    assigneeUserId,
+    customerId,
   })
 
   return (
@@ -50,6 +92,7 @@ async function JobList({ searchParams, userId }: JobsPageProps & { userId: strin
       pageCount={pageCount}
       page={page}
       pageSize={25}
+      bucket={bucket}
     />
   )
 }
@@ -58,7 +101,23 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   const { orgId, userId } = await auth()
   if (!orgId || !userId) redirect('/sign-in')
 
-  const tagCounts = await countJobsByTag(orgId)
+  const [tagCounts, categories, params] = await Promise.all([
+    countJobsByTag(orgId),
+    listJobCategories(orgId),
+    searchParams,
+  ])
+
+  const bucket = normalizeParam(params.bucket)
+  const isAdvancedSearch = bucket === 'advanced_search'
+
+  // Pre-load customer name so the advanced-search customer combobox can display
+  // an existing filter immediately.
+  const customerId = normalizeParam(params.customer)
+  let customerName: string | null = null
+  if (customerId) {
+    const customer = await getCustomerById(orgId, customerId)
+    customerName = customer?.name ?? null
+  }
 
   return (
     <div className="flex gap-6 animate-in fade-in-0 duration-300">
@@ -83,6 +142,13 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             </Button>
           </Link>
         </div>
+
+        {isAdvancedSearch && (
+          <JobsAdvancedSearch
+            categories={categories}
+            defaultCustomerLabel={customerName}
+          />
+        )}
 
         <Suspense
           fallback={
