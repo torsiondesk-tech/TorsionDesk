@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
-
 export async function broadcastJobEvent(
   orgId: string,
   event: string,
@@ -9,18 +7,20 @@ export async function broadcastJobEvent(
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return
 
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  // Use the REST broadcast API — reliable from serverless (no WebSocket needed)
+  const res = await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      messages: [{ topic: `realtime:dispatch:${orgId}`, event, payload }],
+    }),
   })
 
-  const channel = supabase.channel(`dispatch:${orgId}`, {
-    config: { broadcast: { ack: true } },
-  })
-
-  await channel.subscribe(async (status) => {
-    if (status === 'SUBSCRIBED') {
-      await channel.send({ type: 'broadcast', event, payload })
-      await channel.unsubscribe()
-    }
-  })
+  if (!res.ok) {
+    console.warn('[broadcast] Failed', { event, status: res.status, text: await res.text() })
+  }
 }
