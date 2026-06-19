@@ -48,7 +48,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
             setPage(null)
           })
         }}
-        className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+        className="h-9 rounded-lg border border-input bg-background px-2.5 text-sm text-foreground"
       >
         <option value="">All categories</option>
         {categories.map((c) => (
@@ -97,7 +97,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
                 setPage(null)
               })
             }}
-            className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            className="h-9 rounded-lg border border-input bg-background px-2.5 text-sm text-foreground"
           >
             <option value="">All items</option>
             <option value="true">Inventory only</option>

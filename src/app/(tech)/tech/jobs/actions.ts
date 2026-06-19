@@ -3,8 +3,69 @@
 import { revalidatePath } from 'next/cache'
 import { auth } from '@clerk/nextjs/server'
 import { listJobs } from '@/lib/jobs/jobs'
-import { toISODate } from '@/lib/utils'
 import { transitionJobStatusAction as _transitionJobStatusAction } from '@/app/(app)/jobs/actions'
+
+export interface CreateTechJobInput {
+  customerId: string
+  serviceLocationId: string | null
+  description: string
+  startDate: string | null
+}
+
+export async function createTechJobAction(
+  input: CreateTechJobInput,
+): Promise<{ success: false; error: string } | { success: true; id: string }> {
+  const { orgId, userId } = await auth()
+  if (!orgId || !userId) {
+    return { success: false, error: 'Not authenticated.' }
+  }
+
+  if (!input.customerId) {
+    return { success: false, error: 'Customer is required.' }
+  }
+  if (!input.description?.trim()) {
+    return { success: false, error: 'Description is required.' }
+  }
+
+  try {
+    const { withTenant } = await import('@/db/with-tenant')
+    const { jobs, jobAssignees } = await import('@/db/schema')
+    const { nextJobNo } = await import('@/lib/jobs/job-number')
+
+    const id = await withTenant(orgId, async (tx) => {
+      const jobNo = await nextJobNo(tx, orgId)
+
+      const [row] = await tx
+        .insert(jobs)
+        .values({
+          tenantId: orgId,
+          jobNo,
+          customerId: input.customerId,
+          serviceLocationId: input.serviceLocationId ?? null,
+          status: 'unscheduled',
+          description: input.description.trim(),
+          startDate: input.startDate ? new Date(`${input.startDate}T00:00:00`) : null,
+        })
+        .returning({ id: jobs.id })
+
+      await tx.insert(jobAssignees).values({
+        tenantId: orgId,
+        jobId: row.id,
+        userId,
+        notify: false,
+      })
+
+      return row.id
+    })
+
+    revalidatePath('/tech/jobs')
+    revalidatePath('/jobs')
+    return { success: true, id }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    return { success: false, error: message || 'Could not create job. Please try again.' }
+  }
+}
 
 export async function transitionJobStatusAction(jobId: string, toStatus: string) {
   return _transitionJobStatusAction(jobId, toStatus)
@@ -19,15 +80,9 @@ export async function listTechJobsAction(orgId: string, userId: string) {
     throw new Error('Unauthorized')
   }
 
-  const today = toISODate(new Date())
-  const sevenDaysOutDate = new Date()
-  sevenDaysOutDate.setDate(sevenDaysOutDate.getDate() + 7)
-
   return listJobs(orgId, {
     assigneeUserId: userId,
-    dateFrom: today,
-    dateTo: toISODate(sevenDaysOutDate),
-    pageSize: 100,
+    pageSize: 200,
   })
 }
 

@@ -30,6 +30,7 @@ describe('TechSyncDb', () => {
       type: 'job_status_update',
       payload: { jobId: 'job-1', toStatus: 'on_site' },
       createdAt: Date.now(),
+      seq: Date.now() * 1000,
       retryCount: 0,
       syncStatus: 'pending',
     }
@@ -61,6 +62,13 @@ describe('TechSyncDb', () => {
       notesForTechs: null,
       completionNotes: null,
       assigneeUserIds: ['user-1'],
+      customerName: null,
+      addressLine1: null,
+      city: null,
+      state: null,
+      postalCode: null,
+      contactPhone: null,
+      contactEmail: null,
     }
 
     await db.jobs.add(job)
@@ -73,6 +81,6 @@ describe('TechSyncDb', () => {
   it('includes job_signature and manual_payment in OUTBOX_TYPES', () => {
     expect(OUTBOX_TYPES).toContain('job_signature')
     expect(OUTBOX_TYPES).toContain('manual_payment')
-    expect(OUTBOX_TYPES).toHaveLength(9)
+    expect(OUTBOX_TYPES).toHaveLength(10)
   })
 })

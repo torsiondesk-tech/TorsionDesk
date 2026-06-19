@@ -7,6 +7,11 @@ export async function broadcastJobEvent(
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return
 
+  // Supabase client.channel('dispatch:<orgId>') subscribes to the Phoenix topic
+  // 'realtime:dispatch:<orgId>'. The REST broadcast endpoint must target the exact
+  // topic string, otherwise mobile clients never receive the event.
+  const topic = `realtime:dispatch:${orgId}`
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 5_000)
 
@@ -20,16 +25,21 @@ export async function broadcastJobEvent(
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        messages: [{ topic: `dispatch:${orgId}`, event, payload }],
+        messages: [{ topic, event, payload, private: false }],
       }),
     })
 
     if (!res.ok) {
-      console.warn('[broadcast] Failed', { event, status: res.status })
+      const body = await res.text().catch(() => '')
+      console.warn('[broadcast] Failed', { event, topic, status: res.status, body })
+    } else {
+      console.log('[broadcast] OK', { event, topic, status: res.status })
     }
   } catch (err) {
     if ((err as Error).name !== 'AbortError') {
-      console.warn('[broadcast] Error', { event, err })
+      console.warn('[broadcast] Error', { event, topic, err })
+    } else {
+      console.warn('[broadcast] Timed out (5s)', { event, topic })
     }
   } finally {
     clearTimeout(timer)

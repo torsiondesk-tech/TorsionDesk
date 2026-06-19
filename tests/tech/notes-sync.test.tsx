@@ -59,6 +59,13 @@ describe('completion notes sync', () => {
       notesForTechs: null,
       completionNotes: '',
       assigneeUserIds: [userId],
+      customerName: null,
+      addressLine1: null,
+      city: null,
+      state: null,
+      postalCode: null,
+      contactPhone: null,
+      contactEmail: null,
     }
     await db.jobs.add(job)
   })

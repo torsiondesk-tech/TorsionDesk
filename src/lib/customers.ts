@@ -30,6 +30,7 @@ export interface CustomerRow {
   active: boolean | null
   vip: boolean | null
   primaryPhone: string | null
+  primaryEmail: string | null
   primaryCity: string | null
   tagNames: string[]
 }
@@ -55,8 +56,26 @@ export async function listCustomers(
 
     if (opts.q) {
       const term = `%${opts.q}%`
+      // Strip non-digits for phone matching (DB stores raw digits)
+      const phoneDigits = opts.q.replace(/\D/g, '')
+      const phoneTerm = phoneDigits ? `%${phoneDigits}%` : null
+      const phoneClause = phoneTerm
+        ? sql`OR EXISTS (
+            SELECT 1 FROM contact_phones cp
+            JOIN contacts c ON cp.contact_id = c.id
+            WHERE c.customer_id = ${customers.id} AND cp.number ILIKE ${phoneTerm}
+          )`
+        : sql``
       conditions.push(
-        sql`${customers.name} ILIKE ${term}`,
+        sql`(
+          ${customers.name} ILIKE ${term}
+          OR EXISTS (
+            SELECT 1 FROM contact_emails ce
+            JOIN contacts c ON ce.contact_id = c.id
+            WHERE c.customer_id = ${customers.id} AND ce.address ILIKE ${term}
+          )
+          ${phoneClause}
+        )`,
       )
     }
 
@@ -91,6 +110,7 @@ export async function listCustomers(
     const customerIds = rows.map((r) => r.id)
 
     let phones: Array<{ customerId: string; number: string; isPrimary: boolean | null }> = []
+    let emails: Array<{ customerId: string; address: string; isPrimary: boolean | null }> = []
     let locations: Array<{ customerId: string; city: string | null }> = []
     let tagRows: Array<{ customerId: string; tagName: string }> = []
 
@@ -103,6 +123,21 @@ export async function listCustomers(
         })
         .from(contactPhones)
         .innerJoin(contacts, eq(contactPhones.contactId, contacts.id))
+        .where(
+          and(
+            eq(contacts.tenantId, orgId),
+            inArray(contacts.customerId, customerIds),
+          ),
+        )
+
+      emails = await tx
+        .select({
+          customerId: contacts.customerId,
+          address: contactEmails.address,
+          isPrimary: contactEmails.isPrimary,
+        })
+        .from(contactEmails)
+        .innerJoin(contacts, eq(contactEmails.contactId, contacts.id))
         .where(
           and(
             eq(contacts.tenantId, orgId),
@@ -143,6 +178,9 @@ export async function listCustomers(
       const customerPhones = phones.filter((p) => p.customerId === row.id)
       const primary = customerPhones.find((p) => p.isPrimary) ?? customerPhones[0]
 
+      const customerEmails = emails.filter((e) => e.customerId === row.id)
+      const primaryEmail = customerEmails.find((e) => e.isPrimary) ?? customerEmails[0]
+
       const customerLocs = locations.filter((l) => l.customerId === row.id)
       const firstCity = customerLocs[0]?.city ?? null
 
@@ -157,6 +195,7 @@ export async function listCustomers(
         active: row.active,
         vip: row.vip,
         primaryPhone: primary?.number ?? null,
+        primaryEmail: primaryEmail?.address ?? null,
         primaryCity: firstCity,
         tagNames: customerTagNames,
       }
@@ -181,6 +220,9 @@ export async function searchCustomers(
   q: string,
 ): Promise<SearchResult[]> {
   const term = `%${q}%`
+  // Phones are stored as raw digits; strip non-digits for phone matching
+  const phoneDigits = q.replace(/\D/g, '')
+  const phoneTerm = phoneDigits ? `%${phoneDigits}%` : null
 
   return withTenant(orgId, async (tx) => {
     const rows = await tx
@@ -192,15 +234,24 @@ export async function searchCustomers(
       })
       .from(customers)
       .leftJoin(serviceLocations, eq(serviceLocations.customerId, customers.id))
+      .leftJoin(contacts, eq(contacts.customerId, customers.id))
+      .leftJoin(contactPhones, eq(contactPhones.contactId, contacts.id))
+      .leftJoin(contactEmails, eq(contactEmails.contactId, contacts.id))
       .where(
         and(
           eq(customers.tenantId, orgId),
-          sql`${customers.name} ILIKE ${term}`,
+          sql`(
+            ${customers.name} ILIKE ${term}
+            OR ${serviceLocations.addressLine1} ILIKE ${term}
+            OR ${serviceLocations.city} ILIKE ${term}
+            OR ${contactEmails.address} ILIKE ${term}
+            ${phoneTerm ? sql`OR ${contactPhones.number} ILIKE ${phoneTerm}` : sql``}
+          )`,
         ),
       )
-      .limit(20)
+      .limit(50)
 
-    // Deduplicate by customer id (leftJoin may produce multiple rows per customer)
+    // Deduplicate by customer id (joins produce multiple rows per customer)
     const seen = new Set<string>()
     const results: SearchResult[] = []
 
@@ -217,6 +268,8 @@ export async function searchCustomers(
         name: row.name,
         primaryAddress: address,
       })
+
+      if (results.length >= 20) break
     }
 
     return results

@@ -37,7 +37,15 @@ import {
   listJobTemplatesAction,
   applyTemplateAction,
 } from '../actions'
-import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
+import { setPrimaryContactAction, setPrimaryLocationAction, renameCustomerAction } from '../../customers/actions'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { StatusDropdown } from './status-dropdown'
 import { LineItems } from './line-items'
 import { Plus, X, Phone, Mail, Trash2, Star } from 'lucide-react'
@@ -180,6 +188,12 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   const [contactError, setContactError] = useState<string | null>(null)
   const [searchKey, setSearchKey] = useState(0)
   const autoSelectRef = useRef(false)
+
+  // Dialog shown in edit mode when user types while a customer is selected
+  const [renameDialog, setRenameDialog] = useState(false)
+  const [renameInput, setRenameInput] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
 
   // Arrival time window (controlled for cross-field validation)
   const [arrivalStart, setArrivalStart] = useState(initial?.arrivalWindowStart ?? '')
@@ -633,6 +647,34 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     setLocationMode('new')
   }, [])
 
+  // Fired when the user types in the customer field while a customer is already selected (edit mode)
+  const handleReplaceIntent = useCallback((typedChar: string) => {
+    setRenameInput(typedChar)
+    setRenameError(null)
+    setRenameDialog(true)
+  }, [])
+
+  const handleRenameCustomer = useCallback(async () => {
+    if (!customerId || !renameInput.trim()) return
+    setRenaming(true)
+    setRenameError(null)
+    const result = await renameCustomerAction(customerId, renameInput)
+    setRenaming(false)
+    if (result.error) {
+      setRenameError(result.error)
+      return
+    }
+    setCustomerName(renameInput.trim())
+    setSearchKey((k) => k + 1)
+    setRenameDialog(false)
+  }, [customerId, renameInput])
+
+  const handleConfirmChangeCustomer = useCallback(() => {
+    setRenameDialog(false)
+    handleCustomerChange(null)
+    setSearchKey((k) => k + 1)
+  }, [handleCustomerChange])
+
   const handleClearNewCustomer = useCallback(() => {
     setCustomerMode('existing')
     setNewCustomerName('')
@@ -704,6 +746,56 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
   return (
     <div className="animate-in fade-in-0 duration-300">
+      {/* Customer rename / change dialog — fires on first keystroke in edit mode */}
+      <Dialog open={renameDialog} onOpenChange={(open) => { if (!open) setRenameDialog(false) }}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Change Customer</DialogTitle>
+            <DialogDescription>
+              You&apos;re editing a job for <strong>{customerName}</strong>. What would you like to do?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            {/* Rename option */}
+            <div className="space-y-2 rounded-lg border bg-card p-3">
+              <div className="font-medium text-sm">Rename this customer</div>
+              <Input
+                value={renameInput}
+                onChange={(e) => setRenameInput(e.target.value)}
+                placeholder="New customer name"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRenameCustomer() } }}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Updates the customer record — all their jobs will reflect the new name.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                disabled={renaming || !renameInput.trim()}
+                onClick={handleRenameCustomer}
+              >
+                {renaming ? 'Saving…' : 'Rename Customer'}
+              </Button>
+            </div>
+            {/* Change to different customer option */}
+            <button
+              type="button"
+              onClick={handleConfirmChangeCustomer}
+              disabled={renaming}
+              className="w-full rounded-lg border bg-card px-4 py-3 text-left hover:bg-muted/50 disabled:opacity-50"
+            >
+              <div className="font-medium text-sm">Change to a different customer</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Search for another existing customer or create a new one.
+              </div>
+            </button>
+          </div>
+          {renameError && <p className="text-xs text-destructive">{renameError}</p>}
+          <DialogFooter showCloseButton />
+        </DialogContent>
+      </Dialog>
+
       <form action={formAction} className="space-y-6">
         {mode === 'edit' && initial?.id && (
           <input type="hidden" name="id" value={initial.id} />
@@ -757,6 +849,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                   onChange={handleCustomerChange}
                   allowCreate={mode === 'create'}
                   onCreateNew={handleCreateNewCustomer}
+                  onReplaceIntent={mode === 'edit' && !!customerId ? handleReplaceIntent : undefined}
                 />
               )}
             </div>

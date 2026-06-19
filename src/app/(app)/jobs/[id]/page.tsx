@@ -29,6 +29,7 @@ import { toISODate } from '@/lib/utils'
 
 interface JobDetailPageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ edit?: string }>
 }
 
 /** Extract YYYY-MM-DD for a `type="date"` input. Uses local calendar getters
@@ -127,11 +128,13 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
   }
 }
 
-export default async function JobDetailPage({ params }: JobDetailPageProps) {
+export default async function JobDetailPage({ params, searchParams }: JobDetailPageProps) {
   const { orgId } = await auth()
   if (!orgId) redirect('/sign-in')
 
   const { id } = await params
+  const { edit } = await searchParams
+  const initialEdit = edit === 'true'
   const job = await getJob(orgId, id)
   if (!job) notFound()
 
@@ -196,6 +199,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
               jobCategories.find((c) => c.id === job.categoryId)?.name
             }
             sourceName={jobSources.find((s) => s.id === job.jobSourceId)?.name}
+            initialEdit={initialEdit}
           />
         </TabsContent>
 

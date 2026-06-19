@@ -104,7 +104,7 @@ export function StatusBottomSheet({
               disabled={isPending}
               onClick={() => handleSelect(nextStatus)}
               className={cn(
-                'flex h-12 w-full items-center gap-3 px-4 text-left transition-colors hover:bg-muted',
+                'flex h-12 w-full items-center gap-3 px-4 text-left transition-colors hover:bg-muted active:bg-muted',
                 isPending && 'opacity-50'
               )}
             >

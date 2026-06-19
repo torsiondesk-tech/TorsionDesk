@@ -463,6 +463,81 @@ export async function updateJobServiceLocation(
   })
 }
 
+const createServiceLocationForJobSchema = z.object({
+  jobId: z.string().uuid(),
+  customerId: z.string().uuid(),
+  name: z.string().nullable().optional(),
+  addressLine1: z.string().min(1),
+  addressLine2: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  postalCode: z.string().nullable().optional(),
+  gated: z.boolean().optional(),
+  latitude: z.string().nullable().optional(),
+  longitude: z.string().nullable().optional(),
+})
+
+/** Create a new service location and atomically assign it to a job. */
+export async function createServiceLocationForJob(
+  input: z.infer<typeof createServiceLocationForJobSchema>,
+): Promise<{ id: string; error?: string }> {
+  const parsed = createServiceLocationForJobSchema.safeParse(input)
+  if (!parsed.success) return { id: '', error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  const { orgId } = await auth()
+  if (!orgId) return { id: '', error: 'Unauthorized' }
+
+  const { jobId, customerId, ...locInput } = parsed.data
+
+  try {
+    const newId = await withTenant(orgId, async (tx) => {
+      const custRows = await tx
+        .select({ id: customers.id, primaryLocationId: customers.primaryLocationId })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+        .limit(1)
+      if (custRows.length === 0) throw new Error('Invalid customer')
+
+      const [newLoc] = await tx
+        .insert(serviceLocations)
+        .values({
+          tenantId: orgId,
+          customerId,
+          name: locInput.name ?? null,
+          addressLine1: locInput.addressLine1,
+          addressLine2: locInput.addressLine2 ?? null,
+          city: locInput.city ?? null,
+          state: locInput.state ?? null,
+          postalCode: locInput.postalCode ?? null,
+          gated: locInput.gated ?? false,
+          latitude: locInput.latitude ?? null,
+          longitude: locInput.longitude ?? null,
+        })
+        .returning({ id: serviceLocations.id })
+
+      if (!custRows[0].primaryLocationId) {
+        await tx
+          .update(customers)
+          .set({ primaryLocationId: newLoc.id, updatedAt: new Date() })
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
+      }
+
+      await tx
+        .update(jobs)
+        .set({ serviceLocationId: newLoc.id, updatedAt: new Date() })
+        .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, jobId)))
+
+      return newLoc.id
+    })
+
+    revalidatePath('/dispatch')
+    revalidatePath(`/jobs/${jobId}`)
+    return { id: newId }
+  } catch (err) {
+    return { id: '', error: err instanceof Error ? err.message : 'Failed to create location' }
+  }
+}
+
 // ── Queries ─────────────────────────────────────────────────────────────────
 
 export type WeekJob = {
@@ -613,6 +688,12 @@ export type CustomerLocation = {
   id: string
   name: string | null
   addressLine1: string | null
+  addressLine2: string | null
+  city: string | null
+  state: string | null
+  postalCode: string | null
+  gated: boolean | null
+  isPrimary: boolean
 }
 
 export type PopupData = {
@@ -660,6 +741,7 @@ export async function getJobPopupData(
         contactLastName: contacts.lastName,
         jobContactId: jobs.contactId,
         customerPrimaryContactId: customers.primaryContactId,
+        customerPrimaryLocationId: customers.primaryLocationId,
         phone: contactPhones.number,
         email: contactEmails.address,
       })
@@ -692,6 +774,11 @@ export async function getJobPopupData(
           id: serviceLocations.id,
           name: serviceLocations.name,
           addressLine1: serviceLocations.addressLine1,
+          addressLine2: serviceLocations.addressLine2,
+          city: serviceLocations.city,
+          state: serviceLocations.state,
+          postalCode: serviceLocations.postalCode,
+          gated: serviceLocations.gated,
         })
         .from(serviceLocations)
         .where(
@@ -701,7 +788,10 @@ export async function getJobPopupData(
           ),
         )
         .orderBy(serviceLocations.name)
-      customerLocations = locRows
+      customerLocations = locRows.map((loc) => ({
+        ...loc,
+        isPrimary: loc.id === r.customerPrimaryLocationId,
+      }))
     }
 
     return {

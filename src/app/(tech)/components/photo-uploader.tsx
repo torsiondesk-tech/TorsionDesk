@@ -1,7 +1,8 @@
 ﻿'use client'
 
 import { useRef, useState, useMemo, useEffect } from 'react'
-import { Camera, RotateCcw, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Camera, Images, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -16,6 +17,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb, type OutboxItem } from '@/app/(tech)/lib/dexie'
 import { enqueueOutboxItem, flushOutbox, type PhotoPayload } from '@/app/(tech)/lib/sync'
+import { deleteJobPhotoAction } from '@/app/(app)/jobs/actions'
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { cn } from '@/lib/utils'
 
@@ -35,6 +37,8 @@ interface PhotoUploaderProps {
 
 export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const galleryRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
   const online = useOnline()
   const db = useMemo(() => createTechDb(orgId), [orgId])
   const pendingItems = useLiveQuery(
@@ -44,10 +48,14 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
 
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map())
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteUploadedId, setDeleteUploadedId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const photosForJob = useMemo(
     () => (pendingItems ?? []).filter(
-      (item) => (item.payload as PhotoPayload).jobId === jobId,
+      (item) =>
+        (item.payload as PhotoPayload).jobId === jobId &&
+        item.syncStatus !== 'synced',
     ),
     [pendingItems, jobId],
   )
@@ -101,6 +109,18 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
     setDeleteId(null)
   }
 
+  async function handleDeleteUploadedConfirmed() {
+    if (!deleteUploadedId) return
+    setDeleting(true)
+    try {
+      await deleteJobPhotoAction(jobId, deleteUploadedId)
+      router.refresh()
+    } finally {
+      setDeleting(false)
+      setDeleteUploadedId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <input
@@ -110,17 +130,33 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
         capture="environment"
         className="sr-only"
         onChange={handleFileChange}
-        aria-label="Add a job photo from camera"
+        aria-label="Take a photo with camera"
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={handleFileChange}
+        aria-label="Choose a photo from gallery"
       />
 
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => inputRef.current?.click()}
-      >
-        <Camera className="mr-2 size-4" aria-hidden="true" />
-        Add Photo
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Camera className="mr-2 size-4" aria-hidden="true" />
+          Camera
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => galleryRef.current?.click()}
+        >
+          <Images className="mr-2 size-4" aria-hidden="true" />
+          Gallery
+        </Button>
+      </div>
 
       {photosForJob.length === 0 && signedPhotos.length === 0 && (
         <p className="text-center text-sm text-muted-foreground">No photos yet. Tap Add Photo to capture one.</p>
@@ -206,13 +242,46 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
         })}
 
         {signedPhotos.map((photo) => (
-          <Card key={photo.id} className="overflow-hidden">
+          <Card key={photo.id} className="relative overflow-hidden">
             <CardContent className="p-0">
               <img
                 src={photo.url}
                 alt="Job photo"
                 className="aspect-square w-full object-cover"
               />
+              <div className="absolute top-2 right-2">
+                <Dialog
+                  open={deleteUploadedId === photo.id}
+                  onOpenChange={(open) => !open && setDeleteUploadedId(null)}
+                >
+                  <DialogTrigger
+                    render={
+                      <Button
+                        variant="secondary"
+                        size="icon-xs"
+                        aria-label="Delete photo"
+                        onClick={() => setDeleteUploadedId(photo.id)}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    }
+                  />
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete photo?</DialogTitle>
+                      <DialogDescription>
+                        This photo will be permanently removed and cannot be recovered.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setDeleteUploadedId(null)}>Cancel</Button>
+                      <Button variant="destructive" onClick={handleDeleteUploadedConfirmed} disabled={deleting}>
+                        {deleting ? 'Deleting…' : 'Delete'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardContent>
           </Card>
         ))}

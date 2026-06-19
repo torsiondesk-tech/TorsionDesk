@@ -14,6 +14,9 @@ import {
   confirmJobPhotoAction,
 } from '@/app/(app)/jobs/actions'
 import {
+  createTechJobAction,
+} from '@/app/(tech)/tech/jobs/actions'
+import {
   createEstimateAction,
   convertEstimateToJobAction,
   listTechEstimatesAction,
@@ -54,6 +57,15 @@ export interface SignaturePayload {
 export interface NotePayload {
   jobId: string
   notes: string
+}
+
+export interface JobCreatePayload {
+  input: {
+    customerId: string
+    serviceLocationId: string | null
+    description: string
+    startDate: string | null
+  }
 }
 
 export interface EstimateCreatePayload {
@@ -98,6 +110,14 @@ export class DeferSyncError extends Error {
   }
 }
 
+let enqueueSeq = 0
+
+function nextOutboxSeq(): number {
+  const now = Date.now()
+  const tick = enqueueSeq++ % 1000
+  return now * 1000 + tick
+}
+
 export async function enqueueOutboxItem(
   orgId: string,
   item: Pick<OutboxItem, 'type' | 'payload'>,
@@ -108,6 +128,7 @@ export async function enqueueOutboxItem(
     id: crypto.randomUUID(),
     ...item,
     createdAt: Date.now(),
+    seq: nextOutboxSeq(),
     retryCount: 0,
     syncStatus: 'pending',
   } as OutboxItem)
@@ -116,7 +137,7 @@ export async function enqueueOutboxItem(
 export async function flushOutbox(orgId: string, userId: string): Promise<void> {
   const db = createTechDb(orgId)
   await db.open()
-  const pending = await db.outbox.where('syncStatus').equals('pending').sortBy('createdAt')
+  const pending = await db.outbox.where('syncStatus').equals('pending').sortBy('seq')
 
   const finalStatusUpdate = new Map<string, { index: number; item: OutboxItem }>()
   pending.forEach((item, idx) => {
@@ -153,6 +174,8 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
         await syncSignature(item)
       } else if (item.type === 'job_note') {
         await syncNote(item)
+      } else if (item.type === 'job_create') {
+        await syncJobCreate(item)
       } else if (item.type === 'estimate_create') {
         await syncEstimateCreate(item)
       } else if (item.type === 'estimate_conversion') {
@@ -185,6 +208,14 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
         })
       }
     }
+  }
+}
+
+async function syncJobCreate(item: OutboxItem): Promise<void> {
+  const payload = item.payload as JobCreatePayload
+  const result = await createTechJobAction(payload.input)
+  if (!result.success) {
+    throw new Error(result.error)
   }
 }
 
@@ -319,146 +350,200 @@ async function syncNote(item: OutboxItem): Promise<void> {
   }
 }
 
+export const TECH_DATA_UPDATED = 'tech-data-updated'
+export const TECH_DATA_UPDATE_FAILED = 'tech-data-update-failed'
+
 export async function hydrateTechData(orgId: string, userId: string): Promise<void> {
+  console.log('[sync] hydrating...', { orgId, userId })
   const db = createTechDb(orgId)
   await db.open()
 
-  const [
-    { rows: jobRows },
-    { rows: customerRows },
-    { rows: locationRows },
-    estimatesResult,
-    invoicesResult,
-  ] = await Promise.all([
-    listTechJobsAction(orgId, userId),
-    listTechCustomersAction(orgId, userId),
-    listTechServiceLocationsAction(orgId, userId),
-    listTechEstimatesAction(orgId, userId),
-    listTechInvoicesAction(orgId, userId),
-  ])
+  let jobRows: Awaited<ReturnType<typeof listTechJobsAction>>['rows'] = []
+  let customerRows: Awaited<ReturnType<typeof listTechCustomersAction>>['rows'] = []
+  let locationRows: Awaited<ReturnType<typeof listTechServiceLocationsAction>>['rows'] = []
+  let estimatesResult: Awaited<ReturnType<typeof listTechEstimatesAction>>
+  let invoicesResult: Awaited<ReturnType<typeof listTechInvoicesAction>>
 
-  const cachedJobs: CachedJob[] = jobRows.map((row) => ({
-    id: row.id,
-    tenantId: orgId,
-    jobNo: row.jobNo,
-    customerId: row.customerId,
-    contactId: (row as { contactId?: string | null }).contactId ?? null,
-    serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
-    status: row.status,
-    description: row.description,
-    startDate: row.startDate ? toISODate(parseCalendarDate(row.startDate)!) : null,
-    arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
-    arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
-    notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
-    completionNotes: (row as { completionNotes?: string | null }).completionNotes ?? null,
-    assigneeUserIds: [userId],
-  }))
-  await db.jobs.clear()
-  await db.jobs.bulkPut(cachedJobs)
+  try {
+    ;[
+      { rows: jobRows },
+      { rows: customerRows },
+      { rows: locationRows },
+      estimatesResult,
+      invoicesResult,
+    ] = await Promise.all([
+      listTechJobsAction(orgId, userId),
+      listTechCustomersAction(orgId, userId),
+      listTechServiceLocationsAction(orgId, userId),
+      listTechEstimatesAction(orgId, userId),
+      listTechInvoicesAction(orgId, userId),
+    ])
+  } catch (err) {
+    console.error('[sync] hydrate fetch failed', { orgId, userId, err })
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(TECH_DATA_UPDATE_FAILED, {
+          detail: { orgId, userId, error: err instanceof Error ? err.message : String(err) },
+        }),
+      )
+    }
+    throw err
+  }
 
-  const cachedCustomers: CachedCustomer[] = customerRows.map((row) => ({
-    id: row.id,
-    tenantId: orgId,
-    name: row.name,
-    accountNo: row.accountNo ?? null,
-    primaryPhone: row.primaryPhone ?? null,
-    primaryCity: row.primaryCity ?? null,
-  }))
-  await db.customers.clear()
-  await db.customers.bulkPut(cachedCustomers)
-
-  const cachedLocations: CachedLocation[] = locationRows.map((row) => ({
-    id: row.id,
-    tenantId: orgId,
-    customerId: row.customerId,
-    name: row.name ?? null,
-    addressLine1: row.addressLine1 ?? null,
-    addressLine2: row.addressLine2 ?? null,
-    city: row.city ?? null,
-    state: row.state ?? null,
-    postalCode: row.postalCode ?? null,
-    country: row.country ?? null,
-    latitude: row.latitude ?? null,
-    longitude: row.longitude ?? null,
-    gated: row.gated ?? false,
-  }))
-  await db.serviceLocations.clear()
-  await db.serviceLocations.bulkPut(cachedLocations)
-
-  if (!estimatesResult.error) {
-    const cachedEstimates: CachedEstimate[] = estimatesResult.rows.map((row) => ({
+  try {
+    const cachedJobs: CachedJob[] = jobRows.map((row) => ({
       id: row.id,
       tenantId: orgId,
-      status: row.status,
+      jobNo: row.jobNo,
       customerId: row.customerId,
+      contactId: (row as { contactId?: string | null }).contactId ?? null,
+      serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
+      status: row.status,
+      description: row.description,
+      startDate: row.startDate ? toISODate(parseCalendarDate(row.startDate)!) : null,
+      arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
+      arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
+      notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
+      completionNotes: (row as { completionNotes?: string | null }).completionNotes ?? null,
+      assigneeUserIds: [userId],
       customerName: row.customerName ?? null,
-      description: row.description ?? null,
-      value: row.value ?? null,
-      followUpDate: row.followUpDate ?? null,
-      expiryDate: row.expiryDate ?? null,
-      notes: row.notes ?? null,
-      createdAt: row.createdAt ?? null,
+      addressLine1: row.addressLine1 ?? null,
+      city: row.city ?? null,
+      state: row.state ?? null,
+      postalCode: row.postalCode ?? null,
+      contactPhone: row.contactPhone ?? null,
+      contactEmail: row.contactEmail ?? null,
     }))
-    await db.estimates.clear()
-    await db.estimates.bulkPut(cachedEstimates)
-  }
+    await db.jobs.clear()
+    await db.jobs.bulkPut(cachedJobs)
 
-  if (!invoicesResult.error) {
-    const cachedInvoices: CachedInvoice[] = invoicesResult.rows.map((row) => ({
+    const cachedCustomers: CachedCustomer[] = customerRows.map((row) => ({
       id: row.id,
       tenantId: orgId,
-      jobId: row.jobId ?? '',
-      customerId: row.customerId ?? '',
-      customerName: row.customerName ?? null,
-      invoiceNo: row.invoiceNo ?? null,
-      status: row.status,
-      total: row.total ?? null,
-      balance: row.balance ?? null,
-      issuedAt: row.issuedAt ?? null,
-      dueAt: row.dueAt ?? null,
-      paidAt: row.paidAt ?? null,
-      notes: row.notes ?? null,
+      name: row.name,
+      accountNo: row.accountNo ?? null,
+      primaryPhone: row.primaryPhone ?? null,
+      primaryCity: row.primaryCity ?? null,
     }))
-    await db.invoices.clear()
-    await db.invoices.bulkPut(cachedInvoices)
-  }
+    await db.customers.clear()
+    await db.customers.bulkPut(cachedCustomers)
 
-  const locationIds = Array.from(
-    new Set(cachedJobs.map((job) => job.serviceLocationId).filter(Boolean) as string[]),
-  )
+    const cachedLocations: CachedLocation[] = locationRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      customerId: row.customerId,
+      name: row.name ?? null,
+      addressLine1: row.addressLine1 ?? null,
+      addressLine2: row.addressLine2 ?? null,
+      city: row.city ?? null,
+      state: row.state ?? null,
+      postalCode: row.postalCode ?? null,
+      country: row.country ?? null,
+      latitude: row.latitude ?? null,
+      longitude: row.longitude ?? null,
+      gated: row.gated ?? false,
+    }))
+    await db.serviceLocations.clear()
+    await db.serviceLocations.bulkPut(cachedLocations)
 
-  if (locationIds.length > 0) {
-    await db.equipment.clear()
-    for (const locationId of locationIds) {
-      const rows = await getEquipmentByServiceLocationAction(orgId, locationId)
-      const mapped: CachedEquipment[] = rows.map((row) => ({
+    if (!estimatesResult.error) {
+      const cachedEstimates: CachedEstimate[] = estimatesResult.rows.map((row) => ({
         id: row.id,
         tenantId: orgId,
-        serviceLocationId: row.serviceLocationId,
-        kind: row.kind,
-        brand: row.brand ?? null,
-        installDate: row.installDate ? toISODate(new Date(row.installDate)) : null,
-        warrantyExpires: row.warrantyExpires ? toISODate(new Date(row.warrantyExpires)) : null,
+        status: row.status,
+        customerId: row.customerId,
+        customerName: row.customerName ?? null,
+        description: row.description ?? null,
+        value: row.value ?? null,
+        followUpDate: row.followUpDate ?? null,
+        expiryDate: row.expiryDate ?? null,
         notes: row.notes ?? null,
-        widthFt: row.widthFt ? String(row.widthFt) : null,
-        heightFt: row.heightFt ? String(row.heightFt) : null,
-        material: row.material ?? null,
-        style: row.style ?? null,
-        color: row.color ?? null,
-        modelSeries: row.modelSeries ?? null,
-        model: row.model ?? null,
-        hp: row.hp ? String(row.hp) : null,
-        serial: row.serial ?? null,
-        wireSize: row.wireSize ? String(row.wireSize) : null,
-        insideDiameter: row.insideDiameter ? String(row.insideDiameter) : null,
-        length: row.length ? String(row.length) : null,
-        windDirection: row.windDirection,
-        cycleRating: row.cycleRating ?? null,
+        createdAt: row.createdAt ?? null,
       }))
-      if (mapped.length > 0) {
-        await db.equipment.bulkPut(mapped)
+      await db.estimates.clear()
+      await db.estimates.bulkPut(cachedEstimates)
+    }
+
+    if (!invoicesResult.error) {
+      const cachedInvoices: CachedInvoice[] = invoicesResult.rows.map((row) => ({
+        id: row.id,
+        tenantId: orgId,
+        jobId: row.jobId ?? '',
+        customerId: row.customerId ?? '',
+        customerName: row.customerName ?? null,
+        invoiceNo: row.invoiceNo ?? null,
+        status: row.status,
+        total: row.total ?? null,
+        balance: row.balance ?? null,
+        issuedAt: row.issuedAt ?? null,
+        dueAt: row.dueAt ?? null,
+        paidAt: row.paidAt ?? null,
+        notes: row.notes ?? null,
+      }))
+      await db.invoices.clear()
+      await db.invoices.bulkPut(cachedInvoices)
+    }
+
+    const locationIds = Array.from(
+      new Set(cachedJobs.map((job) => job.serviceLocationId).filter(Boolean) as string[]),
+    )
+
+    if (locationIds.length > 0) {
+      await db.equipment.clear()
+      for (const locationId of locationIds) {
+        const rows = await getEquipmentByServiceLocationAction(orgId, locationId)
+        const mapped: CachedEquipment[] = rows.map((row) => ({
+          id: row.id,
+          tenantId: orgId,
+          serviceLocationId: row.serviceLocationId,
+          kind: row.kind,
+          brand: row.brand ?? null,
+          installDate: row.installDate ? toISODate(new Date(row.installDate)) : null,
+          warrantyExpires: row.warrantyExpires ? toISODate(new Date(row.warrantyExpires)) : null,
+          notes: row.notes ?? null,
+          widthFt: row.widthFt ? String(row.widthFt) : null,
+          heightFt: row.heightFt ? String(row.heightFt) : null,
+          material: row.material ?? null,
+          style: row.style ?? null,
+          color: row.color ?? null,
+          modelSeries: row.modelSeries ?? null,
+          model: row.model ?? null,
+          hp: row.hp ? String(row.hp) : null,
+          serial: row.serial ?? null,
+          wireSize: row.wireSize ? String(row.wireSize) : null,
+          insideDiameter: row.insideDiameter ? String(row.insideDiameter) : null,
+          length: row.length ? String(row.length) : null,
+          windDirection: row.windDirection,
+          cycleRating: row.cycleRating ?? null,
+        }))
+        if (mapped.length > 0) {
+          await db.equipment.bulkPut(mapped)
+        }
       }
     }
+
+    console.log('[sync] hydrate succeeded', {
+      orgId,
+      jobs: cachedJobs.length,
+      customers: cachedCustomers.length,
+      locations: cachedLocations.length,
+      estimates: estimatesResult.error ? 0 : estimatesResult.rows.length,
+      invoices: invoicesResult.error ? 0 : invoicesResult.rows.length,
+    })
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(TECH_DATA_UPDATED))
+    }
+  } catch (err) {
+    console.error('[sync] hydrate cache write failed', { orgId, userId, err })
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(TECH_DATA_UPDATE_FAILED, {
+          detail: { orgId, userId, error: err instanceof Error ? err.message : String(err) },
+        }),
+      )
+    }
+    throw err
   }
 }
 
@@ -466,16 +551,18 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
   const flush = () => {
     void flushOutbox(orgId, userId)
   }
-  const hydrate = () => {
-    void hydrateTechData(orgId, userId)
+  const hydrateNow = () => {
+    hydrateTechData(orgId, userId).catch((err) => {
+      console.warn('[sync] hydrate failed', err)
+    })
   }
 
-  const onOnline = () => { flush(); hydrate() }
-  const onFocus = () => { flush(); hydrate() }
+  const onOnline = () => { flush(); hydrateNow() }
+  const onFocus = () => { flush(); hydrateNow() }
   const onVisibility = () => {
     if (document.visibilityState === 'visible') {
       flush()
-      hydrate()
+      hydrateNow()
     }
   }
 
@@ -484,25 +571,46 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
   document.addEventListener('visibilitychange', onVisibility)
 
   flush()
-  hydrate()
+  hydrateTechData(orgId, userId).catch((err) => {
+    console.warn('[sync] initial hydrate failed', err)
+  })
 
-  const pollId = setInterval(() => { hydrate() }, 30_000)
+  const pollId = setInterval(() => {
+    hydrateTechData(orgId, userId).catch((err) => {
+      console.warn('[sync] poll hydrate failed', err)
+    })
+  }, 15_000)
 
   const client = createBrowserClient()
   const channel = client.channel(`dispatch:${orgId}`, {
     config: { broadcast: { self: false } },
   })
 
-  channel.on('broadcast', { event: 'job-updated' }, () => { hydrate() })
-  channel.on('broadcast', { event: 'job-assigned' }, () => { hydrate() })
-  channel.on('broadcast', { event: 'job-unassigned' }, () => { hydrate() })
-  channel.on('broadcast', { event: 'job-status-changed' }, () => { hydrate() })
+  channel.on('broadcast', { event: 'job-updated' }, (payload) => {
+    console.log('[sync] received job-updated', { orgId, payload })
+    hydrateNow()
+  })
+  channel.on('broadcast', { event: 'job-assigned' }, (payload) => {
+    console.log('[sync] received job-assigned', { orgId, payload })
+    hydrateNow()
+  })
+  channel.on('broadcast', { event: 'job-unassigned' }, (payload) => {
+    console.log('[sync] received job-unassigned', { orgId, payload })
+    hydrateNow()
+  })
+  channel.on('broadcast', { event: 'job-status-changed' }, (payload) => {
+    console.log('[sync] received job-status-changed', { orgId, payload })
+    hydrateNow()
+  })
 
   channel.subscribe((status, err) => {
+    console.log('[sync] realtime channel status', { orgId, status })
     if (status === 'CHANNEL_ERROR') {
-      console.warn('Tech dispatch realtime channel error', { orgId, err })
+      console.warn('[sync] realtime channel error', { orgId, err })
     } else if (status === 'CLOSED') {
-      console.warn('Tech dispatch realtime channel closed', { orgId })
+      console.warn('[sync] realtime channel closed', { orgId })
+    } else if (status === 'SUBSCRIBED') {
+      console.log('[sync] realtime channel subscribed', { orgId })
     }
   })
 

@@ -41,8 +41,8 @@ const popupData: PopupData = {
   contactName: 'Johann Oro',
   contactEmail: 'johannoro@gmail.com',
   customerLocations: [
-    { id: 'loc-1', name: 'Main Office', addressLine1: '123 Main St' },
-    { id: 'loc-2', name: 'Warehouse', addressLine1: '456 Warehouse Rd' },
+    { id: 'loc-1', name: 'Main Office', addressLine1: '123 Main St', addressLine2: null, city: 'Tampa', state: 'FL', postalCode: '33602', gated: false, isPrimary: true },
+    { id: 'loc-2', name: 'Warehouse', addressLine1: '456 Warehouse Rd', addressLine2: null, city: 'Tampa', state: 'FL', postalCode: '33603', gated: false, isPrimary: false },
   ],
 }
 

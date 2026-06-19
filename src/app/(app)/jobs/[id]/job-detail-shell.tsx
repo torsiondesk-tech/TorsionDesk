@@ -26,6 +26,7 @@ interface JobDetailShellProps {
   orgMembers: Array<{ id: string; label: string }>
   categoryName?: string
   sourceName?: string
+  initialEdit?: boolean
 }
 
 export function JobDetailShell({
@@ -35,8 +36,9 @@ export function JobDetailShell({
   orgMembers,
   categoryName,
   sourceName,
+  initialEdit = false,
 }: JobDetailShellProps) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(initialEdit)
 
   return (
     <div className="space-y-6">

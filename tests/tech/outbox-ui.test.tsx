@@ -32,8 +32,8 @@ describe('outbox visual flagging (TECH-14)', () => {
     await db.delete()
   })
 
-  it('contains all nine queued outbox types and no Square card type', () => {
-    expect(OUTBOX_TYPES).toHaveLength(9)
+  it('contains all ten queued outbox types and no Square card type', () => {
+    expect(OUTBOX_TYPES).toHaveLength(10)
     expect(OUTBOX_TYPES).toContain('invoice_create')
     expect(OUTBOX_TYPES).toContain('send_record')
     expect(OUTBOX_TYPES).toContain('manual_payment')

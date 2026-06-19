@@ -32,6 +32,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -43,6 +44,8 @@ import {
   SelectGroup,
   SelectLabel,
 } from '@/components/ui/select'
+import { AddressAutocomplete } from '@/components/address-autocomplete'
+import type { ParsedAddress } from '@/lib/places-actions'
 import { cn, formatPhone, toISODate } from '@/lib/utils'
 import {
   ALLOWED_TRANSITIONS,
@@ -60,11 +63,13 @@ import {
   updateJobArrivalWindow,
   updateJobAssignees,
   updateJobServiceLocation,
+  createServiceLocationForJob,
 } from '@/app/(app)/dispatch/actions'
 import type {
   WeekJob,
   Technician,
   PopupData,
+  CustomerLocation,
 } from '@/app/(app)/dispatch/actions'
 
 interface DispatchPopupProps {
@@ -104,6 +109,35 @@ function StatusPill({ status }: { status: string }) {
       {statusLabel(status)}
     </span>
   )
+}
+
+/* ── Location label helpers ── */
+function isRedundantLocationName(
+  name: string | null,
+  addressLine1: string | null,
+  city: string | null,
+): boolean {
+  if (!name || !addressLine1) return true
+  const n = name.trim().toLowerCase().replace(/,\s*/g, ',')
+  const a1 = addressLine1.trim().toLowerCase()
+  const a1City = [addressLine1, city].filter(Boolean).join(', ').toLowerCase().replace(/,\s*/g, ',')
+  return n === a1 || n === a1City || n.startsWith(a1 + ',')
+}
+
+function buildLocationLabel(loc: CustomerLocation): string {
+  const cityStateZip = [loc.city, loc.state, loc.postalCode].filter(Boolean).join(' ')
+  const addrFull = loc.addressLine1
+    ? `${loc.addressLine1}${cityStateZip ? `, ${cityStateZip}` : ''}`
+    : cityStateZip
+  const hasName = !isRedundantLocationName(loc.name, loc.addressLine1, loc.city ?? null)
+  if (hasName) return addrFull ? `${loc.name} — ${addrFull}` : (loc.name ?? loc.id)
+  return addrFull || loc.id
+}
+
+function buildFullAddress(loc: CustomerLocation): string {
+  return [loc.addressLine1, loc.addressLine2, loc.city, loc.state, loc.postalCode]
+    .filter(Boolean)
+    .join(', ')
 }
 
 /* ── Formatting helpers ── */
@@ -296,7 +330,15 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
 
   // ── Inline editing states ──
   const [editingLocation, setEditingLocation] = useState(false)
+  const [locationMode, setLocationMode] = useState<'select' | 'new'>('select')
   const [draftLocation, setDraftLocation] = useState(popupData?.serviceLocationId ?? '')
+  const [newLocName, setNewLocName] = useState('')
+  const [newLocGated, setNewLocGated] = useState(false)
+  const [newLocAddr, setNewLocAddr] = useState({
+    addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '',
+    lat: null as string | null, lng: null as string | null,
+  })
+  const [newLocError, setNewLocError] = useState<string | null>(null)
   const [savingLocation, startSaveLocation] = useTransition()
 
   const [editingDesc, setEditingDesc] = useState(false)
@@ -369,7 +411,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
           <div className="w-[150px] border-r bg-muted/20 p-2 space-y-1 shrink-0">
             <ActionButton icon={Route} label="Dispatch" disabled />
             <ActionButton icon={Eye} label="View Details" onClick={() => router.push(editHref)} />
-            <ActionButton icon={Pencil} label="Make Changes" onClick={() => router.push(editHref)} />
+            <ActionButton icon={Pencil} label="Make Changes" onClick={() => router.push(`${editHref}?edit=true`)} />
             <ActionButton icon={DollarSign} label="Deposits" disabled />
             <ActionButton
               icon={FileCheck}
@@ -414,79 +456,244 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                     <div className="text-xs text-muted-foreground">Service Location</div>
                     {editingLocation ? (
                       <div className="mt-1 space-y-2">
-                        <Select
-                          value={draftLocation}
-                          onValueChange={(v) => v && setDraftLocation(v)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select location…">
-                              {(() => {
-                                if (!draftLocation) return null
-                                const loc = localPopupData?.customerLocations.find(
-                                  (l) => l.id === draftLocation,
-                                )
-                                return loc ? loc.name || loc.addressLine1 || loc.id : null
-                              })()}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(localPopupData?.customerLocations ?? []).map((loc) => {
-                              const itemText = loc.name || loc.addressLine1 || loc.id
-                              return (
-                                <SelectItem key={loc.id} value={loc.id}>
-                                  {itemText}
-                                </SelectItem>
-                              )
-                            })}
-                          </SelectContent>
-                        </Select>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={savingLocation}
-                            onClick={() => {
-                              startSaveLocation(async () => {
-                                const r = await updateJobServiceLocation({
-                                  jobId: localJob.id,
-                                  serviceLocationId: draftLocation || null,
-                                })
-                                if (r.success) {
-                                  const loc = localPopupData?.customerLocations.find(
-                                    (l) => l.id === draftLocation,
+                        {locationMode === 'select' ? (
+                          <>
+                            <Select
+                              value={draftLocation}
+                              onValueChange={(v) => {
+                                if (v === '__new__') {
+                                  setLocationMode('new')
+                                  setNewLocName('')
+                                  setNewLocGated(false)
+                                  setNewLocAddr({ addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', lat: null, lng: null })
+                                  setNewLocError(null)
+                                } else {
+                                  setDraftLocation(v ?? '')
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-full">
+                                <SelectValue placeholder="Select location…">
+                                  {(() => {
+                                    if (!draftLocation) return null
+                                    const loc = localPopupData?.customerLocations.find(l => l.id === draftLocation)
+                                    return loc ? buildLocationLabel(loc) : null
+                                  })()}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent className="min-w-[300px]">
+                                {(localPopupData?.customerLocations ?? []).map((loc) => {
+                                  const hasName = !isRedundantLocationName(loc.name, loc.addressLine1 ?? null, loc.city ?? null)
+                                  const addrLine = [loc.addressLine1, loc.city, loc.state].filter(Boolean).join(', ')
+                                  return (
+                                    <SelectItem key={loc.id} value={loc.id}>
+                                      <span className="flex flex-col whitespace-normal leading-snug py-0.5">
+                                        {hasName && (
+                                          <span className="font-medium">{loc.name}{loc.isPrimary ? ' ★' : ''}</span>
+                                        )}
+                                        <span className={hasName ? 'text-xs text-muted-foreground' : ''}>
+                                          {addrLine || loc.id}{!hasName && loc.isPrimary ? ' ★' : ''}
+                                        </span>
+                                      </span>
+                                    </SelectItem>
                                   )
-                                  setLocalPopupData((prev) =>
-                                    prev
-                                      ? {
+                                })}
+                                <SelectItem value="__new__" className="text-blue-600 font-medium">
+                                  + Add new address…
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={savingLocation}
+                                onClick={() => {
+                                  startSaveLocation(async () => {
+                                    const r = await updateJobServiceLocation({
+                                      jobId: localJob.id,
+                                      serviceLocationId: draftLocation || null,
+                                    })
+                                    if (r.success) {
+                                      const loc = localPopupData?.customerLocations.find(l => l.id === draftLocation)
+                                      setLocalPopupData((prev) =>
+                                        prev ? {
                                           ...prev,
                                           serviceLocationId: draftLocation || null,
-                                          fullAddress: loc
-                                            ? [loc.name, loc.addressLine1].filter(Boolean).join(' — ')
-                                            : prev.fullAddress,
-                                        }
-                                      : prev,
-                                  )
+                                          fullAddress: loc ? buildFullAddress(loc) : prev.fullAddress,
+                                        } : prev,
+                                      )
+                                      setEditingLocation(false)
+                                      refresh()
+                                    }
+                                  })
+                                }}
+                              >
+                                <Check className="size-3 mr-1" /> Save
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={savingLocation}
+                                onClick={() => {
+                                  setDraftLocation(localPopupData?.serviceLocationId ?? '')
                                   setEditingLocation(false)
-                                  refresh()
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          /* ── New address form ── */
+                          <>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Location Name (optional)</Label>
+                              <Input
+                                value={newLocName}
+                                onChange={(e) => setNewLocName(e.target.value)}
+                                placeholder="e.g. Main House, Warehouse…"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Street Address</Label>
+                              <AddressAutocomplete
+                                defaultValue={newLocAddr.addressLine1}
+                                onAddressSelect={(parsed: ParsedAddress) =>
+                                  setNewLocAddr((a) => ({
+                                    ...a,
+                                    addressLine1: parsed.addressLine1,
+                                    city: parsed.city,
+                                    state: parsed.state,
+                                    postalCode: parsed.postalCode,
+                                    lat: parsed.latitude,
+                                    lng: parsed.longitude,
+                                  }))
                                 }
-                              })
-                            }}
-                          >
-                            <Check className="size-3 mr-1" /> Save
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={savingLocation}
-                            onClick={() => {
-                              setDraftLocation(localPopupData?.serviceLocationId ?? '')
-                              setEditingLocation(false)
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Unit / Suite</Label>
+                                <Input
+                                  value={newLocAddr.addressLine2}
+                                  onChange={(e) => setNewLocAddr((a) => ({ ...a, addressLine2: e.target.value }))}
+                                  placeholder="Apt, Suite…"
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">City</Label>
+                                <Input
+                                  value={newLocAddr.city}
+                                  onChange={(e) => setNewLocAddr((a) => ({ ...a, city: e.target.value }))}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs">State</Label>
+                                <Input
+                                  value={newLocAddr.state}
+                                  onChange={(e) => setNewLocAddr((a) => ({ ...a, state: e.target.value }))}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Zip</Label>
+                                <Input
+                                  value={newLocAddr.postalCode}
+                                  onChange={(e) => setNewLocAddr((a) => ({ ...a, postalCode: e.target.value }))}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                              <Checkbox
+                                checked={newLocGated}
+                                onCheckedChange={(v) => setNewLocGated(v === true)}
+                              />
+                              Gated Property
+                            </label>
+                            {newLocError && (
+                              <p role="alert" className="text-xs text-destructive">{newLocError}</p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={savingLocation || !newLocAddr.addressLine1}
+                                onClick={() => {
+                                  if (!newLocAddr.addressLine1) {
+                                    setNewLocError('Street address is required')
+                                    return
+                                  }
+                                  if (!localPopupData?.customerId) return
+                                  setNewLocError(null)
+                                  startSaveLocation(async () => {
+                                    const r = await createServiceLocationForJob({
+                                      jobId: localJob.id,
+                                      customerId: localPopupData.customerId!,
+                                      name: newLocName.trim() || null,
+                                      addressLine1: newLocAddr.addressLine1,
+                                      addressLine2: newLocAddr.addressLine2 || null,
+                                      city: newLocAddr.city || null,
+                                      state: newLocAddr.state || null,
+                                      postalCode: newLocAddr.postalCode || null,
+                                      gated: newLocGated,
+                                      latitude: newLocAddr.lat,
+                                      longitude: newLocAddr.lng,
+                                    })
+                                    if (r.error) {
+                                      setNewLocError(r.error)
+                                      return
+                                    }
+                                    const newLoc: CustomerLocation = {
+                                      id: r.id,
+                                      name: newLocName.trim() || null,
+                                      addressLine1: newLocAddr.addressLine1,
+                                      addressLine2: newLocAddr.addressLine2 || null,
+                                      city: newLocAddr.city || null,
+                                      state: newLocAddr.state || null,
+                                      postalCode: newLocAddr.postalCode || null,
+                                      gated: newLocGated,
+                                      isPrimary: false,
+                                    }
+                                    setLocalPopupData((prev) =>
+                                      prev ? {
+                                        ...prev,
+                                        serviceLocationId: r.id,
+                                        fullAddress: buildFullAddress(newLoc),
+                                        customerLocations: [...prev.customerLocations, newLoc],
+                                      } : prev,
+                                    )
+                                    setDraftLocation(r.id)
+                                    setLocationMode('select')
+                                    setEditingLocation(false)
+                                    refresh()
+                                  })
+                                }}
+                              >
+                                <Check className="size-3 mr-1" /> Save & Assign
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={savingLocation}
+                                onClick={() => {
+                                  setLocationMode('select')
+                                  setNewLocError(null)
+                                }}
+                              >
+                                Back
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -494,6 +701,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                         <button
                           onClick={() => {
                             setDraftLocation(localPopupData?.serviceLocationId ?? '')
+                            setLocationMode('select')
                             setEditingLocation(true)
                           }}
                           className="text-xs text-blue-600 hover:underline"

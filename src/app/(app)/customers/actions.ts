@@ -981,3 +981,25 @@ export async function searchCustomersAction(
   const { searchCustomers } = await import('@/lib/customers')
   return searchCustomers(orgId, q)
 }
+
+export async function renameCustomerAction(
+  id: string,
+  name: string,
+): Promise<{ error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'No active organization.' }
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: 'Name is required.' }
+
+  await withTenant(orgId, async (tx) => {
+    await tx
+      .update(customers)
+      .set({ name: trimmed, updatedAt: new Date() })
+      .where(and(eq(customers.tenantId, orgId), eq(customers.id, id)))
+  })
+
+  revalidatePath('/customers')
+  revalidatePath(`/customers/${id}`)
+  return {}
+}

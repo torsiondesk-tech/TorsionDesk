@@ -1,6 +1,6 @@
 ﻿import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
-import { Briefcase, MapPin, User, FileText, ClipboardList } from 'lucide-react'
+import { Briefcase, MapPin, User, FileText, ClipboardList, Calendar, Clock } from 'lucide-react'
 import { getJob } from '@/lib/jobs/jobs'
 import { getEquipmentByServiceLocation } from '@/lib/customers'
 import { getJobPhotoSignedUrls } from '@/lib/jobs/photos'
@@ -14,6 +14,7 @@ import { PhotoUploader } from '../../../components/photo-uploader'
 import { TechSignaturePad } from '../../../components/tech-signature-pad'
 import { CompletionNotes } from '../../../components/completion-notes'
 import { EquipmentSection } from '../../../components/equipment-section'
+import { TechLineItems } from '../../../components/tech-line-items'
 import { type CachedEquipment } from '@/app/(tech)/lib/dexie'
 
 interface TechJobDetailPageProps {
@@ -66,7 +67,7 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
   }))
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
       <Card className="rounded-xl border bg-card p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -74,6 +75,23 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
             <div>
               <p className="text-sm text-muted-foreground">Job #{job.jobNo}</p>
               <Badge variant={statusBadgeVariant(job.status)}>{statusLabel(job.status)}</Badge>
+              {job.startDate && (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
+                  <Calendar className="size-3.5 shrink-0" />
+                  {job.startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                </p>
+              )}
+              {(job.arrivalWindowStart || job.arrivalWindowEnd) && (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Clock className="size-3.5 shrink-0" />
+                  {job.arrivalWindowStart
+                    ? job.arrivalWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                    : ''}
+                  {job.arrivalWindowEnd
+                    ? ` – ${job.arrivalWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                    : ''}
+                </p>
+              )}
             </div>
           </div>
           <StatusBottomSheet
@@ -114,15 +132,27 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
               <CardTitle className="text-base">Service Location</CardTitle>
             </CardHeader>
             <CardContent>
-              {job.serviceLocation ? (
-                <div className="text-sm text-muted-foreground">
-                  <p>{job.serviceLocation.addressLine1}</p>
-                  {job.serviceLocation.addressLine2 && <p>{job.serviceLocation.addressLine2}</p>}
-                  <p>
-                    {job.serviceLocation.city}, {job.serviceLocation.state} {job.serviceLocation.postalCode}
-                  </p>
-                </div>
-              ) : (
+              {job.serviceLocation ? (() => {
+                const loc = job.serviceLocation
+                const parts = [
+                  loc.addressLine1,
+                  loc.addressLine2,
+                  [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', '),
+                ].filter(Boolean)
+                const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(parts.join(', '))}`
+                return (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline leading-relaxed"
+                  >
+                    {parts.map((line, i) => (
+                      <span key={i} className="block">{line}</span>
+                    ))}
+                  </a>
+                )
+              })() : (
                 <p className="text-sm text-muted-foreground">No service location on file.</p>
               )}
             </CardContent>
@@ -152,18 +182,7 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
               <CardTitle className="text-base">Line Items</CardTitle>
             </CardHeader>
             <CardContent>
-              {job.lineItems.length > 0 ? (
-                <ul className="flex flex-col gap-2">
-                  {job.lineItems.map((item) => (
-                    <li key={item.id} className="flex justify-between text-sm">
-                      <span>{item.description}</span>
-                      <span className="tabular-nums">{item.qty} x {item.rate}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">No line items on this job.</p>
-              )}
+              <TechLineItems jobId={job.id} items={job.lineItems} />
             </CardContent>
           </Card>
         </TabsContent>

@@ -55,6 +55,11 @@ const columns: ColumnDef<CustomerRow>[] = [
     cell: ({ row }) => formatPhone(row.original.primaryPhone) || '—',
   },
   {
+    accessorKey: 'primaryEmail',
+    header: 'Email',
+    cell: ({ row }) => row.original.primaryEmail || '—',
+  },
+  {
     accessorKey: 'primaryCity',
     header: 'City',
   },

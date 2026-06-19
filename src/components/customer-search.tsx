@@ -26,6 +26,8 @@ interface CustomerSearchProps {
   onChange?: (value: string | null) => void
   allowCreate?: boolean
   onCreateNew?: (name: string) => void
+  /** Called instead of clearing the selection when the user types while a customer is selected. */
+  onReplaceIntent?: (typedChar: string) => void
 }
 
 export function CustomerSearch({
@@ -35,6 +37,7 @@ export function CustomerSearch({
   onChange,
   allowCreate,
   onCreateNew,
+  onReplaceIntent,
 }: CustomerSearchProps) {
   const [value, setValue] = useState<string | null>(defaultValue ?? null)
   const [label, setLabel] = useState(defaultLabel ?? '')
@@ -63,6 +66,15 @@ export function CustomerSearch({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const v = e.currentTarget.value
+
+      // When there's a selected customer and the parent wants to intercept, fire
+      // the callback and leave internal state untouched — the input will revert
+      // to the label on the next render and the parent shows a dialog instead.
+      if (value && onReplaceIntent) {
+        onReplaceIntent(v)
+        return
+      }
+
       setQuery(v)
       if (value) {
         setValue(null)
@@ -73,7 +85,7 @@ export function CustomerSearch({
         search(v)
       }, 250)
     },
-    [value, onChange, search]
+    [value, onChange, search, onReplaceIntent]
   )
 
   const handleSelect = useCallback(

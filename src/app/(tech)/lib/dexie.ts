@@ -19,6 +19,7 @@ export const OUTBOX_TYPES = [
   'job_note',
   'job_photo',
   'job_signature',
+  'job_create',
   'estimate_create',
   'estimate_conversion',
   'invoice_create',
@@ -33,6 +34,8 @@ export interface OutboxItem {
   type: OutboxType
   payload: unknown
   createdAt: number
+  /** Monotonic enqueue sequence used to keep coalescing stable when multiple items share the same millisecond. */
+  seq: number
   retryCount: number
   error?: string
   syncStatus: OutboxStatus
@@ -62,6 +65,14 @@ export interface CachedJob {
   notesForTechs: string | null
   completionNotes: string | null
   assigneeUserIds: string[]
+  // display fields cached from the server join
+  customerName: string | null
+  addressLine1: string | null
+  city: string | null
+  state: string | null
+  postalCode: string | null
+  contactPhone: string | null
+  contactEmail: string | null
 }
 
 export interface CachedLocation {
@@ -168,9 +179,34 @@ export class TechSyncDb extends Dexie {
       invoices: 'id, tenantId, status, jobId, [tenantId+status]',
       outbox: 'id, type, syncStatus, createdAt',
     })
+    // v4: added display fields to CachedJob (customerName, address, phone, email)
+    this.version(4).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      outbox: 'id, type, syncStatus, createdAt',
+    })
+    // v5: add stable enqueue sequence to outbox for deterministic coalescing
+    this.version(5).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      outbox: 'id, type, syncStatus, createdAt, seq',
+    })
   }
 }
 
+const _instances = new Map<string, TechSyncDb>()
+
 export function createTechDb(orgId: string): TechSyncDb {
-  return new TechSyncDb(orgId)
+  if (!_instances.has(orgId)) {
+    _instances.set(orgId, new TechSyncDb(orgId))
+  }
+  return _instances.get(orgId)!
 }

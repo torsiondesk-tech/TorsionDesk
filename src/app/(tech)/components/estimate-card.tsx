@@ -16,7 +16,7 @@ function formatMoney(cents: number | null): string {
 
 export function EstimateCard({ estimate }: EstimateCardProps) {
   return (
-    <Link href={`/tech/estimates/${estimate.id}`} className="block">
+    <Link href={`/tech/estimates/${estimate.id}`} className="block touch-pan-y transition-transform duration-75 active:scale-[0.98]">
       <Card className="p-4">
         <CardContent className="p-0">
           <div className="flex items-start justify-between gap-3">

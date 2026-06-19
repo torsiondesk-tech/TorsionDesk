@@ -46,7 +46,12 @@ export interface JobRow {
   serviceLocationId: string | null
   customerName: string
   description: string | null
+  addressLine1: string | null
   city: string | null
+  state: string | null
+  postalCode: string | null
+  contactPhone: string | null
+  contactEmail: string | null
   category: string | null
   priority: string | null
   status: string
@@ -232,7 +237,24 @@ export async function listJobs(
         serviceLocationId: jobs.serviceLocationId,
         customerName: customers.name,
         description: jobs.description,
+        addressLine1: serviceLocations.addressLine1,
         city: serviceLocations.city,
+        state: serviceLocations.state,
+        postalCode: serviceLocations.postalCode,
+        contactPhone: sql<string | null>`(
+          SELECT cp.number FROM contact_phones cp
+          WHERE cp.contact_id = ${jobs.contactId}
+            AND cp.tenant_id = ${orgId}
+          ORDER BY cp.is_primary DESC, cp.created_at ASC
+          LIMIT 1
+        )`,
+        contactEmail: sql<string | null>`(
+          SELECT ce.address FROM contact_emails ce
+          WHERE ce.contact_id = ${jobs.contactId}
+            AND ce.tenant_id = ${orgId}
+          ORDER BY ce.is_primary DESC, ce.created_at ASC
+          LIMIT 1
+        )`,
         category: jobCategories.name,
         priority: jobs.priority,
         status: jobs.status,

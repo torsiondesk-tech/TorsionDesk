@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
       // Job photos (before/after shots) routinely exceed the 1 MB default.
       // Set to 12 MB to give FormData overhead headroom; app-level guard is 10 MB.
       bodySizeLimit: '12mb',
+      // Allow ngrok tunnels for mobile testing (tech PWA via phone).
+      // Next.js 15 CSRF-checks the Origin header; requests from ngrok URLs are
+      // blocked by default because they don't match localhost.
+      allowedOrigins: ['*.ngrok-free.dev', '*.ngrok.io', '*.ngrok.app'],
     },
   },
 }
