@@ -11,6 +11,13 @@ import withSerwistInit from '@serwist/next'
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  webpack(config) {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: ['**/node_modules/**', '**/public/sw.js', '**/public/tech/sw.js'],
+    }
+    return config
+  },
   // Next.js 15.5.x DevTools overlay has a bug where it fails to find
   // segment-explorer-node.js#SegmentViewNode in the React Client Manifest,
   // crashing page renders in dev mode. Disable until upstream fix ships.
@@ -40,7 +47,7 @@ const nextConfig: NextConfig = {
 
 const withSerwist = withSerwistInit({
   swSrc: 'src/app/sw.ts',
-  swDest: 'public/sw.js',
+  swDest: 'public/tech/sw.js',
   swUrl: '/tech/sw.js',
   scope: '/tech/',
   register: true,

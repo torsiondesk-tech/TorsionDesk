@@ -1176,6 +1176,7 @@ export const jobSignatures = pgTable(
       .notNull()
       .references(() => jobs.id, { onDelete: 'cascade' }),
     storagePath: text('storage_path').notNull(),
+    signatureType: text('signature_type').$type<'start' | 'complete'>(),
     signedBy: text('signed_by'),
     capturedBy: text('captured_by'),
     createdAt: timestamp('created_at').defaultNow(),

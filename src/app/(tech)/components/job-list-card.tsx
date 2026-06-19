@@ -10,12 +10,16 @@ interface JobListCardProps {
   job: JobRow
 }
 
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 function arrivalWindow(job: JobRow): string {
   if (job.arrivalWindowStart && job.arrivalWindowEnd) {
-    return `${job.arrivalWindowStart} – ${job.arrivalWindowEnd}`
+    return `${formatTime(job.arrivalWindowStart)} – ${formatTime(job.arrivalWindowEnd)}`
   }
   if (job.arrivalWindowStart) {
-    return job.arrivalWindowStart
+    return formatTime(job.arrivalWindowStart)
   }
   return 'All day'
 }

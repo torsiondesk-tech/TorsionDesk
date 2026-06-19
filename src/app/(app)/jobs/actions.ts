@@ -28,6 +28,7 @@ import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
 import { logger } from '@/lib/logger'
 import { normalizePhone } from '@/lib/utils'
+import { broadcastJobEvent } from '@/lib/jobs/broadcast'
 
 /**
  * ── Phone handling policy ──────────────────────────────────────────────────
@@ -859,6 +860,9 @@ export async function updateJob(
   revalidatePath('/jobs')
   revalidatePath(`/jobs/${data.id}`)
   revalidatePath(`/customers/${data.customerId}`)
+
+  broadcastJobEvent(orgId, 'job-updated', { jobId: data.id }).catch(() => {})
+
   return { success: true, id: data.id }
 }
 
@@ -876,6 +880,7 @@ export async function transitionJobStatusAction(
   try {
     await transitionJobStatus(jobId, toStatus, userId)
     revalidatePath(`/jobs/${jobId}`)
+    broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {})
     return { success: true }
   } catch (err) {
     const message = extractErrorMessage(err)

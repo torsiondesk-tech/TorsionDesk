@@ -51,8 +51,8 @@ export interface JobRow {
   priority: string | null
   status: string
   startDate: Date | null
-  arrivalWindowStart: string | null
-  arrivalWindowEnd: string | null
+  arrivalWindowStart: Date | null
+  arrivalWindowEnd: Date | null
   notesForTechs: string | null
   completionNotes: string | null
   createdAt: Date | null

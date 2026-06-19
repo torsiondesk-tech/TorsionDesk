@@ -73,6 +73,7 @@ export async function confirmJobSignature(
   path: string,
   signedBy: string,
   capturedBy: string,
+  signatureType: 'start' | 'complete',
 ): Promise<{ id: string }> {
   if (!signedBy.trim()) {
     throw new Error('Signed-by name is required')
@@ -85,6 +86,7 @@ export async function confirmJobSignature(
         tenantId: orgId,
         jobId,
         storagePath: path,
+        signatureType,
         signedBy: signedBy.trim(),
         capturedBy: capturedBy ?? null,
       })
@@ -100,7 +102,7 @@ export async function confirmJobSignature(
 export async function getJobSignatureSignedUrls(
   orgId: string,
   jobId: string,
-): Promise<{ id: string; url: string; signedBy: string | null; capturedBy: string | null; createdAt: Date | null }[]> {
+): Promise<{ id: string; url: string; signatureType: 'start' | 'complete' | null; signedBy: string | null; capturedBy: string | null; createdAt: Date | null }[]> {
   const supabase = getServiceClient()
 
   return withTenant(orgId, async (tx) => {
@@ -110,7 +112,7 @@ export async function getJobSignatureSignedUrls(
       .where(and(eq(jobSignatures.tenantId, orgId), eq(jobSignatures.jobId, jobId)))
       .orderBy(desc(jobSignatures.createdAt))
 
-    const results: { id: string; url: string; signedBy: string | null; capturedBy: string | null; createdAt: Date | null }[] = []
+    const results: { id: string; url: string; signatureType: 'start' | 'complete' | null; signedBy: string | null; capturedBy: string | null; createdAt: Date | null }[] = []
 
     for (const row of rows) {
       const { data, error } = await supabase.storage
@@ -120,6 +122,7 @@ export async function getJobSignatureSignedUrls(
       results.push({
         id: row.id,
         url: data.signedUrl,
+        signatureType: row.signatureType ?? null,
         signedBy: row.signedBy,
         capturedBy: row.capturedBy,
         createdAt: row.createdAt,

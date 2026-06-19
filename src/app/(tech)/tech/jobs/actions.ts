@@ -85,6 +85,7 @@ export async function confirmJobSignatureAction(
   jobId: string,
   path: string,
   signedBy: string,
+  signatureType: 'start' | 'complete',
 ): Promise<{ error?: string; success?: boolean }> {
   const { orgId, userId } = await auth()
   if (!orgId) {
@@ -97,7 +98,7 @@ export async function confirmJobSignatureAction(
 
   try {
     const { confirmJobSignature } = await import('@/lib/jobs/signatures')
-    await confirmJobSignature(orgId, jobId, path, signedBy, userId ?? '')
+    await confirmJobSignature(orgId, jobId, path, signedBy, userId ?? '', signatureType)
     revalidatePath(`/tech/jobs/${jobId}`)
     revalidatePath(`/jobs/${jobId}`)
     return { success: true }

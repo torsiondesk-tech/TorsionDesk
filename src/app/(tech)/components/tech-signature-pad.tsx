@@ -6,7 +6,7 @@ import { Eraser, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ import { toast } from 'sonner'
 interface SavedSignature {
   id: string
   url: string
+  signatureType: 'start' | 'complete' | null
   signedBy: string | null
   capturedBy: string | null
   createdAt: Date | null
@@ -47,23 +48,34 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([array], { type: mime })
 }
 
-export function TechSignaturePad({ orgId, jobId, userId, savedSignatures }: TechSignaturePadProps) {
+interface SignatureSectionProps {
+  label: string
+  description: string
+  signatureType: 'start' | 'complete'
+  orgId: string
+  jobId: string
+  userId: string
+  online: boolean
+  savedSignature: SavedSignature | undefined
+  pendingSignedBy: string | undefined
+}
+
+function SignatureSection({
+  label,
+  description,
+  signatureType,
+  orgId,
+  jobId,
+  userId,
+  online,
+  savedSignature,
+  pendingSignedBy,
+}: SignatureSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const padRef = useRef<SignaturePad | null>(null)
-  const online = useOnline()
-  const db = useMemo(() => createTechDb(orgId), [orgId])
   const [signedBy, setSignedBy] = useState('')
   const [isEmpty, setIsEmpty] = useState(true)
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
-
-  const pendingSignatures = useLiveQuery(
-    () => db.outbox.where('type').equals('job_signature').sortBy('createdAt'),
-    [db],
-  )
-
-  const pendingForJob = (pendingSignatures ?? []).filter(
-    (item) => (item.payload as SignaturePayload).jobId === jobId,
-  )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -116,10 +128,11 @@ export function TechSignaturePad({ orgId, jobId, userId, savedSignatures }: Tech
       type: 'job_signature',
       payload: {
         jobId,
-        filename: 'signature.png',
+        filename: `signature-${signatureType}.png`,
         fileSize: blob.size,
         blob,
         signedBy: signedBy.trim(),
+        signatureType,
       } satisfies SignaturePayload,
     })
 
@@ -141,90 +154,140 @@ export function TechSignaturePad({ orgId, jobId, userId, savedSignatures }: Tech
     setClearDialogOpen(false)
   }
 
+  const isCaptured = !!savedSignature || !!pendingSignedBy
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {savedSignature ? (
+          <div className="flex flex-col gap-2">
+            <img
+              src={savedSignature.url}
+              alt={`${label} signature by ${savedSignature.signedBy ?? 'customer'}`}
+              className="w-full rounded-lg border bg-white"
+            />
+            {savedSignature.signedBy && (
+              <p className="text-xs text-muted-foreground">Signed by: {savedSignature.signedBy}</p>
+            )}
+          </div>
+        ) : pendingSignedBy ? (
+          <div className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
+            Pending upload — signed by {pendingSignedBy}
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`signed-by-${signatureType}`}>Signed by</Label>
+              <Input
+                id={`signed-by-${signatureType}`}
+                value={signedBy}
+                onChange={(e) => setSignedBy(e.target.value)}
+                placeholder="Customer name"
+                className="text-base"
+              />
+            </div>
+
+            <div className="rounded-xl border bg-white p-2">
+              <canvas
+                ref={canvasRef}
+                aria-label={`${label} signature pad`}
+                className="touch-none h-48 w-full rounded-lg border border-dashed border-muted-foreground/50"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setClearDialogOpen(true)}
+                disabled={isEmpty}
+              >
+                <Eraser className="mr-2 size-4" />
+                Clear
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isEmpty || !signedBy.trim()}
+              >
+                <Save className="mr-2 size-4" />
+                Save
+              </Button>
+            </div>
+          </>
+        )}
+
+        <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Clear signature?</DialogTitle>
+              <DialogDescription>This will erase the current signature from the pad.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setClearDialogOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleClear}>Clear</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function TechSignaturePad({ orgId, jobId, userId, savedSignatures }: TechSignaturePadProps) {
+  const online = useOnline()
+  const db = useMemo(() => createTechDb(orgId), [orgId])
+
+  const pendingSignatures = useLiveQuery(
+    () => db.outbox.where('type').equals('job_signature').sortBy('createdAt'),
+    [db],
+  )
+
+  const pendingForJob = useMemo(
+    () => (pendingSignatures ?? []).filter(
+      (item) => (item.payload as SignaturePayload).jobId === jobId,
+    ),
+    [pendingSignatures, jobId],
+  )
+
+  const pendingStart = pendingForJob.find(
+    (item) => (item.payload as SignaturePayload).signatureType === 'start',
+  )
+  const pendingComplete = pendingForJob.find(
+    (item) => (item.payload as SignaturePayload).signatureType === 'complete',
+  )
+
+  const savedStart = savedSignatures.find((s) => s.signatureType === 'start')
+  const savedComplete = savedSignatures.find((s) => s.signatureType === 'complete')
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="signed-by">Signed by</Label>
-        <Input
-          id="signed-by"
-          value={signedBy}
-          onChange={(e) => setSignedBy(e.target.value)}
-          placeholder="Customer name"
-          className="text-base"
-        />
-      </div>
-
-      <div className="rounded-xl border bg-white p-2">
-        <canvas
-          ref={canvasRef}
-          aria-label="Customer signature pad"
-          className="touch-none h-48 w-full rounded-lg border border-dashed border-muted-foreground/50"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setClearDialogOpen(true)}
-          disabled={isEmpty}
-        >
-          <Eraser className="mr-2 size-4" />
-          Clear
-        </Button>
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={isEmpty || !signedBy.trim()}
-        >
-          <Save className="mr-2 size-4" />
-          Save Signature
-        </Button>
-      </div>
-
-      <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Clear signature?</DialogTitle>
-            <DialogDescription>This will erase the current signature from the pad.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setClearDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleClear}>Clear</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {pendingForJob.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium">Queued signatures</p>
-          {pendingForJob.map((item) => (
-            <span
-              key={item.id}
-              className="rounded-md bg-primary/10 px-2 py-1 text-xs text-primary"
-            >
-              {(item.payload as SignaturePayload).signedBy} — {item.syncStatus}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {savedSignatures.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium">Saved signatures</p>
-          {savedSignatures.map((sig) => (
-            <Card key={sig.id} className="overflow-hidden">
-              <CardContent className="p-0">
-                <img
-                  src={sig.url}
-                  alt={`Signature by ${sig.signedBy ?? 'customer'}`}
-                  className="w-full bg-white"
-                />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <SignatureSection
+        label="Authorize Start"
+        description="Customer authorizes the technician to begin work."
+        signatureType="start"
+        orgId={orgId}
+        jobId={jobId}
+        userId={userId}
+        online={online}
+        savedSignature={savedStart}
+        pendingSignedBy={pendingStart ? (pendingStart.payload as SignaturePayload).signedBy : undefined}
+      />
+      <SignatureSection
+        label="Authorize Completion"
+        description="Customer confirms the work has been completed satisfactorily."
+        signatureType="complete"
+        orgId={orgId}
+        jobId={jobId}
+        userId={userId}
+        online={online}
+        savedSignature={savedComplete}
+        pendingSignedBy={pendingComplete ? (pendingComplete.payload as SignaturePayload).signedBy : undefined}
+      />
     </div>
   )
 }

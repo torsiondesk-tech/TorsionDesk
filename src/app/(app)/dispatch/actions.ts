@@ -4,8 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { eq, and, or, sql, count, gte, lte, isNull, notInArray, inArray } from 'drizzle-orm'
 import { auth, clerkClient } from '@clerk/nextjs/server'
-import { createClient } from '@supabase/supabase-js'
 import { withTenant } from '@/db/with-tenant'
+import { broadcastJobEvent } from '@/lib/jobs/broadcast'
 import {
   jobs,
   jobAssignees,
@@ -92,39 +92,6 @@ async function fetchTechnicians(orgId: string): Promise<Technician[]> {
   return list
 }
 
-/** Broadcast a dispatch change event to all connected clients in this org. */
-async function broadcastDispatchEvent(
-  orgId: string,
-  event: string,
-  payload: Record<string, unknown>,
-) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return
-
-  if (!key.startsWith('sb_secret_')) {
-    console.warn(
-      '[Supabase] SUPABASE_SERVICE_ROLE_KEY looks like a legacy key. ' +
-        'Supabase migrated to new API keys; Realtime broadcast may fail until you update it ' +
-        'to the secret key from Dashboard → Project Settings → API.',
-    )
-  }
-
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-
-  const channel = supabase.channel(`dispatch:${orgId}`, {
-    config: { broadcast: { ack: true } },
-  })
-
-  await channel.subscribe(async (status) => {
-    if (status === 'SUBSCRIBED') {
-      await channel.send({ type: 'broadcast', event, payload })
-      await channel.unsubscribe()
-    }
-  })
-}
 
 // ── Actions ─────────────────────────────────────────────────────────────────
 
@@ -188,7 +155,7 @@ export async function updateJobAssignment(
   revalidatePath('/dispatch')
 
   // Notify other tabs / users in this org (Realtime Broadcast).
-  broadcastDispatchEvent(orgId, 'job-assigned', {
+  broadcastJobEvent(orgId, 'job-assigned', {
     jobId,
     techId: techUserId,
     date,
@@ -236,7 +203,7 @@ export async function unassignJob(
 
   revalidatePath('/dispatch')
 
-  broadcastDispatchEvent(orgId, 'job-unassigned', { jobId }).catch(() => {
+  broadcastJobEvent(orgId, 'job-unassigned', { jobId }).catch(() => {
     // Silently ignore broadcast failures — they are best-effort.
   })
 
@@ -279,7 +246,7 @@ export async function transitionJobStatusAction(
   revalidatePath('/dispatch')
   revalidatePath(`/jobs/${jobId}`)
 
-  broadcastDispatchEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {
+  broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {
     // best-effort
   })
 

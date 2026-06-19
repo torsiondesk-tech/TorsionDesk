@@ -45,8 +45,11 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map())
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const photosForJob = (pendingItems ?? []).filter(
-    (item) => (item.payload as PhotoPayload).jobId === jobId,
+  const photosForJob = useMemo(
+    () => (pendingItems ?? []).filter(
+      (item) => (item.payload as PhotoPayload).jobId === jobId,
+    ),
+    [pendingItems, jobId],
   )
 
   useEffect(() => {

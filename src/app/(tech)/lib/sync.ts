@@ -48,6 +48,7 @@ export interface SignaturePayload {
   fileSize: number
   blob: Blob
   signedBy: string
+  signatureType: 'start' | 'complete'
 }
 
 export interface NotePayload {
@@ -283,7 +284,7 @@ async function syncPhoto(item: OutboxItem): Promise<void> {
 
 async function syncSignature(item: OutboxItem): Promise<void> {
   const payload = item.payload as SignaturePayload
-  const { jobId, filename, fileSize, blob, signedBy } = payload
+  const { jobId, filename, fileSize, blob, signedBy, signatureType } = payload
 
   const urlResult = await getJobSignatureUploadUrlAction(jobId, filename, fileSize)
   if ('error' in urlResult && urlResult.error) {
@@ -302,7 +303,7 @@ async function syncSignature(item: OutboxItem): Promise<void> {
     throw new Error(`Direct upload failed: ${upload.status} ${upload.statusText}`)
   }
 
-  const confirmResult = await confirmJobSignatureAction(jobId, urlResult.path, signedBy)
+  const confirmResult = await confirmJobSignatureAction(jobId, urlResult.path, signedBy, signatureType)
   if ('error' in confirmResult && confirmResult.error) {
     throw new Error(confirmResult.error)
   }
@@ -469,11 +470,12 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
     void hydrateTechData(orgId, userId)
   }
 
-  const onOnline = () => flush()
-  const onFocus = () => flush()
+  const onOnline = () => { flush(); hydrate() }
+  const onFocus = () => { flush(); hydrate() }
   const onVisibility = () => {
     if (document.visibilityState === 'visible') {
       flush()
+      hydrate()
     }
   }
 
@@ -489,9 +491,10 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
     config: { broadcast: { self: false } },
   })
 
-  channel.on('broadcast', { event: 'job-updated' }, () => {
-    hydrate()
-  })
+  channel.on('broadcast', { event: 'job-updated' }, () => { hydrate() })
+  channel.on('broadcast', { event: 'job-assigned' }, () => { hydrate() })
+  channel.on('broadcast', { event: 'job-unassigned' }, () => { hydrate() })
+  channel.on('broadcast', { event: 'job-status-changed' }, () => { hydrate() })
 
   channel.subscribe((status, err) => {
     if (status === 'CHANNEL_ERROR') {
