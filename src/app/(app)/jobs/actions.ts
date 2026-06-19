@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { z } from 'zod'
 import { eq, and, sql } from 'drizzle-orm'
 import { auth, clerkClient } from '@clerk/nextjs/server'
@@ -861,7 +862,7 @@ export async function updateJob(
   revalidatePath(`/jobs/${data.id}`)
   revalidatePath(`/customers/${data.customerId}`)
 
-  broadcastJobEvent(orgId, 'job-updated', { jobId: data.id }).catch(() => {})
+  after(() => broadcastJobEvent(orgId, 'job-updated', { jobId: data.id }).catch(() => {}))
 
   return { success: true, id: data.id }
 }
@@ -880,7 +881,7 @@ export async function transitionJobStatusAction(
   try {
     await transitionJobStatus(jobId, toStatus, userId)
     revalidatePath(`/jobs/${jobId}`)
-    broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {})
+    after(() => broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {}))
     return { success: true }
   } catch (err) {
     const message = extractErrorMessage(err)

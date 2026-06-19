@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { z } from 'zod'
 import { eq, and, or, sql, count, gte, lte, isNull, notInArray, inArray } from 'drizzle-orm'
 import { auth, clerkClient } from '@clerk/nextjs/server'
@@ -154,14 +155,7 @@ export async function updateJobAssignment(
 
   revalidatePath('/dispatch')
 
-  // Notify other tabs / users in this org (Realtime Broadcast).
-  broadcastJobEvent(orgId, 'job-assigned', {
-    jobId,
-    techId: techUserId,
-    date,
-  }).catch(() => {
-    // Silently ignore broadcast failures — they are best-effort.
-  })
+  after(() => broadcastJobEvent(orgId, 'job-assigned', { jobId, techId: techUserId, date }).catch(() => {}))
 
   return { success: true }
 }
@@ -203,9 +197,7 @@ export async function unassignJob(
 
   revalidatePath('/dispatch')
 
-  broadcastJobEvent(orgId, 'job-unassigned', { jobId }).catch(() => {
-    // Silently ignore broadcast failures — they are best-effort.
-  })
+  after(() => broadcastJobEvent(orgId, 'job-unassigned', { jobId }).catch(() => {}))
 
   return { success: true }
 }
@@ -246,9 +238,7 @@ export async function transitionJobStatusAction(
   revalidatePath('/dispatch')
   revalidatePath(`/jobs/${jobId}`)
 
-  broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {
-    // best-effort
-  })
+  after(() => broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {}))
 
   return { success: true }
 }
