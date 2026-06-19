@@ -16,7 +16,7 @@ export async function broadcastJobEvent(
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      messages: [{ topic: `realtime:dispatch:${orgId}`, event, payload }],
+      messages: [{ topic: `dispatch:${orgId}`, event, payload }],
     }),
   })
 

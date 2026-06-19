@@ -486,6 +486,8 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
   flush()
   hydrate()
 
+  const pollId = setInterval(() => { hydrate() }, 30_000)
+
   const client = createBrowserClient()
   const channel = client.channel(`dispatch:${orgId}`, {
     config: { broadcast: { self: false } },
@@ -508,6 +510,7 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
     window.removeEventListener('online', onOnline)
     window.removeEventListener('focus', onFocus)
     document.removeEventListener('visibilitychange', onVisibility)
+    clearInterval(pollId)
     client.removeChannel(channel)
   }
 }
