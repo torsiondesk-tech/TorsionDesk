@@ -358,6 +358,10 @@ export const TECH_DATA_UPDATED = 'tech-data-updated'
 export const TECH_DATA_UPDATE_FAILED = 'tech-data-update-failed'
 
 export async function hydrateTechData(orgId: string, userId: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    console.log('[sync] offline — skipping hydrate, using cached data')
+    return
+  }
   console.log('[sync] hydrating...', { orgId, userId })
   const db = createTechDb(orgId)
   await db.open()
@@ -582,6 +586,7 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
   })
 
   const pollId = setInterval(() => {
+    if (!navigator.onLine) return
     hydrateTechData(orgId, userId).catch((err) => {
       console.warn('[sync] poll hydrate failed', err)
     })

@@ -67,7 +67,8 @@ describe('TechSignaturePad', () => {
       />,
     )
 
-    const canvas = screen.getByLabelText('Customer signature pad')
+    // Component renders two sections; verify the first (Authorize Start) canvas
+    const canvas = screen.getByLabelText('Authorize Start signature pad')
     expect(canvas).toBeInTheDocument()
     expect(canvas).toHaveClass('touch-none')
   })
@@ -83,8 +84,9 @@ describe('TechSignaturePad', () => {
       />,
     )
 
-    const saveButton = screen.getByRole('button', { name: /save signature/i })
-    expect(saveButton).toBeDisabled()
+    // Button text is "Save"; both are disabled when pad is empty
+    const saveButtons = screen.getAllByRole('button', { name: /^save$/i })
+    expect(saveButtons[0]).toBeDisabled()
     expect(enqueueOutboxItem).not.toHaveBeenCalled()
   })
 
@@ -99,8 +101,9 @@ describe('TechSignaturePad', () => {
       />,
     )
 
-    await userEvent.type(screen.getByLabelText(/signed by/i), 'John Doe')
-    await userEvent.click(screen.getByRole('button', { name: /save signature/i }))
+    // Two "Signed by" inputs (one per section); type into the first
+    await userEvent.type(screen.getAllByLabelText(/signed by/i)[0], 'John Doe')
+    await userEvent.click(screen.getAllByRole('button', { name: /^save$/i })[0])
 
     expect(enqueueOutboxItem).toHaveBeenCalledTimes(1)
     const call = vi.mocked(enqueueOutboxItem).mock.calls[0] as [string, { type: string; payload: unknown }]
@@ -109,7 +112,7 @@ describe('TechSignaturePad', () => {
 
     const payload = call[1].payload as SignaturePayload
     expect(payload.jobId).toBe('job_sig')
-    expect(payload.filename).toBe('signature.png')
+    expect(payload.filename).toBe('signature-start.png')
     expect(payload.fileSize).toBeGreaterThan(0)
     expect(payload.blob.type).toBe('image/png')
     expect(payload.signedBy).toBe('John Doe')

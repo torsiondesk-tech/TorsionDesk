@@ -1,7 +1,11 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { createTechDb, type CachedEquipment } from '@/app/(tech)/lib/dexie'
 import { EquipmentSection } from '@/app/(tech)/components/equipment-section'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
 
 const orgId = 'org_eq'
 const serviceLocationId = 'loc_eq_1'
