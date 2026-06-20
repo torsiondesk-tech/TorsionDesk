@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { createTechDb } from '@/app/(tech)/lib/dexie'
+import { createTechDb, type CachedSignatureMeta } from '@/app/(tech)/lib/dexie'
 import { enqueueOutboxItem, flushOutbox, type SignaturePayload } from '@/app/(tech)/lib/sync'
 import { getJobSignedSignaturesAction } from '@/app/(app)/jobs/actions'
 import { useOnline } from '@/app/(tech)/lib/use-online'
@@ -58,6 +58,8 @@ interface SignatureSectionProps {
   online: boolean
   savedSignature: ServerSignature | undefined
   pendingSignedBy: string | undefined
+  /** Name from cached server-confirmed metadata — shown offline when no URL is available. */
+  cachedSignedBy: string | undefined
 }
 
 function SignatureSection({
@@ -70,6 +72,7 @@ function SignatureSection({
   online,
   savedSignature,
   pendingSignedBy,
+  cachedSignedBy,
 }: SignatureSectionProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const padRef = useRef<SignaturePad | null>(null)
@@ -154,8 +157,6 @@ function SignatureSection({
     setClearDialogOpen(false)
   }
 
-  const isCaptured = !!savedSignature || !!pendingSignedBy
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -177,6 +178,10 @@ function SignatureSection({
         ) : pendingSignedBy ? (
           <div className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
             Pending upload — signed by {pendingSignedBy}
+          </div>
+        ) : cachedSignedBy ? (
+          <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            Captured — signed by {cachedSignedBy}
           </div>
         ) : (
           <>
@@ -246,12 +251,31 @@ export function TechSignaturePad({ orgId, jobId, userId }: TechSignaturePadProps
 
   const fetchServerSignatures = useCallback(async () => {
     const result = await getJobSignedSignaturesAction(jobId)
-    if (result.signatures) setServerSignatures(result.signatures)
-  }, [jobId])
+    if (result.signatures) {
+      setServerSignatures(result.signatures)
+      // Cache metadata in Dexie so the Sign tab doesn't show blank pads offline
+      const metas: CachedSignatureMeta[] = result.signatures
+        .filter((s): s is typeof s & { signatureType: 'start' | 'complete' } => s.signatureType === 'start' || s.signatureType === 'complete')
+        .map((s) => ({
+          id: s.id,
+          jobId,
+          signatureType: s.signatureType,
+          signedBy: s.signedBy,
+          capturedBy: s.capturedBy,
+        }))
+      if (metas.length > 0) await db.signatureMeta.bulkPut(metas)
+    }
+  }, [jobId, db])
 
   useEffect(() => {
     if (online) void fetchServerSignatures()
   }, [fetchServerSignatures, online])
+
+  // Offline fallback: read cached server-confirmed signatures from Dexie
+  const cachedSignatureMetas = useLiveQuery(
+    () => db.signatureMeta.where('jobId').equals(jobId).toArray(),
+    [db, jobId],
+  )
 
   const allOutboxSignatures = useLiveQuery(
     () => db.outbox.where('type').equals('job_signature').sortBy('createdAt'),
@@ -290,6 +314,10 @@ export function TechSignaturePad({ orgId, jobId, userId }: TechSignaturePadProps
   const savedStart = serverSignatures.find((s) => s.signatureType === 'start')
   const savedComplete = serverSignatures.find((s) => s.signatureType === 'complete')
 
+  // Offline fallback: use Dexie cache only when server state is absent
+  const cachedStart = cachedSignatureMetas?.find((s) => s.signatureType === 'start')
+  const cachedComplete = cachedSignatureMetas?.find((s) => s.signatureType === 'complete')
+
   return (
     <div className="flex flex-col gap-4">
       <SignatureSection
@@ -302,6 +330,7 @@ export function TechSignaturePad({ orgId, jobId, userId }: TechSignaturePadProps
         online={online}
         savedSignature={savedStart}
         pendingSignedBy={pendingStart ? (pendingStart.payload as SignaturePayload).signedBy : undefined}
+        cachedSignedBy={!savedStart && !pendingStart ? (cachedStart?.signedBy ?? undefined) : undefined}
       />
       <SignatureSection
         label="Authorize Completion"
@@ -313,6 +342,7 @@ export function TechSignaturePad({ orgId, jobId, userId }: TechSignaturePadProps
         online={online}
         savedSignature={savedComplete}
         pendingSignedBy={pendingComplete ? (pendingComplete.payload as SignaturePayload).signedBy : undefined}
+        cachedSignedBy={!savedComplete && !pendingComplete ? (cachedComplete?.signedBy ?? undefined) : undefined}
       />
     </div>
   )

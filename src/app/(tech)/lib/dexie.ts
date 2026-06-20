@@ -149,6 +149,15 @@ export interface CachedInvoice {
   notes: string | null
 }
 
+/** Lightweight record of a signature that has been confirmed on the server. Cached for offline display so the pad doesn't appear blank when connectivity drops. Signed URLs are NOT stored here — they expire and must be fetched fresh when online. */
+export interface CachedSignatureMeta {
+  id: string
+  jobId: string
+  signatureType: 'start' | 'complete'
+  signedBy: string | null
+  capturedBy: string | null
+}
+
 export class TechSyncDb extends Dexie {
   customers!: EntityTable<CachedCustomer, 'id'>
   jobs!: EntityTable<CachedJob, 'id'>
@@ -156,6 +165,7 @@ export class TechSyncDb extends Dexie {
   equipment!: EntityTable<CachedEquipment, 'id'>
   estimates!: EntityTable<CachedEstimate, 'id'>
   invoices!: EntityTable<CachedInvoice, 'id'>
+  signatureMeta!: EntityTable<CachedSignatureMeta, 'id'>
   outbox!: EntityTable<OutboxItem, 'id'>
 
   constructor(orgId: string) {
@@ -197,6 +207,17 @@ export class TechSyncDb extends Dexie {
       customers: 'id, tenantId, [tenantId+id]',
       estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
       invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      outbox: 'id, type, syncStatus, createdAt, seq',
+    })
+    // v6: cache server-confirmed signature metadata so the Sign tab doesn't show blank pads offline
+    this.version(6).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      signatureMeta: 'id, jobId, [jobId+signatureType]',
       outbox: 'id, type, syncStatus, createdAt, seq',
     })
   }
