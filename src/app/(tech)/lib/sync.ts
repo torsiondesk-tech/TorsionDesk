@@ -410,7 +410,7 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
       status: row.status,
       description: row.description,
-      startDate: row.startDate ? toISODate(new Date(row.startDate)) : null,
+      startDate: row.startDate ? row.startDate.toISOString().slice(0, 10) : null,
       arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
       arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
       notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
