@@ -158,7 +158,7 @@ export function MemberRow({
               }}
             >
               <SelectTrigger className="h-8 w-32 text-xs">
-                <SelectValue />
+                <SelectValue>{ROLE_OPTIONS.find((o) => o.value === selectedRole)?.label ?? selectedRole}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map((opt) => (
@@ -263,7 +263,7 @@ export function MemberRow({
             <input type="hidden" name="role" value={selectedRole} />
             <Select value={selectedRole} disabled={isSelf} onValueChange={(val) => { if (val) setSelectedRole(val) }}>
               <SelectTrigger className="h-8 w-full text-xs">
-                <SelectValue />
+                <SelectValue>{ROLE_OPTIONS.find((o) => o.value === selectedRole)?.label ?? selectedRole}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map((opt) => (

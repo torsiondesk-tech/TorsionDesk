@@ -57,7 +57,7 @@ export function InviteForm() {
         <input type="hidden" name="role" value={role} />
         <Select value={role} onValueChange={(val) => { if (val) setRole(val) }}>
           <SelectTrigger id="role" className="sm:w-44">
-            <SelectValue />
+            <SelectValue>{ROLE_OPTIONS.find((o) => o.value === role)?.label ?? role}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {ROLE_OPTIONS.map((opt) => (
