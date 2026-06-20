@@ -11,20 +11,57 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope
 
+// Shared cache name for /tech/* page navigations.
+const TECH_PAGES_CACHE = 'tech-pages-v1'
+
+// Generic cache key written whenever any job detail page is fetched online.
+// Because the job detail page is now auth-only (jobId read client-side via
+// useParams), all job detail URLs produce identical HTML. Caching under one
+// key means any unvisited job detail can be served offline once any job has
+// been opened while online.
+const JOB_DETAIL_SHELL = '/tech/jobs/__shell__'
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // Cache /tech/* document navigations so offline visits to previously-viewed
-    // pages (e.g. job detail) are served from cache rather than hitting ERR_FAILED.
-    // Must be listed before defaultCache so it takes precedence for these routes.
+    // Job detail pages — shared-shell caching strategy.
+    // On success: cache under both the exact URL and the generic shell key.
+    // On failure: try exact URL → generic shell → /tech/offline precache.
     {
-      matcher: ({ request, url }) =>
+      matcher: ({ request, url }: { request: Request; url: URL }) =>
+        request.destination === 'document' &&
+        /^\/tech\/jobs\/[^/]+$/.test(url.pathname),
+      handler: async ({ request }: { request: Request }) => {
+        const cache = await caches.open(TECH_PAGES_CACHE)
+        try {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 10_000)
+          const response = await fetch(request, { signal: controller.signal })
+          clearTimeout(timer)
+          await Promise.all([
+            cache.put(request, response.clone()),
+            cache.put(JOB_DETAIL_SHELL, response.clone()),
+          ])
+          return response
+        } catch {
+          return (
+            (await cache.match(request)) ??
+            (await cache.match(JOB_DETAIL_SHELL)) ??
+            (await caches.match('/tech/offline')) ??
+            new Response('Offline', { status: 503 })
+          )
+        }
+      },
+    },
+    // All other /tech/* document navigations — standard NetworkFirst.
+    {
+      matcher: ({ request, url }: { request: Request; url: URL }) =>
         request.destination === 'document' && url.pathname.startsWith('/tech/'),
       handler: new NetworkFirst({
-        cacheName: 'tech-pages-v1',
+        cacheName: TECH_PAGES_CACHE,
         networkTimeoutSeconds: 10,
       }),
     },
@@ -33,11 +70,8 @@ const serwist = new Serwist({
   fallbacks: {
     entries: [
       {
-        // /tech/offline is now a real route with force-static so it is in the
-        // precache manifest. Previously this pointed at /tech/offline which did
-        // not exist, causing ERR_FAILED instead of the offline page.
         url: '/tech/offline',
-        matcher: ({ request }) => request.destination === 'document',
+        matcher: ({ request }: { request: Request }) => request.destination === 'document',
       },
     ],
   },
