@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/shell/sidebar'
 import { CreateNewButton } from '@/components/header/create-new-button'
 import { GlobalSearch } from '@/components/header/global-search'
 import { ModeToggle } from '@/components/theme/mode-toggle'
+import { SignOutButton } from '@/components/header/sign-out-button'
 
 /**
  * Protected app shell (D-07/D-16; RESEARCH Pattern 5).
@@ -33,6 +34,7 @@ export default async function AppLayout({
           <div className="flex items-center gap-3">
             <GlobalSearch />
             <ModeToggle />
+            <SignOutButton />
             <CreateNewButton />
           </div>
         </header>
