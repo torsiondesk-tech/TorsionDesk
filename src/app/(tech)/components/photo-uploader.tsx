@@ -75,6 +75,8 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteUploadedId, setDeleteUploadedId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Optimistic preview: shown immediately after file selection, before Dexie write completes.
+  const [optimisticUrl, setOptimisticUrl] = useState<string | null>(null)
 
   const pendingItems = useLiveQuery(
     () => db.outbox.where('type').equals('job_photo').sortBy('createdAt'),
@@ -96,7 +98,8 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
     const urls = new Map<string, string>()
     for (const item of photosForJob) {
       const blob = (item.payload as PhotoPayload).blob
-      if (blob) {
+      // Guard against corrupted/empty blobs (can happen on iOS after memory pressure)
+      if (blob && blob.size > 0) {
         urls.set(item.id, URL.createObjectURL(blob))
       }
     }
@@ -107,6 +110,14 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
       }
     }
   }, [photosForJob])
+
+  // Resume any pending/stuck uploads from prior sessions whenever we mount online.
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      void flushOutbox(orgId, userId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchServerPhotos = useCallback(async () => {
     const result = await getJobSignedPhotosAction(jobId)
@@ -135,6 +146,11 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Show an immediate preview from the raw file so the user sees feedback
+    // instantly, before the canvas compression and Dexie write complete.
+    const rawPreviewUrl = URL.createObjectURL(file)
+    setOptimisticUrl(rawPreviewUrl)
+
     const { blob: compressed, filename } = await compressImage(file)
 
     await enqueueOutboxItem(orgId, {
@@ -147,12 +163,20 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
       } satisfies PhotoPayload,
     })
 
-    if (online) {
-      void flushOutbox(orgId, userId)
-    }
+    // Dexie write is done — useLiveQuery will now show the item via objectUrls.
+    URL.revokeObjectURL(rawPreviewUrl)
+    setOptimisticUrl(null)
 
     if (inputRef.current) inputRef.current.value = ''
     if (galleryRef.current) galleryRef.current.value = ''
+
+    if (online) {
+      // Await the flush so we can refresh server photos immediately after it
+      // completes — eliminates the gap between the outbox item disappearing and
+      // the uploaded photo appearing in the grid.
+      await flushOutbox(orgId, userId)
+      void fetchServerPhotos()
+    }
   }
 
   async function handleRetry() {
@@ -215,11 +239,28 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
         </Button>
       </div>
 
-      {photosForJob.length === 0 && serverPhotos.length === 0 && (
+      {photosForJob.length === 0 && serverPhotos.length === 0 && !optimisticUrl && (
         <p className="text-center text-sm text-muted-foreground">No photos yet. Tap Camera to capture one.</p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
+        {/* Optimistic preview card — visible from file selection until Dexie write finishes */}
+        {optimisticUrl && (
+          <Card className="relative overflow-hidden">
+            <CardContent className="p-0">
+              <img
+                src={optimisticUrl}
+                alt="Processing…"
+                className="aspect-square w-full object-cover"
+              />
+              <div className="absolute top-2 left-2">
+                <span className="rounded-md bg-primary/90 px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
+                  Uploading…
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {photosForJob.map((item) => {
           const payload = item.payload as PhotoPayload
           const url = objectUrls.get(item.id)
