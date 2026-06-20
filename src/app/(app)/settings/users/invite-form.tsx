@@ -1,9 +1,16 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { inviteUser, type InviteState } from './actions'
 
 /**
@@ -26,6 +33,7 @@ const ROLE_OPTIONS: { label: string; value: string }[] = [
 
 export function InviteForm() {
   const [state, formAction, pending] = useActionState(inviteUser, initialState)
+  const [role, setRole] = useState('org:dispatcher')
 
   return (
     <form
@@ -46,18 +54,19 @@ export function InviteForm() {
 
       <div className="space-y-2">
         <Label htmlFor="role">Role</Label>
-        <select
-          id="role"
-          name="role"
-          defaultValue="org:dispatcher"
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none sm:w-44 dark:[color-scheme:dark]"
-        >
-          {ROLE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <input type="hidden" name="role" value={role} />
+        <Select value={role} onValueChange={(val) => { if (val) setRole(val) }}>
+          <SelectTrigger id="role" className="sm:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Button type="submit" disabled={pending}>

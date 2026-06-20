@@ -5,6 +5,13 @@ import { useActionState } from 'react'
 import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatPhoneInput } from '@/lib/utils'
 import {
   removeMember,
@@ -140,23 +147,27 @@ export function MemberRow({
           {/* Inline role change — pick role then click checkmark to confirm */}
           <form action={roleFormAction} className="flex items-center gap-2">
             <input type="hidden" name="membershipId" value={id} />
-            <select
-              name="role"
+            <input type="hidden" name="role" value={selectedRole} />
+            <Select
               value={selectedRole}
               disabled={isSelf}
-              onChange={(e) => {
-                const val = e.target.value
+              onValueChange={(val) => {
+                if (!val) return
                 setSelectedRole(val)
                 setRoleDirty(val !== role)
               }}
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 dark:[color-scheme:dark]"
             >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {roleDirty && !isSelf && (
               <Button
                 type="submit"
@@ -249,18 +260,19 @@ export function MemberRow({
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Role</label>
-            <select
-              name="role"
-              defaultValue={role}
-              disabled={isSelf}
-              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 dark:[color-scheme:dark]"
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <input type="hidden" name="role" value={selectedRole} />
+            <Select value={selectedRole} disabled={isSelf} onValueChange={(val) => { if (val) setSelectedRole(val) }}>
+              <SelectTrigger className="h-8 w-full text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Date of birth</label>
