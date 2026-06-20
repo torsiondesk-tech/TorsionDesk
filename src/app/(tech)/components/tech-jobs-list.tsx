@@ -68,7 +68,7 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
       serviceLocationId: row.serviceLocationId,
       status: row.status,
       description: row.description,
-      startDate: row.startDate ? toISODate(row.startDate) : null,
+      startDate: row.startDate ? row.startDate.toISOString().slice(0, 10) : null,
       arrivalWindowStart: row.arrivalWindowStart?.toISOString() ?? null,
       arrivalWindowEnd: row.arrivalWindowEnd?.toISOString() ?? null,
       notesForTechs: row.notesForTechs,
@@ -150,7 +150,16 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
 
   // While Dexie is initialising (undefined), fall back to server-rendered rows
   // so the list renders immediately without a loading spinner.
-  const rows = jobs !== undefined ? jobs.map(toJobRow) : initialRows
+  // Server Date objects are at UTC midnight (PG driver convention); normalize to
+  // local midnight via UTC extraction so groupJobsByDay's local-getter logic works.
+  const rows = jobs !== undefined
+    ? jobs.map(toJobRow)
+    : initialRows.map(row => ({
+        ...row,
+        startDate: row.startDate
+          ? parseCalendarDate(row.startDate.toISOString().slice(0, 10))
+          : null,
+      }))
   const allGroups = groupJobsByDay(rows, today)
   const { upcoming, past } = splitGroupsByTime(allGroups, today)
   const activeGroups = tab === 'upcoming' ? upcoming : past
