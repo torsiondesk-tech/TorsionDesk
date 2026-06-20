@@ -149,7 +149,7 @@ export function MemberRow({
                 setSelectedRole(val)
                 setRoleDirty(val !== role)
               }}
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 dark:[color-scheme:dark]"
             >
               {ROLE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -253,7 +253,7 @@ export function MemberRow({
               name="role"
               defaultValue={role}
               disabled={isSelf}
-              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+              className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 dark:[color-scheme:dark]"
             >
               {ROLE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
