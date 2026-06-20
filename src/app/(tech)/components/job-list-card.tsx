@@ -49,7 +49,10 @@ export function JobListCard({ job }: JobListCardProps) {
       <Card className="p-4">
         <CardContent className="p-0 flex flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-base font-semibold leading-tight">{job.customerName}</p>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-base font-semibold leading-tight">{job.customerName}</p>
+              <p className="text-xs text-muted-foreground">Job #{job.jobNo}</p>
+            </div>
             <Badge variant={statusBadgeVariant(job.status)} className="shrink-0">
               {statusLabel(job.status)}
             </Badge>
