@@ -28,31 +28,41 @@ const serwist = new Serwist({
   navigationPreload: true,
   runtimeCaching: [
     // Job detail pages — shared-shell caching strategy.
-    // On success: cache under both the exact URL and the generic shell key.
-    // On failure: try exact URL → generic shell → /tech/offline precache.
+    // Matches ALL GET requests (document navigations AND background fetch warm-up calls).
+    // On success: only cache HTML responses (not RSC wire payloads) under both the
+    //   exact URL and the generic shell key.
+    // On failure (document): try exact URL → generic shell → /tech/offline precache.
+    // On failure (non-document): return 503 — Next.js router handles the error.
     {
       matcher: ({ request, url }: { request: Request; url: URL }) =>
-        request.destination === 'document' &&
+        request.method === 'GET' &&
         /^\/tech\/jobs\/[^/]+$/.test(url.pathname),
       handler: async ({ request }: { request: Request }) => {
         const cache = await caches.open(TECH_PAGES_CACHE)
+        const isDocument = request.destination === 'document'
         try {
           const controller = new AbortController()
           const timer = setTimeout(() => controller.abort(), 10_000)
           const response = await fetch(request, { signal: controller.signal })
           clearTimeout(timer)
-          await Promise.all([
-            cache.put(request, response.clone()),
-            cache.put(JOB_DETAIL_SHELL, response.clone()),
-          ])
+          const ct = response.headers.get('Content-Type') ?? ''
+          if (response.ok && ct.includes('text/html')) {
+            await Promise.all([
+              cache.put(request, response.clone()),
+              cache.put(JOB_DETAIL_SHELL, response.clone()),
+            ])
+          }
           return response
         } catch {
-          return (
-            (await cache.match(request)) ??
-            (await cache.match(JOB_DETAIL_SHELL)) ??
-            (await caches.match('/tech/offline')) ??
-            new Response('Offline', { status: 503 })
-          )
+          if (isDocument) {
+            return (
+              (await cache.match(request)) ??
+              (await cache.match(JOB_DETAIL_SHELL)) ??
+              (await caches.match('/tech/offline')) ??
+              new Response('Offline', { status: 503 })
+            )
+          }
+          return (await cache.match(request)) ?? new Response('', { status: 503 })
         }
       },
     },

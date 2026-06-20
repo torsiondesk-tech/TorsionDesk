@@ -410,7 +410,7 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
       status: row.status,
       description: row.description,
-      startDate: row.startDate ? row.startDate.toISOString().slice(0, 10) : null,
+      startDate: row.startDate ? toISODate(new Date(row.startDate)) : null,
       arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
       arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
       notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
@@ -543,6 +543,13 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(TECH_DATA_UPDATED))
+    }
+
+    // Warm the SW job-detail shell cache so unvisited jobs load offline.
+    // A plain fetch (no RSC headers) gets HTML from Next.js; the SW handler
+    // caches it under JOB_DETAIL_SHELL which is the offline fallback for all jobs.
+    if (cachedJobs.length > 0 && typeof window !== 'undefined') {
+      fetch(`/tech/jobs/${cachedJobs[0].id}`, { credentials: 'include' }).catch(() => {})
     }
   } catch (err) {
     console.error('[sync] hydrate cache write failed', { orgId, userId, err })
