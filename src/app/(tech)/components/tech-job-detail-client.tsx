@@ -188,7 +188,6 @@ export function TechJobDetailClient({ orgId, userId }: TechJobDetailClientProps)
             orgId={orgId}
             jobId={job.id}
             userId={userId}
-            savedSignatures={[]}
           />
         </TabsContent>
 

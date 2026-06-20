@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import SignaturePad from 'signature_pad'
 import { Eraser, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,10 +18,11 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb } from '@/app/(tech)/lib/dexie'
 import { enqueueOutboxItem, flushOutbox, type SignaturePayload } from '@/app/(tech)/lib/sync'
+import { getJobSignedSignaturesAction } from '@/app/(app)/jobs/actions'
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { toast } from 'sonner'
 
-interface SavedSignature {
+interface ServerSignature {
   id: string
   url: string
   signatureType: 'start' | 'complete' | null
@@ -34,7 +35,6 @@ interface TechSignaturePadProps {
   orgId: string
   jobId: string
   userId: string
-  savedSignatures: SavedSignature[]
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -56,7 +56,7 @@ interface SignatureSectionProps {
   jobId: string
   userId: string
   online: boolean
-  savedSignature: SavedSignature | undefined
+  savedSignature: ServerSignature | undefined
   pendingSignedBy: string | undefined
 }
 
@@ -238,21 +238,47 @@ function SignatureSection({
   )
 }
 
-export function TechSignaturePad({ orgId, jobId, userId, savedSignatures }: TechSignaturePadProps) {
+export function TechSignaturePad({ orgId, jobId, userId }: TechSignaturePadProps) {
   const online = useOnline()
   const db = useMemo(() => createTechDb(orgId), [orgId])
 
-  const pendingSignatures = useLiveQuery(
+  const [serverSignatures, setServerSignatures] = useState<ServerSignature[]>([])
+
+  const fetchServerSignatures = useCallback(async () => {
+    const result = await getJobSignedSignaturesAction(jobId)
+    if (result.signatures) setServerSignatures(result.signatures)
+  }, [jobId])
+
+  useEffect(() => {
+    if (online) void fetchServerSignatures()
+  }, [fetchServerSignatures, online])
+
+  const allOutboxSignatures = useLiveQuery(
     () => db.outbox.where('type').equals('job_signature').sortBy('createdAt'),
     [db],
   )
 
+  // Only show items that haven't been synced yet
   const pendingForJob = useMemo(
-    () => (pendingSignatures ?? []).filter(
-      (item) => (item.payload as SignaturePayload).jobId === jobId,
+    () => (allOutboxSignatures ?? []).filter(
+      (item) =>
+        (item.payload as SignaturePayload).jobId === jobId &&
+        item.syncStatus !== 'synced',
     ),
-    [pendingSignatures, jobId],
+    [allOutboxSignatures, jobId],
   )
+
+  // Re-fetch server signatures when a pending item finishes syncing
+  const prevPendingCountRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (allOutboxSignatures === undefined) return
+    const curr = pendingForJob.length
+    const prev = prevPendingCountRef.current
+    prevPendingCountRef.current = curr
+    if (prev !== null && curr < prev) {
+      void fetchServerSignatures()
+    }
+  }, [pendingForJob.length, allOutboxSignatures, fetchServerSignatures])
 
   const pendingStart = pendingForJob.find(
     (item) => (item.payload as SignaturePayload).signatureType === 'start',
@@ -261,8 +287,8 @@ export function TechSignaturePad({ orgId, jobId, userId, savedSignatures }: Tech
     (item) => (item.payload as SignaturePayload).signatureType === 'complete',
   )
 
-  const savedStart = savedSignatures.find((s) => s.signatureType === 'start')
-  const savedComplete = savedSignatures.find((s) => s.signatureType === 'complete')
+  const savedStart = serverSignatures.find((s) => s.signatureType === 'start')
+  const savedComplete = serverSignatures.find((s) => s.signatureType === 'complete')
 
   return (
     <div className="flex flex-col gap-4">

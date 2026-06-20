@@ -21,6 +21,23 @@ vi.mock('@/app/(tech)/lib/sync', async (importOriginal) => ({
   flushOutbox: vi.fn(),
 }))
 
+vi.mock('@/app/(app)/jobs/actions', () => ({
+  getJobSignedSignaturesAction: vi.fn().mockResolvedValue({ signatures: [] }),
+}))
+
+vi.mock('@/app/(tech)/lib/dexie', () => ({
+  createTechDb: vi.fn(() => ({
+    outbox: {
+      where: vi.fn().mockReturnValue({ equals: vi.fn().mockReturnValue({ sortBy: vi.fn().mockResolvedValue([]) }) }),
+    },
+    open: vi.fn().mockResolvedValue(undefined),
+  })),
+}))
+
+vi.mock('dexie-react-hooks', () => ({
+  useLiveQuery: vi.fn().mockReturnValue([]),
+}))
+
 import { enqueueOutboxItem, type SignaturePayload } from '@/app/(tech)/lib/sync'
 import SignaturePad from 'signature_pad'
 
@@ -63,7 +80,6 @@ describe('TechSignaturePad', () => {
         orgId="org_sig"
         jobId="job_sig"
         userId="user_sig"
-        savedSignatures={[]}
       />,
     )
 
@@ -80,7 +96,6 @@ describe('TechSignaturePad', () => {
         orgId="org_sig"
         jobId="job_sig"
         userId="user_sig"
-        savedSignatures={[]}
       />,
     )
 
@@ -97,7 +112,6 @@ describe('TechSignaturePad', () => {
         orgId="org_sig"
         jobId="job_sig"
         userId="user_sig"
-        savedSignatures={[]}
       />,
     )
 

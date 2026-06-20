@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
 import { getJob } from '@/lib/jobs/jobs'
 import { getJobPhotoSignedUrls } from '@/lib/jobs/photos'
+import { getJobSignatureSignedUrls } from '@/lib/jobs/signatures'
 import {
   listJobCategories,
   listJobSources,
@@ -14,6 +15,7 @@ import { JobForm, type JobFormData } from './job-form'
 import { JobDetailShell } from './job-detail-shell'
 import { EquipmentTab } from './tabs/equipment-tab'
 import { PicsTab } from './tabs/pics-tab'
+import { SignTab } from './tabs/sign-tab'
 import {
   Tabs,
   TabsContent,
@@ -146,6 +148,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     productCategories,
     orgMembers,
     photoUrls,
+    signatureUrls,
   ] = await Promise.all([
     listJobCategories(orgId),
     listJobSources(orgId),
@@ -154,6 +157,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     listProductCategories(orgId),
     listOrgMembers(orgId),
     getJobPhotoSignedUrls(orgId, id),
+    getJobSignatureSignedUrls(orgId, id),
   ])
 
   const initial = mapJobToFormData(job)
@@ -224,9 +228,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
         </TabsContent>
 
         <TabsContent value="sign">
-          <div className="rounded-xl border bg-card p-6">
-            <p className="text-muted-foreground">Coming in a later release.</p>
-          </div>
+          <SignTab signatures={signatureUrls} />
         </TabsContent>
       </Tabs>
     </div>

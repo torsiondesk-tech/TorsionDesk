@@ -1536,6 +1536,26 @@ export async function getJobSignedPhotosAction(
   }
 }
 
+/**
+ * Fetch signed view URLs for all signatures on a job (tech PWA + desktop Sign tab).
+ */
+export async function getJobSignedSignaturesAction(
+  jobId: string,
+): Promise<{ signatures?: { id: string; url: string; signatureType: 'start' | 'complete' | null; signedBy: string | null; capturedBy: string | null; createdAt: Date | null }[]; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    const { getJobSignatureSignedUrls } = await import('@/lib/jobs/signatures')
+    const signatures = await getJobSignatureSignedUrls(orgId, jobId)
+    return { signatures }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    logger.error('getJobSignedSignaturesAction', err)
+    return { error: message }
+  }
+}
+
 // ── Apply Template ───────────────────────────────────────────────────────────
 
 export async function applyTemplateAction(
