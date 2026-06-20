@@ -437,8 +437,13 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       contactPhone: row.contactPhone ?? null,
       contactEmail: row.contactEmail ?? null,
     }))
-    await db.jobs.clear()
-    await db.jobs.bulkPut(cachedJobs)
+
+    // Atomic transaction so useLiveQuery sees jobs go old→new in one step,
+    // never through an empty intermediate state that would flash the loading spinner.
+    await db.transaction('rw', db.jobs, async () => {
+      await db.jobs.clear()
+      await db.jobs.bulkPut(cachedJobs)
+    })
 
     const cachedCustomers: CachedCustomer[] = customerRows.map((row) => ({
       id: row.id,
@@ -448,8 +453,10 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       primaryPhone: row.primaryPhone ?? null,
       primaryCity: row.primaryCity ?? null,
     }))
-    await db.customers.clear()
-    await db.customers.bulkPut(cachedCustomers)
+    await db.transaction('rw', db.customers, async () => {
+      await db.customers.clear()
+      await db.customers.bulkPut(cachedCustomers)
+    })
 
     const cachedLocations: CachedLocation[] = locationRows.map((row) => ({
       id: row.id,
@@ -466,8 +473,10 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       longitude: row.longitude ?? null,
       gated: row.gated ?? false,
     }))
-    await db.serviceLocations.clear()
-    await db.serviceLocations.bulkPut(cachedLocations)
+    await db.transaction('rw', db.serviceLocations, async () => {
+      await db.serviceLocations.clear()
+      await db.serviceLocations.bulkPut(cachedLocations)
+    })
 
     if (!estimatesResult.error) {
       const cachedEstimates: CachedEstimate[] = estimatesResult.rows.map((row) => ({
@@ -483,8 +492,10 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
         notes: row.notes ?? null,
         createdAt: row.createdAt ?? null,
       }))
-      await db.estimates.clear()
-      await db.estimates.bulkPut(cachedEstimates)
+      await db.transaction('rw', db.estimates, async () => {
+        await db.estimates.clear()
+        await db.estimates.bulkPut(cachedEstimates)
+      })
     }
 
     if (!invoicesResult.error) {
@@ -503,8 +514,10 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
         paidAt: row.paidAt ?? null,
         notes: row.notes ?? null,
       }))
-      await db.invoices.clear()
-      await db.invoices.bulkPut(cachedInvoices)
+      await db.transaction('rw', db.invoices, async () => {
+        await db.invoices.clear()
+        await db.invoices.bulkPut(cachedInvoices)
+      })
     }
 
     const locationIds = Array.from(
@@ -512,13 +525,15 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
     )
 
     if (locationIds.length > 0) {
-      await db.equipment.clear()
-      for (const locationId of locationIds) {
-        const rows = await getEquipmentByServiceLocationAction(orgId, locationId)
-        const mapped: CachedEquipment[] = rows.map((row) => ({
+      // Parallel fetches — one round-trip per location was the serial bottleneck.
+      const equipmentPerLocation = await Promise.all(
+        locationIds.map((locationId) => getEquipmentByServiceLocationAction(orgId, locationId)),
+      )
+      const allEquipment: CachedEquipment[] = equipmentPerLocation.flatMap((rows, i) =>
+        rows.map((row) => ({
           id: row.id,
           tenantId: orgId,
-          serviceLocationId: row.serviceLocationId,
+          serviceLocationId: locationIds[i],
           kind: row.kind,
           brand: row.brand ?? null,
           installDate: row.installDate ? toISODate(new Date(row.installDate)) : null,
@@ -538,11 +553,12 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
           length: row.length ? String(row.length) : null,
           windDirection: row.windDirection,
           cycleRating: row.cycleRating ?? null,
-        }))
-        if (mapped.length > 0) {
-          await db.equipment.bulkPut(mapped)
-        }
-      }
+        })),
+      )
+      await db.transaction('rw', db.equipment, async () => {
+        await db.equipment.clear()
+        if (allEquipment.length > 0) await db.equipment.bulkPut(allEquipment)
+      })
     }
 
     console.log('[sync] hydrate succeeded', {

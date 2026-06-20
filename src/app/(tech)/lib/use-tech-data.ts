@@ -16,7 +16,9 @@ function useTechDataTick(): number {
 }
 
 export function useTechJobs(orgId: string, userId: string) {
-  const tick = useTechDataTick()
+  // No tick dependency — Dexie's native table observation re-runs the query
+  // when db.jobs changes without returning undefined (which causes the loading
+  // spinner). tick is only needed for hooks that read tables not observed here.
   return useLiveQuery(
     async () => {
       const db = createTechDb(orgId)
@@ -26,7 +28,7 @@ export function useTechJobs(orgId: string, userId: string) {
         .filter((job) => job.assigneeUserIds.includes(userId))
         .sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? ''))
     },
-    [orgId, userId, tick],
+    [orgId, userId],
   )
 }
 
