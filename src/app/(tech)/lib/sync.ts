@@ -31,7 +31,7 @@ import {
   listTechServiceLocationsAction,
 } from '@/app/(tech)/tech/customers/actions'
 import { createBrowserClient } from '@/lib/supabase/browser'
-import { toISODate, parseCalendarDate } from '@/lib/utils'
+import { toISODate } from '@/lib/utils'
 
 export interface StatusUpdatePayload {
   jobId: string
