@@ -212,7 +212,7 @@ export function GlobalSearch() {
 
   /* ---- render ------------------------------------------------------ */
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative hidden md:block">
       {/* Input */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />

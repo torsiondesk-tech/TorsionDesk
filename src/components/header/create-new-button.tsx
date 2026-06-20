@@ -20,7 +20,7 @@ export function CreateNewButton() {
         aria-expanded={open}
       >
         <Plus className="size-4" />
-        Create New
+        <span className="hidden sm:inline">Create New</span>
       </Button>
 
       {open && (
