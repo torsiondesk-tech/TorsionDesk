@@ -123,7 +123,22 @@ function nextOutboxSeq(): number {
 }
 
 // Prevent concurrent flushes for the same org — avoids duplicate photo/signature uploads.
+// flushAgain tracks callers that arrived while a flush was in progress so they get
+// a follow-up run rather than being silently dropped (e.g. online event races startup flush).
 const flushLock = new Set<string>()
+const flushAgain = new Set<string>()
+
+/** Returns true for transient network errors that should be retried, not permanently failed. */
+function isTransientError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  const msg = err.message.toLowerCase()
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('load failed') ||      // Safari / iOS
+    msg.includes('networkerror') ||     // Firefox
+    msg.includes('network request failed')
+  )
+}
 
 export async function enqueueOutboxItem(
   orgId: string,
@@ -142,11 +157,21 @@ export async function enqueueOutboxItem(
 }
 
 export async function flushOutbox(orgId: string, userId: string): Promise<void> {
-  if (flushLock.has(orgId)) return
+  if (flushLock.has(orgId)) {
+    // A flush is already running — schedule a follow-up run when it finishes
+    // so this request is not silently dropped (e.g. online event races startup flush).
+    flushAgain.add(orgId)
+    return
+  }
   flushLock.add(orgId)
   try {
     await _flushOutbox(orgId, userId)
+    if (flushAgain.has(orgId)) {
+      flushAgain.delete(orgId)
+      await _flushOutbox(orgId, userId)
+    }
   } finally {
+    flushAgain.delete(orgId)
     flushLock.delete(orgId)
   }
 }
@@ -154,6 +179,11 @@ export async function flushOutbox(orgId: string, userId: string): Promise<void> 
 async function _flushOutbox(orgId: string, userId: string): Promise<void> {
   const db = createTechDb(orgId)
   await db.open()
+
+  // Items left in 'syncing' mean the app was killed mid-upload. Reset them so
+  // they are picked up in this run rather than stuck forever.
+  await db.outbox.where('syncStatus').equals('syncing').modify({ syncStatus: 'pending' })
+
   const pending = await db.outbox.where('syncStatus').equals('pending').sortBy('seq')
 
   const finalStatusUpdate = new Map<string, { index: number; item: OutboxItem }>()
@@ -207,6 +237,13 @@ async function _flushOutbox(orgId: string, userId: string): Promise<void> {
       await db.outbox.update(item.id, { syncStatus: 'synced' })
     } catch (err) {
       if (err instanceof DeferSyncError) {
+        await db.outbox.update(item.id, { syncStatus: 'pending' })
+        continue
+      }
+
+      // Transient network errors (device just reconnected, Vercel cold start, etc.)
+      // are re-queued as pending so the next flush retries them automatically.
+      if (isTransientError(err)) {
         await db.outbox.update(item.id, { syncStatus: 'pending' })
         continue
       }
@@ -623,6 +660,7 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
 
   const pollId = setInterval(() => {
     if (!navigator.onLine) return
+    flush()
     hydrateTechData(orgId, userId).catch((err) => {
       console.warn('[sync] poll hydrate failed', err)
     })
