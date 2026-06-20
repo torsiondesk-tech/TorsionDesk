@@ -1516,6 +1516,26 @@ export async function deleteJobPhotoAction(
   }
 }
 
+/**
+ * Fetch signed view URLs for all photos on a job (tech PWA client use).
+ */
+export async function getJobSignedPhotosAction(
+  jobId: string,
+): Promise<{ photos?: { id: string; url: string; uploadedBy: string | null; createdAt: Date | null }[]; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    const { getJobPhotoSignedUrls } = await import('@/lib/jobs/photos')
+    const photos = await getJobPhotoSignedUrls(orgId, jobId)
+    return { photos }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    logger.error('getJobSignedPhotosAction', err)
+    return { error: message }
+  }
+}
+
 // ── Apply Template ───────────────────────────────────────────────────────────
 
 export async function applyTemplateAction(

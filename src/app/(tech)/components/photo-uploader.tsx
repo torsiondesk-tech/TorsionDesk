@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { useRef, useState, useMemo, useEffect } from 'react'
+import { useRef, useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, Images, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb, type OutboxItem } from '@/app/(tech)/lib/dexie'
 import { enqueueOutboxItem, flushOutbox, type PhotoPayload } from '@/app/(tech)/lib/sync'
-import { deleteJobPhotoAction } from '@/app/(app)/jobs/actions'
+import { deleteJobPhotoAction, getJobSignedPhotosAction } from '@/app/(app)/jobs/actions'
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { cn } from '@/lib/utils'
 
@@ -32,24 +32,56 @@ interface PhotoUploaderProps {
   orgId: string
   jobId: string
   userId: string
-  signedPhotos: SignedPhoto[]
 }
 
-export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploaderProps) {
+/** Resize + compress a blob to JPEG using an off-screen canvas. */
+async function compressImage(blob: Blob, maxPx = 1920, quality = 0.85): Promise<{ blob: Blob; filename: string }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(blob)
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { resolve({ blob, filename: 'photo.jpg' }); return }
+      ctx.drawImage(img, 0, 0, w, h)
+      canvas.toBlob(
+        (result) => resolve({ blob: result ?? blob, filename: 'photo.jpg' }),
+        'image/jpeg',
+        quality,
+      )
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve({ blob, filename: 'photo.jpg' })
+    }
+    img.src = objectUrl
+  })
+}
+
+export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const online = useOnline()
   const db = useMemo(() => createTechDb(orgId), [orgId])
+
+  const [serverPhotos, setServerPhotos] = useState<SignedPhoto[]>([])
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteUploadedId, setDeleteUploadedId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
   const pendingItems = useLiveQuery(
     () => db.outbox.where('type').equals('job_photo').sortBy('createdAt'),
     [db],
   )
 
   const [objectUrls, setObjectUrls] = useState<Map<string, string>>(new Map())
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [deleteUploadedId, setDeleteUploadedId] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
 
   const photosForJob = useMemo(
     () => (pendingItems ?? []).filter(
@@ -76,17 +108,42 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
     }
   }, [photosForJob])
 
+  const fetchServerPhotos = useCallback(async () => {
+    const result = await getJobSignedPhotosAction(jobId)
+    if (result.photos) setServerPhotos(result.photos)
+  }, [jobId])
+
+  // Load server photos on mount
+  useEffect(() => {
+    if (online) void fetchServerPhotos()
+  }, [fetchServerPhotos, online])
+
+  // Re-fetch server photos whenever a pending item is successfully synced
+  const prevPendingCountRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (pendingItems === undefined) return // liveQuery not yet ready
+    const curr = photosForJob.length
+    const prev = prevPendingCountRef.current
+    prevPendingCountRef.current = curr
+    if (prev !== null && curr < prev) {
+      // At least one photo was just synced — pull fresh signed URLs from server
+      void fetchServerPhotos()
+    }
+  }, [photosForJob.length, pendingItems, fetchServerPhotos])
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    const { blob: compressed, filename } = await compressImage(file)
 
     await enqueueOutboxItem(orgId, {
       type: 'job_photo',
       payload: {
         jobId,
-        filename: file.name,
-        fileSize: file.size,
-        blob: file,
+        filename,
+        fileSize: compressed.size,
+        blob: compressed,
       } satisfies PhotoPayload,
     })
 
@@ -94,9 +151,8 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
       void flushOutbox(orgId, userId)
     }
 
-    if (inputRef.current) {
-      inputRef.current.value = ''
-    }
+    if (inputRef.current) inputRef.current.value = ''
+    if (galleryRef.current) galleryRef.current.value = ''
   }
 
   async function handleRetry() {
@@ -114,6 +170,7 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
     setDeleting(true)
     try {
       await deleteJobPhotoAction(jobId, deleteUploadedId)
+      await fetchServerPhotos()
       router.refresh()
     } finally {
       setDeleting(false)
@@ -158,8 +215,8 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
         </Button>
       </div>
 
-      {photosForJob.length === 0 && signedPhotos.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">No photos yet. Tap Add Photo to capture one.</p>
+      {photosForJob.length === 0 && serverPhotos.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground">No photos yet. Tap Camera to capture one.</p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -194,7 +251,7 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
                     </span>
                   ) : (
                     <span className="rounded-md bg-primary/90 px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
-                      Pending
+                      Uploading…
                     </span>
                   )}
                 </div>
@@ -241,7 +298,7 @@ export function PhotoUploader({ orgId, jobId, userId, signedPhotos }: PhotoUploa
           )
         })}
 
-        {signedPhotos.map((photo) => (
+        {serverPhotos.map((photo) => (
           <Card key={photo.id} className="relative overflow-hidden">
             <CardContent className="p-0">
               <img

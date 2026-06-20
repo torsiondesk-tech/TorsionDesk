@@ -122,6 +122,9 @@ function nextOutboxSeq(): number {
   return now * 1000 + tick
 }
 
+// Prevent concurrent flushes for the same org — avoids duplicate photo/signature uploads.
+const flushLock = new Set<string>()
+
 export async function enqueueOutboxItem(
   orgId: string,
   item: Pick<OutboxItem, 'type' | 'payload'>,
@@ -139,6 +142,16 @@ export async function enqueueOutboxItem(
 }
 
 export async function flushOutbox(orgId: string, userId: string): Promise<void> {
+  if (flushLock.has(orgId)) return
+  flushLock.add(orgId)
+  try {
+    await _flushOutbox(orgId, userId)
+  } finally {
+    flushLock.delete(orgId)
+  }
+}
+
+async function _flushOutbox(orgId: string, userId: string): Promise<void> {
   const db = createTechDb(orgId)
   await db.open()
   const pending = await db.outbox.where('syncStatus').equals('pending').sortBy('seq')
