@@ -137,11 +137,14 @@ const yyyymmdd = toISODate(someDate)   // uses getFullYear/getMonth/getDate
 - Display-only dates in UI → `toLocaleDateString()` is safe because it formats the Date object in the user's locale.
 - **Do NOT** mix `toISOString()` extraction with local Date construction — this is the bug that caused dates to shift by one day on the job form and dispatch board (fixed 2026-06-15).
 
+**Exception — server action data:** When a Drizzle row returns a Date that the PG driver has already placed at UTC midnight (e.g. `row.startDate` from `listTechJobsAction`), `.toISOString().slice(0, 10)` is **correct** — it reads the UTC calendar date, which is exactly what the DB stored. `toISODate` (local getters) would shift the day back for US timezones. This exception applies only in `src/app/(tech)/lib/sync.ts` cache mapping; the general rule still holds everywhere else. (Fixed three times — do not change it.)
+
 **Affected modules (patched):**
 - `src/lib/utils.ts` — `toISODate` is the canonical helper.
 - `src/app/(app)/dispatch/grid/week-grid.tsx` — cell date matching.
 - `src/app/(app)/dispatch/board.tsx` — server prop re-hydration (`parseCalendarDate`).
 - `src/app/(app)/jobs/[id]/page.tsx` — date input value prep (`toDateInputValue`).
+- `src/app/(tech)/lib/sync.ts` — `startDate` cache mapping uses `.toISOString().slice(0,10)` (UTC exception above).
 
 ---
 
