@@ -12,10 +12,10 @@ export function SignOutButton() {
       variant="ghost"
       size="icon"
       aria-label="Sign out"
+      title="Sign out"
       onClick={() => signOut({ redirectUrl: '/sign-in' })}
-      className="text-muted-foreground hover:text-foreground"
     >
-      <LogOut className="size-4" />
+      <LogOut className="size-5" />
     </Button>
   )
 }
