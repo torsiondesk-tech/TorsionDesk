@@ -154,30 +154,60 @@ This pattern was broken in production (but not dev) because Next.js dev mode rev
 
 ### Date Handling — Calendar Dates vs. UTC Instants
 
-**NEVER** use `.toISOString().slice(0, 10)` or `new Date('YYYY-MM-DD')` to extract or create calendar dates. These treat the value as a UTC instant and shift the day when the client timezone is east/west of UTC.
+There are **two kinds of Date objects** in this codebase and they require opposite extraction strategies. Mixing them is the single most-repeated bug in this project.
 
-**Root cause example:** `new Date('2026-06-19')` creates a Date at **local** midnight. Calling `.toISOString()` returns `2026-06-18T22:00:00.000Z` in UTC+2 — slice to `2026-06-18` and the user sees the wrong day.
+#### Kind 1 — Local midnight Date (client-constructed)
+Created by `new Date(year, month, day)`, by `parseCalendarDate(string)`, or by user date inputs. The clock is at midnight in the browser's local timezone.
 
-**ALWAYS use the shared utility:**
+**Extract with local getters (`toISODate`):**
 ```ts
 import { toISODate } from '@/lib/utils'
-const yyyymmdd = toISODate(someDate)   // uses getFullYear/getMonth/getDate
+toISODate(localMidnightDate)   // getFullYear/getMonth/getDate — correct
+localMidnightDate.toISOString().slice(0, 10)  // WRONG in UTC+ timezones (midnight is already yesterday UTC)
 ```
 
-**Rules:**
-- `type="date"` inputs → pass `toISODate(dbDate)` so the browser shows the exact calendar day.
-- Server receives `'YYYY-MM-DD'` from the form → store it via `new Date(\`${date}T00:00:00\`)` or parse with `parseCalendarDate` on re-hydration.
-- Display-only dates in UI → `toLocaleDateString()` is safe because it formats the Date object in the user's locale.
-- **Do NOT** mix `toISOString()` extraction with local Date construction — this is the bug that caused dates to shift by one day on the job form and dispatch board (fixed 2026-06-15).
+#### Kind 2 — UTC midnight Date (server/Drizzle-returned)
+The PG driver returns calendar-date columns as `Date` objects at **UTC midnight** (`2026-06-21T00:00:00.000Z`). This includes:
+- Drizzle rows in server actions (`row.startDate`, etc.)
+- Props passed from a Server Component to a Client Component — **Next.js RSC flight format preserves `Date` objects as UTC midnight**, they are NOT serialized to strings.
 
-**Exception — server action data:** When a Drizzle row returns a Date that the PG driver has already placed at UTC midnight (e.g. `row.startDate` from `listTechJobsAction`), `.toISOString().slice(0, 10)` is **correct** — it reads the UTC calendar date, which is exactly what the DB stored. `toISODate` (local getters) would shift the day back for US timezones. This exception applies only in `src/app/(tech)/lib/sync.ts` cache mapping; the general rule still holds everywhere else. (Fixed three times — do not change it.)
+**Extract with UTC getters (`.toISOString().slice(0, 10)`):**
+```ts
+utcMidnightDate.toISOString().slice(0, 10)   // reads UTC calendar date — correct
+toISODate(utcMidnightDate)                   // WRONG in US timezones (UTC midnight = previous evening locally)
+```
+
+#### The conversion bridge — `parseCalendarDate(string)`
+The correct way to go from a UTC midnight Date to a local midnight Date (which the rest of the display layer expects) is a two-step:
+```ts
+// UTC midnight Date → ISO string (UTC) → local midnight Date
+parseCalendarDate(utcMidnightDate.toISOString().slice(0, 10))
+```
+`parseCalendarDate` on a string uses the YYYY-MM-DD digits directly (no timezone math), then constructs `new Date(year, month, day)` which is local midnight. This is the safe bridge.
+
+**Do NOT** pass a UTC midnight Date object directly to `parseCalendarDate` — its Date branch calls `toISODate()` (local getters), which will shift the day in US timezones.
+
+#### Where this bites hardest
+- **`initialRows` in `tech-jobs-list.tsx`**: Server Component passes `JobRow[]` as props; `startDate` values arrive as UTC midnight Dates via RSC flight. Always normalize before display using the bridge above. (Bug fixed 2026-06-20.)
+- **Dexie seed / `sync.ts`**: Server action rows go to Dexie — use `.toISOString().slice(0,10)`, not `toISODate()`. (Canonical: `src/app/(tech)/lib/sync.ts`.)
+- **`type="date"` inputs**: The browser expects a `'YYYY-MM-DD'` string. If your Date is local midnight, `toISODate()` is correct. If it came from the server (UTC midnight), use `.toISOString().slice(0,10)` first. (Canonical: `src/lib/utils.ts` → `toDateInputValue`.)
+
+#### Quick-reference table
+
+| Date source | Midnight kind | Correct extraction |
+|---|---|---|
+| `new Date(y, m, d)` or `parseCalendarDate(str)` | Local | `toISODate(d)` |
+| Drizzle row in server action | UTC | `d.toISOString().slice(0,10)` |
+| RSC prop from Server Component | UTC | `d.toISOString().slice(0,10)` |
+| Dexie / IndexedDB string field | String | `str.slice(0,10)` or `parseCalendarDate(str)` |
 
 **Affected modules (patched):**
-- `src/lib/utils.ts` — `toISODate` is the canonical helper.
+- `src/lib/utils.ts` — `toISODate` and `parseCalendarDate` canonical helpers.
 - `src/app/(app)/dispatch/grid/week-grid.tsx` — cell date matching.
 - `src/app/(app)/dispatch/board.tsx` — server prop re-hydration (`parseCalendarDate`).
 - `src/app/(app)/jobs/[id]/page.tsx` — date input value prep (`toDateInputValue`).
-- `src/app/(tech)/lib/sync.ts` — `startDate` cache mapping uses `.toISOString().slice(0,10)` (UTC exception above).
+- `src/app/(tech)/lib/sync.ts` — Dexie cache mapping uses `.toISOString().slice(0,10)`.
+- `src/app/(tech)/components/tech-jobs-list.tsx` — `initialRows` normalization and Dexie seed (fixed 2026-06-20).
 
 ---
 
