@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { TechJobsList } from '../../components/tech-jobs-list'
+import { listJobs } from '@/lib/jobs/jobs'
 
 export default async function TechJobsPage() {
   const { orgId, userId } = await auth()
@@ -8,5 +9,6 @@ export default async function TechJobsPage() {
     redirect('/sign-in')
   }
 
-  return <TechJobsList orgId={orgId} userId={userId} />
+  const { rows } = await listJobs(orgId, { assigneeUserId: userId, pageSize: 200 })
+  return <TechJobsList orgId={orgId} userId={userId} initialRows={rows} />
 }

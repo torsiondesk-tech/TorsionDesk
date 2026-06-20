@@ -157,6 +157,19 @@ export async function getEquipmentByServiceLocationAction(
   return getEquipmentByServiceLocation(orgId, serviceLocationId)
 }
 
+export async function getEquipmentByServiceLocationsAction(
+  orgId: string,
+  serviceLocationIds: string[],
+) {
+  const { orgId: sessionOrgId } = await auth()
+  if (!sessionOrgId || sessionOrgId !== orgId) {
+    throw new Error('Unauthorized')
+  }
+
+  const { getEquipmentByServiceLocations } = await import('@/lib/customers')
+  return getEquipmentByServiceLocations(orgId, serviceLocationIds)
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function extractErrorMessage(err: unknown): string {

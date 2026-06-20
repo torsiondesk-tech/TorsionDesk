@@ -7,7 +7,7 @@ import {
   getJobSignatureUploadUrlAction,
   confirmJobSignatureAction,
   saveCompletionNotesAction,
-  getEquipmentByServiceLocationAction,
+  getEquipmentByServiceLocationsAction,
 } from '@/app/(tech)/tech/jobs/actions'
 import {
   getJobPhotoUploadUrlAction,
@@ -562,36 +562,32 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
     )
 
     if (locationIds.length > 0) {
-      // Parallel fetches — one round-trip per location was the serial bottleneck.
-      const equipmentPerLocation = await Promise.all(
-        locationIds.map((locationId) => getEquipmentByServiceLocationAction(orgId, locationId)),
-      )
-      const allEquipment: CachedEquipment[] = equipmentPerLocation.flatMap((rows, i) =>
-        rows.map((row) => ({
-          id: row.id,
-          tenantId: orgId,
-          serviceLocationId: locationIds[i],
-          kind: row.kind,
-          brand: row.brand ?? null,
-          installDate: row.installDate ? toISODate(new Date(row.installDate)) : null,
-          warrantyExpires: row.warrantyExpires ? toISODate(new Date(row.warrantyExpires)) : null,
-          notes: row.notes ?? null,
-          widthFt: row.widthFt ? String(row.widthFt) : null,
-          heightFt: row.heightFt ? String(row.heightFt) : null,
-          material: row.material ?? null,
-          style: row.style ?? null,
-          color: row.color ?? null,
-          modelSeries: row.modelSeries ?? null,
-          model: row.model ?? null,
-          hp: row.hp ? String(row.hp) : null,
-          serial: row.serial ?? null,
-          wireSize: row.wireSize ? String(row.wireSize) : null,
-          insideDiameter: row.insideDiameter ? String(row.insideDiameter) : null,
-          length: row.length ? String(row.length) : null,
-          windDirection: row.windDirection,
-          cycleRating: row.cycleRating ?? null,
-        })),
-      )
+      // Single batch query — one server action call for all locations.
+      const equipmentRows = await getEquipmentByServiceLocationsAction(orgId, locationIds)
+      const allEquipment: CachedEquipment[] = equipmentRows.map((row) => ({
+        id: row.id,
+        tenantId: orgId,
+        serviceLocationId: row.serviceLocationId,
+        kind: row.kind,
+        brand: row.brand ?? null,
+        installDate: row.installDate ? toISODate(new Date(String(row.installDate))) : null,
+        warrantyExpires: row.warrantyExpires ? toISODate(new Date(String(row.warrantyExpires))) : null,
+        notes: row.notes ?? null,
+        widthFt: row.widthFt ? String(row.widthFt) : null,
+        heightFt: row.heightFt ? String(row.heightFt) : null,
+        material: row.material ?? null,
+        style: row.style ?? null,
+        color: row.color ?? null,
+        modelSeries: row.modelSeries ?? null,
+        model: row.model ?? null,
+        hp: row.hp ? String(row.hp) : null,
+        serial: row.serial ?? null,
+        wireSize: row.wireSize ? String(row.wireSize) : null,
+        insideDiameter: row.insideDiameter ? String(row.insideDiameter) : null,
+        length: row.length ? String(row.length) : null,
+        windDirection: row.windDirection,
+        cycleRating: row.cycleRating ?? null,
+      }))
       await db.transaction('rw', db.equipment, async () => {
         await db.equipment.clear()
         if (allEquipment.length > 0) await db.equipment.bulkPut(allEquipment)

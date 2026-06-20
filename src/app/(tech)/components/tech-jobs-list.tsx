@@ -8,12 +8,13 @@ import { JobListCard } from './job-list-card'
 import { hydrateTechData, TECH_DATA_UPDATED, TECH_DATA_UPDATE_FAILED } from '@/app/(tech)/lib/sync'
 import { toISODate, parseCalendarDate, cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import type { CachedJob } from '@/app/(tech)/lib/dexie'
+import { createTechDb, type CachedJob } from '@/app/(tech)/lib/dexie'
 import type { JobRow } from '@/lib/jobs/jobs'
 
 interface TechJobsListProps {
   orgId: string
   userId: string
+  initialRows: JobRow[]
 }
 
 function toJobRow(job: CachedJob): JobRow {
@@ -49,9 +50,44 @@ function formatLastUpdated(at: number | null): string {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-export function TechJobsList({ orgId, userId }: TechJobsListProps) {
+export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) {
   const jobs = useTechJobs(orgId, userId)
   const today = toISODate(new Date())
+
+  // Pre-seed Dexie with server-rendered rows on first visit so useLiveQuery
+  // never sees an empty cache between Dexie init and hydration completing.
+  useEffect(() => {
+    if (!initialRows.length) return
+    const db = createTechDb(orgId)
+    const seed: CachedJob[] = initialRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      jobNo: row.jobNo,
+      customerId: row.customerId,
+      contactId: row.contactId,
+      serviceLocationId: row.serviceLocationId,
+      status: row.status,
+      description: row.description,
+      startDate: row.startDate ? toISODate(row.startDate) : null,
+      arrivalWindowStart: row.arrivalWindowStart?.toISOString() ?? null,
+      arrivalWindowEnd: row.arrivalWindowEnd?.toISOString() ?? null,
+      notesForTechs: row.notesForTechs,
+      completionNotes: row.completionNotes,
+      assigneeUserIds: [userId],
+      customerName: row.customerName,
+      addressLine1: row.addressLine1,
+      city: row.city,
+      state: row.state,
+      postalCode: row.postalCode,
+      contactPhone: row.contactPhone,
+      contactEmail: row.contactEmail,
+    }))
+    db.open()
+      .then(() => db.jobs.count())
+      .then((n) => { if (n === 0) return db.jobs.bulkPut(seed) })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, userId])
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming')
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null)
@@ -112,17 +148,9 @@ export function TechJobsList({ orgId, userId }: TechJobsListProps) {
     touchStartY.current = null
   }, [pullDistance, refreshing, doRefresh])
 
-  // undefined = Dexie query not yet resolved (first render)
-  if (jobs === undefined) {
-    return (
-      <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-        <Briefcase className="size-12 text-muted-foreground animate-pulse" aria-hidden="true" />
-        <p className="mt-4 text-base text-muted-foreground">Loading jobs…</p>
-      </div>
-    )
-  }
-
-  const rows = jobs.map(toJobRow)
+  // While Dexie is initialising (undefined), fall back to server-rendered rows
+  // so the list renders immediately without a loading spinner.
+  const rows = jobs !== undefined ? jobs.map(toJobRow) : initialRows
   const allGroups = groupJobsByDay(rows, today)
   const { upcoming, past } = splitGroupsByTime(allGroups, today)
   const activeGroups = tab === 'upcoming' ? upcoming : past

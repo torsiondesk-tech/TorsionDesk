@@ -428,6 +428,20 @@ export async function getEquipmentByServiceLocation(
   })
 }
 
+/** Fetch equipment for multiple service locations in one query (used by PWA sync). */
+export async function getEquipmentByServiceLocations(
+  orgId: string,
+  serviceLocationIds: string[],
+): Promise<typeof equipment.$inferSelect[]> {
+  if (serviceLocationIds.length === 0) return []
+  return withTenant(orgId, async (tx) => {
+    return tx
+      .select()
+      .from(equipment)
+      .where(and(eq(equipment.tenantId, orgId), inArray(equipment.serviceLocationId, serviceLocationIds)))
+  })
+}
+
 export interface CreateContactInput {
   customerId: string
   firstName: string
