@@ -106,6 +106,29 @@ export function useTechInvoice(orgId: string, id: string) {
   )
 }
 
+export function useTechJob(orgId: string, jobId: string) {
+  return useLiveQuery(
+    async () => {
+      const db = createTechDb(orgId)
+      await db.open()
+      return db.jobs.get(jobId)
+    },
+    [orgId, jobId],
+  )
+}
+
+export function useTechEquipmentByLocation(orgId: string, serviceLocationId: string | null) {
+  return useLiveQuery(
+    async () => {
+      if (!serviceLocationId) return [] as import('./dexie').CachedEquipment[]
+      const db = createTechDb(orgId)
+      await db.open()
+      return db.equipment.where({ serviceLocationId }).toArray()
+    },
+    [orgId, serviceLocationId],
+  )
+}
+
 export function usePendingEstimateConversion(orgId: string, estimateId: string): number {
   const tick = useTechDataTick()
   return (
