@@ -109,6 +109,39 @@ Supabase prepends `realtime:` internally when routing. Sending `realtime:dispatc
 
 **Canonical implementation:** `src/lib/jobs/broadcast.ts`
 
+### Dispatch Board — Auto-Refresh Pattern
+
+The dispatch board must stay live without a manual page reload. Two mechanisms work together:
+
+**1. Explicit `router.refresh()` on action success (same-session)**
+
+The Realtime channel uses `self: false`, so the current tab never receives its own broadcast events. After a drag-and-drop (`updateJobAssignment`, `unassignJob`) succeeds, call `router.refresh()` directly in the action callback — do NOT rely on the WebSocket to trigger it.
+
+```ts
+// CORRECT — same session always pulls fresh server state
+const result = await updateJobAssignment({...})
+if (result.error) { rollback() } else { router.refresh() }
+
+// WRONG — self:false means this tab never receives its own broadcast
+// so router.refresh() in the realtime handler never fires for own actions
+```
+
+**2. 30-second polling fallback (cross-session)**
+
+The WebSocket can drop silently on Vercel (cold start, idle timeout, anon key format mismatch). `useRealtimeSync` runs a `setInterval(onRefresh, 30_000)` alongside the WebSocket so cross-session changes (tech PWA → dispatch board) converge within 30 seconds even if Realtime is down. Never remove this interval.
+
+```ts
+// useRealtimeSync: always keep both
+const pollId = setInterval(onRefresh, 30_000)  // fallback — do not remove
+const channel = client.channel(...)             // real-time fast path
+```
+
+**Canonical implementations:**
+- `src/app/(app)/dispatch/hooks/use-realtime-sync.ts` — WebSocket + polling
+- `src/app/(app)/dispatch/board.tsx` — `router.refresh()` in drag handlers
+
+This pattern was broken in production (but not dev) because Next.js dev mode revalidates more aggressively, masking both missing `router.refresh()` calls and WebSocket failures. Always test auto-refresh with `pnpm build && pnpm start`.
+
 ### PWA Offline
 - iOS/Safari does **not** support Background Sync API
 - Dual flush triggers required: `online` event + Background Sync where available
