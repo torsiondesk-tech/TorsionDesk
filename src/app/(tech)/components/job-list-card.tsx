@@ -5,6 +5,7 @@ import { Phone, Mail, Clock, MapPin, Calendar } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { statusBadgeVariant, statusLabel } from '@/lib/jobs/transitions'
+import { formatPhone } from '@/lib/utils'
 import type { JobRow } from '@/lib/jobs/jobs'
 
 interface JobListCardProps {
@@ -75,7 +76,7 @@ export function JobListCard({ job }: JobListCardProps) {
             {job.contactPhone && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Phone className="size-3.5 shrink-0" />
-                {job.contactPhone}
+                {formatPhone(job.contactPhone)}
               </span>
             )}
             {job.contactEmail && (

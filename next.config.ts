@@ -11,10 +11,13 @@ import withSerwistInit from '@serwist/next'
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ['*.ngrok-free.dev', '*.ngrok.io', '*.ngrok.app'],
   webpack(config) {
     config.watchOptions = {
       ...config.watchOptions,
       ignored: ['**/node_modules/**', '**/public/sw.js', '**/public/tech/sw.js'],
+      // Windows 10 fs.watch events are unreliable — polling ensures HMR picks up every save.
+      poll: 1000,
     }
     return config
   },
@@ -56,6 +59,9 @@ const withSerwist = withSerwistInit({
   scope: '/tech/',
   register: true,
   cacheOnNavigation: true,
+  // Disable SW in dev — it caches responses and blocks HMR updates.
+  // The /tech/ scope intercepts asset requests and serves stale content on every reload.
+  disable: process.env.NODE_ENV !== 'production',
 })
 
 export default withSerwist(nextConfig)

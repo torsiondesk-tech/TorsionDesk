@@ -1,15 +1,22 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { eq, and } from 'drizzle-orm'
 import { listJobs } from '@/lib/jobs/jobs'
 import { transitionJobStatusAction as _transitionJobStatusAction } from '@/app/(app)/jobs/actions'
+import { broadcastJobEvent } from '@/lib/jobs/broadcast'
 
 export interface CreateTechJobInput {
   customerId: string
   serviceLocationId: string | null
   description: string
   startDate: string | null
+  contactId?: string | null
+  newContactFirstName?: string | null
+  newContactLastName?: string | null
+  newContactPhone?: string | null
 }
 
 export async function createTechJobAction(
@@ -29,11 +36,60 @@ export async function createTechJobAction(
 
   try {
     const { withTenant } = await import('@/db/with-tenant')
-    const { jobs, jobAssignees } = await import('@/db/schema')
+    const { jobs, jobAssignees, contacts, contactPhones, customers } = await import('@/db/schema')
     const { nextJobNo } = await import('@/lib/jobs/job-number')
+    const { normalizePhone } = await import('@/lib/utils')
 
     const id = await withTenant(orgId, async (tx) => {
       const jobNo = await nextJobNo(tx, orgId)
+
+      // Resolve the contactId to link to the job
+      let resolvedContactId: string | null = input.contactId ?? null
+
+      if (!resolvedContactId && input.newContactFirstName?.trim()) {
+        // Create a new contact and link it
+        const firstName = input.newContactFirstName.trim()
+        const [contactRow] = await tx
+          .insert(contacts)
+          .values({
+            tenantId: orgId,
+            customerId: input.customerId,
+            firstName,
+            lastName: input.newContactLastName?.trim() || null,
+          })
+          .returning({ id: contacts.id })
+        resolvedContactId = contactRow.id
+        const phone = input.newContactPhone ? normalizePhone(input.newContactPhone) : null
+        if (phone) {
+          await tx.insert(contactPhones).values({
+            tenantId: orgId,
+            contactId: contactRow.id,
+            number: phone,
+            type: 'cell',
+            isPrimary: true,
+          })
+        }
+        // Promote to primary contact if the customer has none yet
+        const [cust] = await tx
+          .select({ primaryContactId: customers.primaryContactId })
+          .from(customers)
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, input.customerId)))
+          .limit(1)
+        if (!cust?.primaryContactId) {
+          await tx
+            .update(customers)
+            .set({ primaryContactId: contactRow.id })
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, input.customerId)))
+        }
+      } else if (!resolvedContactId) {
+        // Fall back to the customer's existing primary contact
+        const [cust] = await tx
+          .select({ primaryContactId: customers.primaryContactId })
+          .from(customers)
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, input.customerId)))
+          .limit(1)
+        resolvedContactId = cust?.primaryContactId ?? null
+      }
 
       const [row] = await tx
         .insert(jobs)
@@ -41,6 +97,7 @@ export async function createTechJobAction(
           tenantId: orgId,
           jobNo,
           customerId: input.customerId,
+          contactId: resolvedContactId,
           serviceLocationId: input.serviceLocationId ?? null,
           status: 'unscheduled',
           description: input.description.trim(),
@@ -60,6 +117,7 @@ export async function createTechJobAction(
 
     revalidatePath('/tech/jobs')
     revalidatePath('/jobs')
+    after(() => broadcastJobEvent(orgId, 'job-updated', { jobId: id }).catch(() => {}))
     return { success: true, id }
   } catch (err) {
     const message = extractErrorMessage(err)
@@ -160,6 +218,314 @@ export async function confirmJobSignatureAction(
   } catch (err) {
     const message = extractErrorMessage(err)
     return { error: message }
+  }
+}
+
+// ── Assign existing location to the job ────────────────────────────────────────
+
+export async function assignJobLocationAction(input: {
+  jobId: string
+  locationId: string
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const { withTenant } = await import('@/db/with-tenant')
+    const { jobs } = await import('@/db/schema')
+
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(jobs)
+        .set({ serviceLocationId: input.locationId })
+        .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, input.jobId)))
+    })
+
+    revalidatePath(`/tech/jobs/${input.jobId}`)
+    revalidatePath(`/jobs/${input.jobId}`)
+    after(() => broadcastJobEvent(orgId, 'job-updated', { jobId: input.jobId }).catch(() => {}))
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: extractErrorMessage(err) || 'Failed to assign location' }
+  }
+}
+
+// ── Add new location and assign it to the job ──────────────────────────────────
+
+export async function addAndAssignJobLocationAction(input: {
+  jobId: string
+  customerId: string
+  addressLine1: string | null
+  city: string | null
+  state: string | null
+  postalCode: string | null
+}): Promise<{ success: true; locationId: string } | { success: false; error: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { success: false, error: 'Unauthorized' }
+
+  if (!input.addressLine1?.trim() && !input.city?.trim()) {
+    return { success: false, error: 'Address or city is required' }
+  }
+
+  try {
+    const { withTenant } = await import('@/db/with-tenant')
+    const { jobs, serviceLocations } = await import('@/db/schema')
+
+    const locationId = await withTenant(orgId, async (tx) => {
+      const [locRow] = await tx
+        .insert(serviceLocations)
+        .values({
+          tenantId: orgId,
+          customerId: input.customerId,
+          addressLine1: input.addressLine1 ?? null,
+          city: input.city ?? null,
+          state: input.state ?? null,
+          postalCode: input.postalCode ?? null,
+        })
+        .returning({ id: serviceLocations.id })
+
+      await tx
+        .update(jobs)
+        .set({ serviceLocationId: locRow.id })
+        .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, input.jobId)))
+
+      return locRow.id
+    })
+
+    revalidatePath(`/tech/jobs/${input.jobId}`)
+    revalidatePath(`/jobs/${input.jobId}`)
+    after(() => broadcastJobEvent(orgId, 'job-updated', { jobId: input.jobId }).catch(() => {}))
+    return { success: true, locationId }
+  } catch (err) {
+    return { success: false, error: extractErrorMessage(err) || 'Failed to add location' }
+  }
+}
+
+// ── Equipment CRUD (tech-side) ────────────────────────────────────────────────
+
+export async function createTechEquipmentAction(
+  serviceLocationId: string,
+  jobId: string,
+  formData: FormData,
+): Promise<{ success?: boolean; id?: string; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const { equipmentSchema } = await import('@/lib/equipment-schema')
+  const raw: Record<string, unknown> = {}
+  for (const [key, value] of formData.entries()) {
+    raw[key] = value
+  }
+
+  const parsed = equipmentSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
+  }
+
+  const data = parsed.data
+
+  try {
+    const { withTenant: wt } = await import('@/db/with-tenant')
+    const { serviceLocations: sl, equipment: eq } = await import('@/db/schema')
+    const { eq: dEq, and: dAnd } = await import('drizzle-orm')
+
+    const id = await wt(orgId, async (tx) => {
+      const loc = await tx
+        .select({ id: sl.id })
+        .from(sl)
+        .where(dAnd(dEq(sl.tenantId, orgId), dEq(sl.id, serviceLocationId)))
+        .limit(1)
+      if (loc.length === 0) throw new Error('Invalid service location')
+
+      const base = {
+        tenantId: orgId,
+        serviceLocationId,
+        kind: data.kind,
+        installDate: data.installDate || null,
+        warrantyExpires: data.warrantyExpires || null,
+        notes: data.notes ?? null,
+      }
+
+      let specific: Record<string, unknown> = {}
+      switch (data.kind) {
+        case 'door':
+          specific = {
+            brand: data.brand,
+            widthFt: data.widthFt,
+            heightFt: data.heightFt,
+            material: data.material ?? null,
+            style: data.style ?? null,
+            color: data.color ?? null,
+            modelSeries: data.modelSeries ?? null,
+          }
+          break
+        case 'opener':
+          specific = {
+            brand: data.brand,
+            model: data.model ?? null,
+            hp: data.hp ?? null,
+            serial: data.serial ?? null,
+          }
+          break
+        case 'spring':
+          specific = {
+            wireSize: data.wireSize,
+            insideDiameter: data.insideDiameter,
+            length: data.length,
+            windDirection: data.windDirection,
+            cycleRating: data.cycleRating ?? null,
+          }
+          break
+      }
+
+      const [row] = await tx
+        .insert(eq)
+        .values({ ...base, ...specific })
+        .returning({ id: eq.id })
+      return row.id
+    })
+
+    revalidatePath(`/tech/jobs/${jobId}`)
+    revalidatePath('/customers')
+    return { success: true, id }
+  } catch (err) {
+    return { error: extractErrorMessage(err) || 'Could not save equipment.' }
+  }
+}
+
+export async function updateTechEquipmentAction(
+  equipmentId: string,
+  jobId: string,
+  formData: FormData,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const { equipmentSchema } = await import('@/lib/equipment-schema')
+  const raw: Record<string, unknown> = {}
+  for (const [key, value] of formData.entries()) {
+    raw[key] = value
+  }
+
+  const parsed = equipmentSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
+  }
+
+  const data = parsed.data
+
+  try {
+    const { withTenant: wt } = await import('@/db/with-tenant')
+    const { equipment: eq } = await import('@/db/schema')
+    const { eq: dEq, and: dAnd } = await import('drizzle-orm')
+
+    await wt(orgId, async (tx) => {
+      const base = {
+        installDate: data.installDate || null,
+        warrantyExpires: data.warrantyExpires || null,
+        notes: data.notes ?? null,
+      }
+
+      let specific: Record<string, unknown> = {}
+      switch (data.kind) {
+        case 'door':
+          specific = {
+            brand: data.brand,
+            widthFt: data.widthFt,
+            heightFt: data.heightFt,
+            material: data.material ?? null,
+            style: data.style ?? null,
+            color: data.color ?? null,
+            modelSeries: data.modelSeries ?? null,
+          }
+          break
+        case 'opener':
+          specific = {
+            brand: data.brand,
+            model: data.model ?? null,
+            hp: data.hp ?? null,
+            serial: data.serial ?? null,
+          }
+          break
+        case 'spring':
+          specific = {
+            wireSize: data.wireSize,
+            insideDiameter: data.insideDiameter,
+            length: data.length,
+            windDirection: data.windDirection,
+            cycleRating: data.cycleRating ?? null,
+          }
+          break
+      }
+
+      await tx
+        .update(eq)
+        .set({ ...base, ...specific })
+        .where(dAnd(dEq(eq.tenantId, orgId), dEq(eq.id, equipmentId)))
+    })
+
+    revalidatePath(`/tech/jobs/${jobId}`)
+    revalidatePath('/customers')
+    return { success: true }
+  } catch (err) {
+    return { error: extractErrorMessage(err) || 'Could not update equipment.' }
+  }
+}
+
+export async function deleteTechEquipmentAction(
+  equipmentId: string,
+  jobId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    const { withTenant: wt } = await import('@/db/with-tenant')
+    const { equipment: eq } = await import('@/db/schema')
+    const { eq: dEq, and: dAnd } = await import('drizzle-orm')
+
+    await wt(orgId, async (tx) => {
+      await tx.delete(eq).where(dAnd(dEq(eq.tenantId, orgId), dEq(eq.id, equipmentId)))
+    })
+
+    revalidatePath(`/tech/jobs/${jobId}`)
+    revalidatePath('/customers')
+    return { success: true }
+  } catch (err) {
+    return { error: extractErrorMessage(err) || 'Could not delete equipment.' }
+  }
+}
+
+// ── Job description ───────────────────────────────────────────────────────────
+
+export async function saveJobDescriptionAction(
+  jobId: string,
+  description: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'No active organization. Please sign in to your workspace.' }
+
+  if (description.length > 5000) {
+    return { error: 'Description must be 5,000 characters or fewer.' }
+  }
+
+  try {
+    const { withTenant } = await import('@/db/with-tenant')
+    const { jobs } = await import('@/db/schema')
+
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(jobs)
+        .set({ description: description.trim() || null })
+        .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, jobId)))
+    })
+
+    revalidatePath(`/tech/jobs/${jobId}`)
+    revalidatePath(`/jobs/${jobId}`)
+    after(() => broadcastJobEvent(orgId, 'job-updated', { jobId }).catch(() => {}))
+    return { success: true }
+  } catch (err) {
+    return { error: extractErrorMessage(err) }
   }
 }
 

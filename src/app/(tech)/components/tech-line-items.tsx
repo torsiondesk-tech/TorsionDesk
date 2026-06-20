@@ -66,6 +66,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [selected, setSelected] = useState<SearchResult | null>(null)
+  const [addName, setAddName] = useState('')
   const [addQty, setAddQty] = useState('1')
   const [addRate, setAddRate] = useState('')
   const [addDesc, setAddDesc] = useState('')
@@ -113,6 +114,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
     setSearchQuery('')
     setSearchResults([])
     setSelected(null)
+    setAddName('')
     setAddQty('1')
     setAddRate('')
     setAddDesc('')
@@ -120,18 +122,29 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
     setDiscountAmount('')
   }
 
+  function selectCustomItem(name: string) {
+    setSelected({ id: '', name, unitPrice: null, unitCost: null, description: null })
+    setAddName(name)
+    setAddDesc('')
+    setAddQty('1')
+    setAddRate('')
+  }
+
   function handleAddCatalogItem() {
     if (!selected) return
+    const isCustom = selected.id === ''
+    const title = isCustom ? addName.trim() : selected.name
+    if (!title) return
     startTransition(async () => {
       try {
         await addJobLineItem(jobId, {
           type: addTab as 'product' | 'service',
-          refId: selected.id,
-          title: selected.name,
-          description: addDesc || selected.name,
+          refId: isCustom ? null : selected.id,
+          title,
+          description: addDesc || title,
           qty: addQty,
           rate: addRate,
-          cost: selected.unitCost ?? '0',
+          cost: isCustom ? '0' : (selected.unitCost ?? '0'),
         })
         toast.success('Item added')
         setAddOpen(false)
@@ -375,10 +388,26 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
                           </li>
                         ))}
                       </ul>
+                      {!searching && searchQuery && (
+                        <div className={cn('pt-2', searchResults.length > 0 && 'border-t mt-1')}>
+                          <button
+                            type="button"
+                            onClick={() => selectCustomItem(searchQuery)}
+                            className="flex flex-col w-full text-left px-1 py-3 hover:bg-muted active:bg-muted rounded-md transition-colors"
+                          >
+                            <span className="text-sm font-medium">
+                              Add &ldquo;{searchQuery}&rdquo; as custom item
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-0.5">
+                              Not in catalog — enter name and price manually
+                            </span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
-                  /* Confirm form after selecting from catalog */
+                  /* Confirm form after selecting from catalog or entering custom item */
                   <div className="flex flex-col flex-1 gap-4">
                     <button
                       type="button"
@@ -388,7 +417,21 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
                       <X className="size-4" />
                       Back to search
                     </button>
-                    <p className="font-medium">{selected.name}</p>
+                    {selected.id === '' ? (
+                      <div>
+                        <Label htmlFor={`${kind}-name`}>Name</Label>
+                        <Input
+                          id={`${kind}-name`}
+                          value={addName}
+                          onChange={(e) => setAddName(e.target.value)}
+                          className="mt-1"
+                          placeholder="Item or service name"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <p className="font-medium">{selected.name}</p>
+                    )}
                     <div className="flex flex-col gap-3">
                       <div>
                         <Label htmlFor={`${kind}-desc`}>Description</Label>
@@ -430,7 +473,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
                     <div className="flex flex-col gap-2 mt-auto">
                       <Button
                         onClick={handleAddCatalogItem}
-                        disabled={isPending || !addRate}
+                        disabled={isPending || !addRate || (selected.id === '' && !addName.trim())}
                         className="w-full"
                       >
                         {isPending ? 'Adding…' : `Add ${kind === 'product' ? 'Product' : 'Service'}`}

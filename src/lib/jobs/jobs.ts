@@ -410,18 +410,41 @@ export async function getJob(
         .orderBy(desc(jobPhotos.createdAt)),
     ])
 
-    const contact = contactRows[0]
+    // If the job has no explicit contactId, fall back to the customer's primary contact
+    let resolvedContactRows = contactRows
+    let resolvedPhoneRows = contactPhoneRows
+    let resolvedEmailRows = contactEmailRows
+    const fallbackContactId = !job.contactId ? (customerRows[0]?.primaryContactId ?? null) : null
+    if (fallbackContactId) {
+      ;[resolvedContactRows, resolvedPhoneRows, resolvedEmailRows] = await Promise.all([
+        tx
+          .select()
+          .from(contacts)
+          .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, fallbackContactId)))
+          .limit(1),
+        tx
+          .select()
+          .from(contactPhones)
+          .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, fallbackContactId))),
+        tx
+          .select()
+          .from(contactEmails)
+          .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, fallbackContactId))),
+      ])
+    }
+
+    const contact = resolvedContactRows[0]
       ? {
-          id: contactRows[0].id,
-          firstName: contactRows[0].firstName,
-          lastName: contactRows[0].lastName,
-          phones: contactPhoneRows.map((p) => ({
+          id: resolvedContactRows[0].id,
+          firstName: resolvedContactRows[0].firstName,
+          lastName: resolvedContactRows[0].lastName,
+          phones: resolvedPhoneRows.map((p) => ({
             id: p.id,
             number: p.number,
             type: p.type,
             isPrimary: p.isPrimary,
           })),
-          emails: contactEmailRows.map((e) => ({
+          emails: resolvedEmailRows.map((e) => ({
             id: e.id,
             address: e.address,
             type: e.type,

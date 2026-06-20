@@ -9,7 +9,7 @@ export default async function TechEstimateNewPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <h1 className="text-lg font-semibold">New Estimate</h1>
       <EstimateForm orgId={orgId} userId={userId} />
     </div>

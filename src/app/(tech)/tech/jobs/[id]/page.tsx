@@ -1,8 +1,11 @@
 ﻿import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
-import { Briefcase, MapPin, User, FileText, ClipboardList, Calendar, Clock } from 'lucide-react'
+import { eq, and } from 'drizzle-orm'
+import { FileText, ClipboardList, Calendar, Clock } from 'lucide-react'
 import { getJob } from '@/lib/jobs/jobs'
 import { getEquipmentByServiceLocation } from '@/lib/customers'
+import { withTenant } from '@/db/with-tenant'
+import { serviceLocations } from '@/db/schema'
 import { getJobPhotoSignedUrls } from '@/lib/jobs/photos'
 import { getJobSignatureSignedUrls } from '@/lib/jobs/signatures'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +18,9 @@ import { TechSignaturePad } from '../../../components/tech-signature-pad'
 import { CompletionNotes } from '../../../components/completion-notes'
 import { EquipmentSection } from '../../../components/equipment-section'
 import { TechLineItems } from '../../../components/tech-line-items'
+import { TechContactCard } from '../../../components/tech-contact-card'
+import { TechLocationCard } from '../../../components/tech-location-card'
+import { JobDescription } from '../../../components/job-description'
 import { type CachedEquipment } from '@/app/(tech)/lib/dexie'
 
 interface TechJobDetailPageProps {
@@ -33,12 +39,26 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
     notFound()
   }
 
-  const [signedPhotos, signedSignatures, serverEquipment] = await Promise.all([
+  const [signedPhotos, signedSignatures, serverEquipment, customerLocations] = await Promise.all([
     getJobPhotoSignedUrls(orgId, id),
     getJobSignatureSignedUrls(orgId, id),
     job.serviceLocation?.id
       ? getEquipmentByServiceLocation(orgId, job.serviceLocation.id)
       : Promise.resolve([]),
+    withTenant(orgId, (tx) =>
+      tx
+        .select({
+          id: serviceLocations.id,
+          name: serviceLocations.name,
+          addressLine1: serviceLocations.addressLine1,
+          addressLine2: serviceLocations.addressLine2,
+          city: serviceLocations.city,
+          state: serviceLocations.state,
+          postalCode: serviceLocations.postalCode,
+        })
+        .from(serviceLocations)
+        .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.customerId, job.customerId)))
+    ),
   ])
 
   const typedEquipment: CachedEquipment[] = serverEquipment.map((row) => ({
@@ -67,40 +87,37 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
   }))
 
   return (
-    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
-      <Card className="rounded-xl border bg-card p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Briefcase className="size-5 text-muted-foreground" aria-hidden="true" />
-            <div>
-              <p className="text-sm text-muted-foreground">Job #{job.jobNo}</p>
-              <Badge variant={statusBadgeVariant(job.status)}>{statusLabel(job.status)}</Badge>
-              {job.startDate && (
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
-                  <Calendar className="size-3.5 shrink-0" />
-                  {job.startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
-                </p>
-              )}
-              {(job.arrivalWindowStart || job.arrivalWindowEnd) && (
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Clock className="size-3.5 shrink-0" />
-                  {job.arrivalWindowStart
-                    ? job.arrivalWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                    : ''}
-                  {job.arrivalWindowEnd
-                    ? ` – ${job.arrivalWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                    : ''}
-                </p>
-              )}
-            </div>
-          </div>
-          <StatusBottomSheet
-            orgId={orgId}
-            jobId={job.id}
-            currentStatus={job.status as JobStatusValue}
-          />
+    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <div className="flex items-start justify-between gap-3 px-1">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl font-bold tracking-tight">Job #{job.jobNo}</h1>
+          <Badge variant={statusBadgeVariant(job.status)} className="w-fit text-sm px-2.5 py-0.5">
+            {statusLabel(job.status)}
+          </Badge>
+          {job.startDate && (
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Calendar className="size-3.5 shrink-0" />
+              {job.startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+            </p>
+          )}
+          {(job.arrivalWindowStart || job.arrivalWindowEnd) && (
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Clock className="size-3.5 shrink-0" />
+              {job.arrivalWindowStart
+                ? job.arrivalWindowStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                : ''}
+              {job.arrivalWindowEnd
+                ? ` – ${job.arrivalWindowEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                : ''}
+            </p>
+          )}
         </div>
-      </Card>
+        <StatusBottomSheet
+          orgId={orgId}
+          jobId={job.id}
+          currentStatus={job.status as JobStatusValue}
+        />
+      </div>
 
       <Tabs defaultValue="summary" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
@@ -111,55 +128,25 @@ export default async function TechJobDetailPage({ params }: TechJobDetailPagePro
         </TabsList>
 
         <TabsContent value="summary" className="flex flex-col gap-4 mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-2">
-              <User className="size-4 text-muted-foreground" aria-hidden="true" />
-              <CardTitle className="text-base">Customer Info</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="font-medium">{job.customerName}</p>
-              {job.contact && (
-                <p className="text-sm text-muted-foreground">
-                  {job.contact.firstName} {job.contact.lastName || ''}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <TechContactCard
+            jobId={job.id}
+            customerId={job.customerId}
+            customerName={job.customerName}
+            contact={job.contact}
+          />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-2">
-              <MapPin className="size-4 text-muted-foreground" aria-hidden="true" />
-              <CardTitle className="text-base">Service Location</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {job.serviceLocation ? (() => {
-                const loc = job.serviceLocation
-                const parts = [
-                  loc.addressLine1,
-                  loc.addressLine2,
-                  [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', '),
-                ].filter(Boolean)
-                const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(parts.join(', '))}`
-                return (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline leading-relaxed"
-                  >
-                    {parts.map((line, i) => (
-                      <span key={i} className="block">{line}</span>
-                    ))}
-                  </a>
-                )
-              })() : (
-                <p className="text-sm text-muted-foreground">No service location on file.</p>
-              )}
-            </CardContent>
-          </Card>
+          <TechLocationCard
+            jobId={job.id}
+            customerId={job.customerId}
+            serviceLocation={job.serviceLocation}
+            availableLocations={customerLocations}
+          />
+
+          <JobDescription jobId={job.id} initialDescription={job.description} />
 
           <EquipmentSection
             orgId={orgId}
+            jobId={job.id}
             serviceLocationId={job.serviceLocation?.id}
             serverEquipment={typedEquipment}
           />

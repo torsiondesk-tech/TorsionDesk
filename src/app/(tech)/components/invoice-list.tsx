@@ -42,7 +42,7 @@ export function InvoiceList({ orgId, userId }: InvoiceListProps) {
 
   return (
     <div className="h-full overflow-y-auto overscroll-y-contain">
-      <div className="flex flex-col gap-3 p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      <div className="flex flex-col gap-3 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {!online && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Offline — queued changes will sync when you reconnect.

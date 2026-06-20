@@ -13,6 +13,7 @@ import { useTechCustomers, useTechLocations } from '@/app/(tech)/lib/use-tech-da
 import { createTechDb, type CachedCustomer, type CachedLocation } from '@/app/(tech)/lib/dexie'
 import { enqueueOutboxItem, flushOutbox, type EstimateCreatePayload } from '@/app/(tech)/lib/sync'
 import { createEstimateAction, type CreateEstimateInput } from '@/app/(tech)/tech/estimates/actions'
+import { formatPhoneInput } from '@/lib/utils'
 import { toast } from 'sonner'
 
 interface EstimateLineItem {
@@ -220,9 +221,10 @@ export function EstimateForm({
           <Label htmlFor="contactPhone">Contact phone</Label>
           <Input
             id="contactPhone"
+            type="tel"
             value={contactPhone}
-            onChange={(e) => setContactPhone(e.target.value)}
-            placeholder="Phone"
+            onChange={(e) => setContactPhone(formatPhoneInput(e.target.value))}
+            placeholder="(555) 000-0000"
             className="text-base"
           />
         </div>

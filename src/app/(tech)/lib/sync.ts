@@ -65,6 +65,10 @@ export interface JobCreatePayload {
     serviceLocationId: string | null
     description: string
     startDate: string | null
+    contactId?: string | null
+    newContactFirstName?: string | null
+    newContactLastName?: string | null
+    newContactPhone?: string | null
   }
 }
 
@@ -379,11 +383,13 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       listTechInvoicesAction(orgId, userId),
     ])
   } catch (err) {
-    console.error('[sync] hydrate fetch failed', { orgId, userId, err })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    const errDigest = (err as { digest?: string }).digest
+    console.error('[sync] hydrate fetch failed', errMsg, errDigest ?? '', { orgId, userId })
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent(TECH_DATA_UPDATE_FAILED, {
-          detail: { orgId, userId, error: err instanceof Error ? err.message : String(err) },
+          detail: { orgId, userId, error: errMsg },
         }),
       )
     }

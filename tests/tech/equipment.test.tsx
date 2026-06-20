@@ -75,6 +75,7 @@ describe('EquipmentSection', () => {
     render(
       <EquipmentSection
         orgId={orgId}
+        jobId="test-job-id"
         serviceLocationId={serviceLocationId}
         serverEquipment={[]}
       />,

@@ -53,6 +53,11 @@ export function useRealtimeSync(
       window.dispatchEvent(new CustomEvent('dispatch:refresh', { detail: msg }))
     })
 
+    channel.on('broadcast', { event: 'job-status-changed' }, (payload) => {
+      const msg = payload.payload as SyncMessage
+      window.dispatchEvent(new CustomEvent('dispatch:refresh', { detail: msg }))
+    })
+
     channel.subscribe((status, err) => {
       if (status === 'CHANNEL_ERROR') {
         console.warn('Realtime dispatch channel error — cross-tab sync unavailable', {

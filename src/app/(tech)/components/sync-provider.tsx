@@ -23,8 +23,8 @@ export function TechSyncProvider({ orgId, userId, children }: TechSyncProviderPr
   useEffect(() => {
     const onDataUpdated = () => router.refresh()
     const onDataFailed = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { error?: string } | undefined
-      console.error('[sync-provider] hydration failed', detail)
+      const detail = (e as CustomEvent).detail as { error?: string; orgId?: string } | undefined
+      console.error('[sync-provider] hydration failed:', detail?.error ?? 'unknown', detail)
       toast.error('Job sync failed — pull down to retry')
     }
     window.addEventListener(TECH_DATA_UPDATED, onDataUpdated)

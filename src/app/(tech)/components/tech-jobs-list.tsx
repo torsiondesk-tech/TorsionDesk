@@ -197,7 +197,7 @@ export function TechJobsList({ orgId, userId }: TechJobsListProps) {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      className="flex h-full flex-col gap-4 overflow-y-auto overscroll-y-none p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]"
+      className="flex h-full flex-col gap-4 overflow-y-auto overscroll-y-none px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]"
     >
       {header}
       <PullIndicator distance={pullDistance} refreshing={refreshing} />

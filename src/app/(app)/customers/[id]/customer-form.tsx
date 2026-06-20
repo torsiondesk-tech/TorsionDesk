@@ -68,6 +68,7 @@ export function CustomerForm({
     FormData
   >(action, {})
 
+  const [nameValue, setNameValue] = useState(initial?.name ?? '')
   const [vip, setVip] = useState(initial?.vip ?? false)
   const [active, setActive] = useState(initial?.active ?? true)
   const [locationAddr, setLocationAddr] = useState<Partial<ParsedAddress>>({})
@@ -115,7 +116,9 @@ export function CustomerForm({
                   <Input
                     id="name"
                     name="name"
-                    defaultValue={initial?.name}
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
+                    autoCapitalize="words"
                     placeholder="Acme Property Management"
                     required
                   />
@@ -240,13 +243,15 @@ export function CustomerForm({
                         <Input
                           name={`contacts[${ci}].firstName`}
                           value={contact.firstName}
-                          onChange={(e) => updateContact(ci, 'firstName', e.target.value)}
+                          onChange={(e) => updateContact(ci, 'firstName', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
+                          autoCapitalize="words"
                           placeholder="First name"
                         />
                         <Input
                           name={`contacts[${ci}].lastName`}
                           value={contact.lastName}
-                          onChange={(e) => updateContact(ci, 'lastName', e.target.value)}
+                          onChange={(e) => updateContact(ci, 'lastName', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
+                          autoCapitalize="words"
                           placeholder="Last name"
                         />
                       </div>

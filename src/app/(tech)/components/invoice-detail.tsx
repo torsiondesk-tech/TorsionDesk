@@ -72,7 +72,7 @@ export function InvoiceDetail({ orgId, userId, invoiceId, jobId }: InvoiceDetail
   }
 
   return (
-    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+    <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <Link
         href="/tech/invoices"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground"

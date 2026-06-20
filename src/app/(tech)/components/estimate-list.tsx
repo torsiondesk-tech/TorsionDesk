@@ -48,7 +48,7 @@ export function EstimateList({ orgId }: EstimateListProps) {
 
   return (
     <div className="h-full overflow-y-auto overscroll-y-contain">
-      <div className="flex flex-col gap-3 p-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      <div className="flex flex-col gap-3 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {estimates.map((estimate) => (
           <EstimateCard key={estimate.id} estimate={estimate} />
         ))}

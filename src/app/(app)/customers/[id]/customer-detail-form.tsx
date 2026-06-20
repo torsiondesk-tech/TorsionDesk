@@ -550,7 +550,8 @@ export function CustomerDetailForm({
                       <Input
                         id="cust-name"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => setName(e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
+                        autoCapitalize="words"
                         placeholder="Acme Property Management"
                       />
                     </div>
@@ -700,8 +701,9 @@ export function CustomerDetailForm({
                           id={`contact-first-${ci}`}
                           value={contact.firstName}
                           onChange={(e) =>
-                            updateContact(ci, 'firstName', e.target.value)
+                            updateContact(ci, 'firstName', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))
                           }
+                          autoCapitalize="words"
                           placeholder="First name"
                         />
                       </div>
@@ -712,8 +714,9 @@ export function CustomerDetailForm({
                           id={`contact-last-${ci}`}
                           value={contact.lastName}
                           onChange={(e) =>
-                            updateContact(ci, 'lastName', e.target.value)
+                            updateContact(ci, 'lastName', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))
                           }
+                          autoCapitalize="words"
                           placeholder="Last name"
                         />
                       </div>

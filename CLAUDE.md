@@ -93,6 +93,22 @@ Phase 10 → Data Migration (SF import)
 - Stripe webhooks: verify on **raw body**, deduplicate by `event.id` UNIQUE constraint
 - Balance is a **locked recompute** (sum of all payment records), not a mutable field
 
+### Supabase Realtime Broadcast — Topic Format
+
+The REST broadcast API (`/realtime/v1/api/broadcast`) expects the **bare channel name**, not the internal Phoenix-prefixed topic.
+
+```ts
+// CORRECT — matches what clients subscribe with via client.channel('dispatch:orgId')
+messages: [{ topic: `dispatch:${orgId}`, event, payload }]
+
+// WRONG — double-prefixes the Phoenix topic, events are silently dropped
+messages: [{ topic: `realtime:dispatch:${orgId}`, event, payload }]
+```
+
+Supabase prepends `realtime:` internally when routing. Sending `realtime:dispatch:...` results in routing to `realtime:realtime:dispatch:...` which matches nothing. This has been accidentally reverted twice — do not change it.
+
+**Canonical implementation:** `src/lib/jobs/broadcast.ts`
+
 ### PWA Offline
 - iOS/Safari does **not** support Background Sync API
 - Dual flush triggers required: `online` event + Background Sync where available

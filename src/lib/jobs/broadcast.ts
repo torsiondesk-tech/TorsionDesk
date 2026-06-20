@@ -7,10 +7,10 @@ export async function broadcastJobEvent(
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return
 
-  // Supabase client.channel('dispatch:<orgId>') subscribes to the Phoenix topic
-  // 'realtime:dispatch:<orgId>'. The REST broadcast endpoint must target the exact
-  // topic string, otherwise mobile clients never receive the event.
-  const topic = `realtime:dispatch:${orgId}`
+  // The REST broadcast API expects the bare channel name used in client.channel().
+  // Supabase prepends 'realtime:' internally — sending 'realtime:dispatch:...' here
+  // would double-prefix the topic and silently drop all events.
+  const topic = `dispatch:${orgId}`
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 5_000)
