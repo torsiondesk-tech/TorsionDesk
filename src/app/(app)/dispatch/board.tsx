@@ -128,10 +128,9 @@ export function DispatchBoard({
     useSensor(TouchSensor, { activationConstraint: { distance: 8 } }),
   )
 
-  // Realtime cross-tab/cross-user sync
-  const weekStartDate = new Date(`${weekStart}T00:00:00`)
-  const weekEndDate = new Date(`${weekEnd}T00:00:00`)
-  useRealtimeSync(orgId, setLocalJobs, setLocalPoolJobs, weekStartDate, weekEndDate)
+  // Realtime cross-tab/cross-user sync + 30s polling fallback
+  const handleRealtimeRefresh = useCallback(() => router.refresh(), [router])
+  useRealtimeSync(orgId, handleRealtimeRefresh)
 
   // Listen for realtime refresh events and reload server data
   useEffect(() => {
@@ -225,6 +224,8 @@ export function DispatchBoard({
             setLocalJobs(previousJobs)
             setLocalPoolJobs(previousPool)
             toast.error(result.error)
+          } else {
+            router.refresh()
           }
         })
         return
@@ -326,6 +327,8 @@ export function DispatchBoard({
           setLocalJobs(previousJobs)
           setLocalPoolJobs(previousPool)
           toast.error(result.error)
+        } else {
+          router.refresh()
         }
       })
     },
