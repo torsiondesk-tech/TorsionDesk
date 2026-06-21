@@ -394,9 +394,9 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-6xl sm:max-w-6xl md:max-w-6xl lg:max-w-6xl p-0 overflow-hidden" showCloseButton={false}>
+      <DialogContent className="p-0 overflow-hidden flex flex-col max-h-[90dvh] sm:max-w-2xl lg:max-w-5xl" showCloseButton={false}>
         {/* ── Header bar ── */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30 shrink-0">
           <DialogTitle className="text-sm font-semibold">
             Detailed Job View (#{localJob.jobNo})
           </DialogTitle>
@@ -406,9 +406,9 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
         </div>
 
         {/* ── Body ── */}
-        <div className="flex min-h-[520px]">
-          {/* ── Left sidebar: actions ── */}
-          <div className="w-[150px] border-r bg-muted/20 p-2 space-y-1 shrink-0">
+        <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
+          {/* ── Left sidebar: actions — desktop only ── */}
+          <div className="hidden sm:flex sm:flex-col w-[150px] border-r bg-muted/20 p-2 space-y-1 shrink-0">
             <ActionButton icon={Route} label="Dispatch" disabled />
             <ActionButton icon={Eye} label="View Details" onClick={() => router.push(editHref)} />
             <ActionButton icon={Pencil} label="Make Changes" onClick={() => router.push(`${editHref}?edit=true`)} />
@@ -425,7 +425,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
           </div>
 
           {/* ── Main content ── */}
-          <div className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto">
+          <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto">
             {/* ── Customer Info Card ── */}
             <div className="rounded-lg border bg-background overflow-hidden">
               <div className="p-3 border-b bg-muted/20">
@@ -1332,6 +1332,37 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── Mobile action bar — bottom strip, hidden on sm+ ── */}
+        <div className="flex sm:hidden items-center gap-2 p-2 border-t shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 justify-center gap-1.5 text-xs"
+            onClick={() => router.push(editHref)}
+          >
+            <Eye className="size-3.5" />
+            View
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 justify-center gap-1.5 text-xs"
+            onClick={() => router.push(`${editHref}?edit=true`)}
+          >
+            <Pencil className="size-3.5" />
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={onClose}
+          >
+            <ArrowLeft className="size-3.5" />
+            Close
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
