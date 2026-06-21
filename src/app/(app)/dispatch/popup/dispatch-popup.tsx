@@ -240,7 +240,7 @@ function StatusSelect({ jobId, currentStatus }: { jobId: string; currentStatus: 
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 items-start">
       <StatusPill status={status} />
       {legal.length > 0 && (
         <Select value="" onValueChange={handleChange} disabled={isPending}>
@@ -394,7 +394,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="p-0 overflow-hidden flex flex-col max-h-[90dvh] sm:max-w-2xl lg:max-w-5xl" showCloseButton={false}>
+      <DialogContent className="p-0 gap-0 overflow-hidden flex flex-col max-h-[90dvh] sm:max-w-2xl lg:max-w-5xl" showCloseButton={false}>
         {/* ── Header bar ── */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30 shrink-0">
           <DialogTitle className="text-sm font-semibold">
@@ -425,7 +425,8 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
           </div>
 
           {/* ── Main content ── */}
-          <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* ── Customer Info Card ── */}
             <div className="rounded-lg border bg-background overflow-hidden">
               <div className="p-3 border-b bg-muted/20">
@@ -845,8 +846,8 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
               </div>
             </div>
 
-            {/* ── Map placeholder ── */}
-            <div className="rounded-lg border bg-muted min-h-[200px] relative overflow-hidden">
+            {/* ── Map placeholder — hidden on mobile (Phase 8) ── */}
+            <div className="hidden sm:block rounded-lg border bg-muted min-h-[200px] relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center text-sm text-muted-foreground">
                   <MapPin className="mx-auto size-8 mb-2 opacity-40" />
@@ -1331,6 +1332,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                 <InlineRow icon={ClipboardList} label="Additional Site Visits" value="( 0 )" />
               </div>
             </div>
+          </div>
           </div>
         </div>
 
