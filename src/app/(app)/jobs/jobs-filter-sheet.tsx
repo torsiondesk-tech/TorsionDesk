@@ -25,11 +25,9 @@ interface JobsFilterSheetProps {
 export function JobsFilterSheet({ tagCounts }: JobsFilterSheetProps) {
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="lg:hidden">
-          <SlidersHorizontal className="size-4" />
-          Filters
-        </Button>
+      <SheetTrigger render={<Button variant="outline" size="sm" className="lg:hidden" />}>
+        <SlidersHorizontal className="size-4" />
+        Filters
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-4">
         <SheetHeader>
