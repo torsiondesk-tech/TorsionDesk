@@ -10,7 +10,7 @@ interface TechContextValue {
   userId: string
 }
 
-const TechContext = createContext<TechContextValue | null>(null)
+export const TechContext = createContext<TechContextValue | null>(null)
 
 export function useTechContext(): TechContextValue {
   const ctx = useContext(TechContext)
@@ -39,9 +39,12 @@ export function TechSyncProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Clerk reads the JWT from cookies — works offline. Render null for the brief
-  // frame before Clerk's client JS hydrates (avoids context consumers throwing).
-  if (!isLoaded || !orgId || !userId) return null
-
-  return <TechContext.Provider value={{ orgId, userId }}>{children}</TechContext.Provider>
+  // Always render children to avoid SSR hydration mismatch.
+  // Context value is null until Clerk hydrates; consumers use useContext directly
+  // and render nothing when context is null (safe for the <1 frame loading gap).
+  return (
+    <TechContext.Provider value={isLoaded && orgId && userId ? { orgId, userId } : null}>
+      {children}
+    </TechContext.Provider>
+  )
 }

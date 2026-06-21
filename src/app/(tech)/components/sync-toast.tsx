@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb } from '@/app/(tech)/lib/dexie'
-import { useTechContext } from '@/app/(tech)/components/sync-provider'
+import { TechContext } from '@/app/(tech)/components/sync-provider'
 import { toast } from 'sonner'
 
 export function SyncToast() {
-  const { orgId } = useTechContext()
+  const ctx = useContext(TechContext)
+  const orgId = ctx?.orgId ?? ''
   const previous = useRef<{
     pending: number
     failed: number

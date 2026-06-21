@@ -1,15 +1,18 @@
 'use client'
 
+import { useContext } from 'react'
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { usePendingCount, useFailedCount } from '@/app/(tech)/lib/use-tech-data'
 import { flushOutbox } from '@/app/(tech)/lib/sync'
-import { useTechContext } from '@/app/(tech)/components/sync-provider'
+import { TechContext } from '@/app/(tech)/components/sync-provider'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, CloudOff, RotateCcw } from 'lucide-react'
 
 export function OfflineBadge() {
-  const { orgId, userId } = useTechContext()
+  const ctx = useContext(TechContext)
+  const orgId = ctx?.orgId ?? ''
+  const userId = ctx?.userId ?? ''
   const online = useOnline()
   const pending = usePendingCount(orgId)
   const failed = useFailedCount(orgId)
