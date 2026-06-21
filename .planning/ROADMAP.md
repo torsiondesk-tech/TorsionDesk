@@ -31,7 +31,7 @@
 - [x] **Phase 2: Catalog and Settings** - Product/service catalog plus admin configuration of categories, tags, templates, users, and lookups (completed 2026-06-14)
 - [x] **Phase 3: Jobs Core and Status FSM** - Job form, line items, totals, and the server-enforced status machine that everything consumes (completed 2026-06-15)
 - [x] **Phase 4: Dispatch Board** - Live week-view scheduling grid with job pool, popup actions, and one-click Close & Invoice (completed 2026-06-15)
-- [ ] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments
+- [x] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments (completed 2026-06-21)
 - [ ] **Phase 6: Estimates** - Separate estimate module with its own pipeline, dashboard, templates, and convert-to-job
 - [ ] **Phase 7: Invoicing and Payments** - Invoices from jobs, dual-processor payment ledger, and live AR aging dashboard
 - [ ] **Phase 8: Communications and Notifications** - Event-triggered email (Resend) and SMS (Twilio) automations with per-trigger settings
@@ -240,7 +240,7 @@ Plans:
   8. A tech can collect an on-site Square card payment against an invoice from the PWA; payment posts to the same canonical ledger as office-recorded payments.
   9. Estimate creation, estimate-to-job conversion, invoice creation, payment records, and send actions are queued offline when needed and auto-sync on reconnect.
 
-**Plans:** 1/6 plans executed
+**Plans:** 6/6 plans executed
 **UI hint:** yes
 
 Plans:
@@ -263,7 +263,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 05-05-PLAN.md — Invoices + payments: invoice create/send (stub-safe Phase 7/8), online-only Square Apple/Google Pay + offline cash/check, full outbox flagging, device verification (TECH-11, TECH-12, TECH-13, TECH-14)
+- [x] 05-05-PLAN.md — Invoices + payments: invoice create/send (stub-safe Phase 7/8), online-only Square Apple/Google Pay + offline cash/check, full outbox flagging, device verification (TECH-11, TECH-12, TECH-13, TECH-14)
 
 ### Phase 6: Estimates
 
@@ -359,7 +359,7 @@ Plans:
 | 2. Catalog and Settings | 5/6 | Completed | 2026-06-14 |
 | 3. Jobs Core and Status FSM | 6/6 | Completed | 2026-06-15 |
 | 4. Dispatch Board | 6/6 | Completed | 2026-06-15 |
-| 5. Technician Mobile PWA | 0/6 | Planned | - |
+| 5. Technician Mobile PWA | 6/6 | Completed | 2026-06-21 |
 | 6. Estimates | 0/0 | Not started | - |
 | 7. Invoicing and Payments | 0/0 | Not started | - |
 | 8. Communications and Notifications | 0/0 | Not started | - |

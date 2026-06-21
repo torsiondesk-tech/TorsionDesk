@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 05
-last_updated: "2026-06-18T01:21:14.224Z"
+status: Executing Phase 06
+last_updated: "2026-06-21"
 progress:
   total_phases: 11
-  completed_phases: 0
+  completed_phases: 5
   total_plans: 36
-  completed_plans: 21
-  percent: 0
+  completed_plans: 32
+  percent: 45
 ---
 
 # TorsionDesk — Project State
@@ -19,19 +19,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Core value:** A tech gets dispatched from the board, completes the job on their phone, creates the invoice and collects payment on site, and the customer has a paid invoice with a receipt in their inbox — without the owner touching anything twice.
-**Current focus:** Phase 05 — technician-pwa
+**Current focus:** Phase 06 — estimates
 
 ## Current Phase
 
-**Phase 5: Technician Mobile PWA (expanded scope)**
+**Phase 6: Estimates**
 
-- Status: In Progress
-- Current position: 05-01, 05-01b, 05-02, 05-03, 05-04, and 05-05 complete — all 6 plans done, pending device verification
-- Goal: Offline-capable mobile PWA for technicians to view assigned jobs, update status, capture signatures/photos, view/create/convert estimates, create invoices, send estimate/invoice PDFs, and collect on-site Square payments.
-- Requirements: TECH-01 through TECH-14
-- Depends on: Phase 3 (completed), Phase 4 (completed)
-- Cross-phase impact: Phase 5 now surfaces capabilities that also belong to Phase 6 (estimates), Phase 7 (invoices/payments), and Phase 8 (customer comms). Those phases must implement the office APIs first; the PWA reuses them and adds offline-safe wrappers.
-- Phase 4 is complete — parallel track closed.
+- Status: Not started
+- Goal: Sales (and technicians in the field) can run estimates through their own dedicated pipeline and dashboard, build them with grouped catalog line items, email/text them as PDFs, and convert a won estimate into a job in one action from the office or the PWA.
+- Requirements: EST-01 through EST-09
+- Depends on: Phase 3 (completed)
+- Cross-phase note: `createEstimateAction`, `convertEstimateToJobAction`, and `sendEstimateAction` must be callable from the Phase 5 PWA. Implement canonical server actions here; the PWA offline-queued wrappers are already stubbed.
 
 ## Phase 4 Plans
 
@@ -42,47 +40,27 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 - [x] 04-05-PLAN.md — Wave 4: Dispatch popup (two-column Dialog, map pane, action buttons)
 - [x] 04-06-PLAN.md — Wave 5: Realtime sync, nav, role gates, tests
 
-## Phase 5 Plans
+## Phase 6 Plans
 
-- [x] 05-01-PLAN.md — Wave 1: PWA shell — Serwist install, Dexie.js outbox schema, offline fallback, passing unit tests
-- [x] 05-01b-PLAN.md — Wave 2: /tech/ role gate + mobile shell layout + bottom nav + jobSignatures schema push
-- [x] 05-02-PLAN.md — Wave 3: 7-day schedule + offline status transitions + sync loop
-- [x] 05-03-PLAN.md — Wave 4: Photos, signatures, completion notes, equipment specs
-- [x] 05-04-PLAN.md — Wave 5: Estimates surface (view/create/convert offline)
-- [x] 05-05-PLAN.md — Wave 6: Invoices/payments surface + Square on-site payment + outbox UI
-
-Planned wave structure:
-
-- Wave 1: PWA shell — Serwist install, Dexie.js outbox schema, offline sync loop, role gate, layout/nav
-- Wave 2: Job runtime — today + 7-day schedule, status transitions, photos, signature, completion notes, equipment/specs lookup
-- Wave 3: Estimate surface — view/create estimates, line items, convert estimate to job, email/text estimate PDF
-- Wave 4: Invoice/payment surface — create invoice from completed job, view invoice, email/text invoice PDF, Square on-site payment
-- Wave 5: Offline sync + comms queue — IndexedDB outbox for estimates, invoices, payments, and send actions; iOS fallback; sync on reconnect/focus
-- Wave 6: Integration, nav, tests, and role boundary verification
-
-Office-side dependencies:
-
-- Phase 6 must expose `createEstimateAction`, `convertEstimateToJobAction`, `sendEstimateAction`
-- Phase 7 must expose `createInvoiceFromJobAction`, `sendInvoiceAction`, Square payment endpoint/ledger writer
-- Phase 8 must expose `sendCustomerCommunicationAction` consumed by both office and PWA send buttons
+- TBD — run `/gsd-plan-phase 6` to generate
 
 ## Progress
 
 ```
-Phase 0  [██████████] Completed
-Phase 1  [██████████] Completed
-Phase 2  [██████████] Completed
+Phase 0  [██████████] Completed  ← 2026-06-11
+Phase 1  [██████████] Completed  ← 2026-06-12
+Phase 2  [██████████] Completed  ← 2026-06-14
 Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
-Phase 5  [█████░    ] In Progress  ← current (6/6 plans complete, device checks pending)
-Phase 6  [          ] Not started
+Phase 5  [██████████] Completed  ← 2026-06-21
+Phase 6  [          ] Not started  ← current
 Phase 7  [          ] Not started
 Phase 8  [          ] Not started
 Phase 9  [          ] Not started
 Phase 10 [          ] Not started
 ```
 
-4 / 11 phases complete · 40 / 109 requirements delivered
+5 / 11 phases complete · 54 / 109 requirements delivered
 
 ## Completed Phases
 
@@ -136,6 +114,18 @@ Phase 10 [          ] Not started
   Service Fusion-style week-view dispatch board with technician rows and day columns. Drag-and-drop assignment via dnd-kit with optimistic updates and snap-back on error. Job pool with 6 tabs (Unscheduled, Unassigned, With Open POs, Partially Completed, Paused, Marked For Follow Up). Two-panel dispatch popup modal (details left, map placeholder + actions right) opens on job click. Realtime cross-tab sync via Supabase Broadcast per-tenant topic. Sidebar Dispatch nav enabled. Technician role middleware redirect already covers /dispatch (no extra gate needed). Pool→grid and grid→grid drag both supported. Block colors reflect status precedence: cancelled muted, in-progress blue, closed green, default slate.
 
 - Requirements delivered: DISP-01, DISP-02, DISP-03, DISP-04, DISP-05, DISP-06, DISP-07
+
+### Phase 5: Technician Mobile PWA
+
+- Status: Completed
+- Completed: 2026-06-21
+- Plans executed: 6 / 6 (05-01, 05-01b, 05-02, 05-03, 05-04, 05-05)
+- Device checks: 5/8 PASSED, 3 DEFERRED (iOS install — no Apple device; Square sandbox payment online + offline — credentials not configured)
+- Notes: |
+  Offline-capable installable PWA for technicians. Serwist SW + Dexie.js outbox with 9 mutation types. Role gate: Technicians auto-redirect to /tech/jobs; Dispatchers/Admins blocked or redirected. 7-day job schedule with Dexie cache, status bottom sheet via server-enforced transitionJobStatusAction. Camera photo upload (canvas compress, presigned URL, offline queue). Touchscreen signature via signature_pad (touch-none, syncs to jobSignatures table). Completion notes and equipment/spring specs from job detail. Estimates surface (list/create/convert to job, offline-capable, stub-safe Phase 6 delegation). Invoices surface (create from completed job, send, stub-safe Phase 7/8). Square Web Payments SDK (Apple/Google Pay online-only; cash/check recorded offline). Full Dexie outbox UI with unsynced count badge.
+  Deferred items for future pass: Square sandbox credential testing (TECH-13 device check); iOS Safari install (no Apple hardware). Code is implemented; only sandbox validation is deferred.
+
+- Requirements delivered: TECH-01, TECH-02, TECH-03, TECH-04, TECH-05, TECH-06, TECH-07, TECH-08, TECH-09, TECH-10, TECH-11, TECH-12, TECH-13, TECH-14
 
 ## Key Decisions Made
 
@@ -200,13 +190,12 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 5 scope expanded 2026-06-17 — requirements updated so the technician PWA includes estimates, invoices, payments, and customer communications.
-**Next action:** Run `/gsd-plan-phase 5` to research and plan the expanded technician PWA.
+**Last action:** Phase 5 closed 2026-06-21 — all 6 plans complete, device checks passed (3 deferred: iOS install + Square sandbox credentials).
+**Next action:** Run `/gsd-plan-phase 6` to plan the Estimates module.
 **Resume files:**
 
-- `.planning/phases/04-dispatch-board/04-CONTEXT.md` — locked decisions for Phase 4
-- `.planning/phases/04-dispatch-board/04-DISCUSSION-LOG.md` — full discussion audit trail
-- `.planning/SESSION-2026-06-14-AUDIT.md` — cross-phase compatibility reference
+- `.planning/phases/05-technician-pwa/05-CONTEXT.md` — locked decisions for Phase 5
+- `.planning/SESSION-2026-06-14-AUDIT.md` — cross-phase compatibility reference (estimates inline-creation pattern, shared server actions)
 
 ---
 *State initialized: 2026-06-10*
