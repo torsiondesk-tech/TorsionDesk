@@ -32,7 +32,7 @@ export function PoolCardContent({ job, isOverlay }: PoolCardContentProps) {
   return (
     <div
       className={cn(
-        'w-52 min-h-[104px] cursor-grab rounded-md border p-2 text-xs shadow-sm active:cursor-grabbing transition-all',
+        'w-full sm:w-52 min-h-[104px] cursor-grab rounded-md border p-2 text-xs shadow-sm active:cursor-grabbing transition-all',
         isOverlay && 'shadow-lg rotate-2 scale-105 cursor-grabbing',
       )}
       style={{

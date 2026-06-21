@@ -39,7 +39,7 @@ export function CustomersToolbar() {
           })
         }}
       >
-        <SelectTrigger className="h-8 w-[160px]">
+        <SelectTrigger className="h-8 w-full sm:w-[160px]">
           <SelectValue placeholder="All statuses" />
         </SelectTrigger>
         <SelectContent>

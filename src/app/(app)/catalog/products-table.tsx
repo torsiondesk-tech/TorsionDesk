@@ -23,6 +23,7 @@ import { ProductRow } from '@/lib/catalog'
 import { ExportButton } from './export-button'
 import { Plus, Trash2 } from 'lucide-react'
 import { useMemo } from 'react'
+import { cn } from '@/lib/utils'
 
 interface ProductsTableProps {
   rows: ProductRow[]
@@ -30,6 +31,13 @@ interface ProductsTableProps {
   page: number
   pageSize: number
   onDelete?: (id: string) => void
+}
+
+const MOBILE_HIDDEN: Record<string, string> = {
+  categoryName: 'hidden sm:table-cell',
+  unitCost: 'hidden sm:table-cell',
+  sku: 'hidden sm:table-cell',
+  active: 'hidden sm:table-cell',
 }
 
 export function ProductsTable({
@@ -162,7 +170,7 @@ export function ProductsTable({
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id}>
+                  <TableHead key={h.id} className={cn(MOBILE_HIDDEN[h.column.id])}>
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
@@ -174,7 +182,7 @@ export function ProductsTable({
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-pending={isPending}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className={cn(MOBILE_HIDDEN[cell.column.id])}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

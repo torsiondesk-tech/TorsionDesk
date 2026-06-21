@@ -31,6 +31,13 @@ interface JobsTableProps {
   bucket?: string
 }
 
+const MOBILE_HIDDEN: Record<string, string> = {
+  city: 'hidden sm:table-cell',
+  category: 'hidden md:table-cell',
+  priority: 'hidden sm:table-cell',
+  startDate: 'hidden sm:table-cell',
+}
+
 function priorityLabel(priority: string | null) {
   if (!priority) return '—'
   return priority.charAt(0).toUpperCase() + priority.slice(1)
@@ -162,6 +169,7 @@ export function JobsTable({ rows, pageCount, page, pageSize, bucket }: JobsTable
                     <TableHead
                       key={h.id}
                       className={cn(
+                        MOBILE_HIDDEN[h.column.id],
                         'uppercase tracking-wide text-xs',
                         sortable && 'cursor-pointer select-none',
                       )}
@@ -186,7 +194,7 @@ export function JobsTable({ rows, pageCount, page, pageSize, bucket }: JobsTable
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-pending={isPending} className="py-2">
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-2">
+                    <TableCell key={cell.id} className={cn(MOBILE_HIDDEN[cell.column.id], 'py-2')}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

@@ -6,6 +6,7 @@ import { listJobCategories } from '@/lib/categories'
 import { getCustomerById } from '@/lib/customers'
 import { JobsTable } from './jobs-table'
 import { JobsSidebar } from './jobs-sidebar'
+import { JobsFilterSheet } from './jobs-filter-sheet'
 import { JobsAdvancedSearch } from './jobs-advanced-search'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -121,8 +122,8 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
   return (
     <div className="flex gap-6 animate-in fade-in-0 duration-300">
-      {/* Nested left sidebar */}
-      <aside className="w-60 shrink-0">
+      {/* Nested left sidebar — desktop only */}
+      <aside className="hidden lg:block w-60 shrink-0">
         <JobsSidebar tagCounts={tagCounts} />
       </aside>
 
@@ -135,12 +136,15 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
               Manage your jobs and service calls.
             </p>
           </div>
-          <Link href="/jobs/new">
-            <Button size="sm">
-              <Plus className="size-4" />
-              New Job
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <JobsFilterSheet tagCounts={tagCounts} />
+            <Link href="/jobs/new">
+              <Button size="sm">
+                <Plus className="size-4" />
+                New Job
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {isAdvancedSearch && (

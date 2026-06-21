@@ -10,7 +10,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
-import { formatPhone } from '@/lib/utils'
+import { formatPhone, cn } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -27,6 +27,13 @@ interface CustomersTableProps {
   pageCount: number
   page: number
   pageSize: number
+}
+
+const MOBILE_HIDDEN: Record<string, string> = {
+  accountNo: 'hidden sm:table-cell',
+  primaryEmail: 'hidden md:table-cell',
+  primaryCity: 'hidden sm:table-cell',
+  tagNames: 'hidden sm:table-cell',
 }
 
 const columns: ColumnDef<CustomerRow>[] = [
@@ -123,7 +130,7 @@ export function CustomersTable({
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id}>
+                  <TableHead key={h.id} className={cn(MOBILE_HIDDEN[h.column.id])}>
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}
@@ -135,7 +142,7 @@ export function CustomersTable({
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-pending={isPending}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className={cn(MOBILE_HIDDEN[cell.column.id])}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
