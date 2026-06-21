@@ -1,8 +1,21 @@
 'use client'
 
-import { useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { startSyncLoop, TECH_DATA_UPDATE_FAILED } from '@/app/(tech)/lib/sync'
 import { toast } from 'sonner'
+
+interface TechContextValue {
+  orgId: string
+  userId: string
+}
+
+const TechContext = createContext<TechContextValue | null>(null)
+
+export function useTechContext(): TechContextValue {
+  const ctx = useContext(TechContext)
+  if (!ctx) throw new Error('useTechContext must be used within TechSyncProvider')
+  return ctx
+}
 
 interface TechSyncProviderProps {
   orgId: string
@@ -29,5 +42,5 @@ export function TechSyncProvider({ orgId, userId, children }: TechSyncProviderPr
     }
   }, [])
 
-  return <>{children}</>
+  return <TechContext.Provider value={{ orgId, userId }}>{children}</TechContext.Provider>
 }
