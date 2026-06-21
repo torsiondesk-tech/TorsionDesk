@@ -20,6 +20,8 @@ function makeRow(overrides: Partial<JobRow> & { startDate: Date }): JobRow {
     postalCode: null,
     contactPhone: null,
     contactEmail: null,
+    contactFirstName: null,
+    contactLastName: null,
     category: null,
     priority: null,
     status: 'scheduled',

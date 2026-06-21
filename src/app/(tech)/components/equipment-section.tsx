@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { Wrench, ChevronDown, Plus, Pencil, Trash2, Save, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +26,37 @@ interface EquipmentSectionProps {
   serverEquipment: CachedEquipment[]
 }
 
+function equipmentFieldsFromFormData(
+  kind: CachedEquipment['kind'],
+  serviceLocationId: string,
+  fd: FormData,
+): Omit<CachedEquipment, 'id' | 'tenantId'> {
+  const s = (k: string): string | null => (fd.get(k) as string) || null
+  const cr = s('cycleRating')
+  return {
+    kind,
+    serviceLocationId,
+    brand: kind !== 'spring' ? s('brand') : null,
+    installDate: s('installDate'),
+    warrantyExpires: s('warrantyExpires'),
+    notes: s('notes'),
+    widthFt: kind === 'door' ? s('widthFt') : null,
+    heightFt: kind === 'door' ? s('heightFt') : null,
+    material: kind === 'door' ? s('material') : null,
+    style: kind === 'door' ? s('style') : null,
+    color: kind === 'door' ? s('color') : null,
+    modelSeries: kind === 'door' ? s('modelSeries') : null,
+    model: kind === 'opener' ? s('model') : null,
+    hp: kind === 'opener' ? s('hp') : null,
+    serial: kind === 'opener' ? s('serial') : null,
+    wireSize: kind === 'spring' ? s('wireSize') : null,
+    insideDiameter: kind === 'spring' ? s('insideDiameter') : null,
+    length: kind === 'spring' ? s('length') : null,
+    windDirection: kind === 'spring' ? (s('windDirection') as CachedEquipment['windDirection']) : null,
+    cycleRating: kind === 'spring' && cr ? parseInt(cr, 10) || null : null,
+  }
+}
+
 export function EquipmentSection({
   orgId,
   jobId,
@@ -34,7 +64,6 @@ export function EquipmentSection({
   serverEquipment,
 }: EquipmentSectionProps) {
   const db = useMemo(() => createTechDb(orgId), [orgId])
-  const router = useRouter()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -69,7 +98,6 @@ export function EquipmentSection({
       await db.equipment.delete(equipmentId)
       await deleteTechEquipmentAction(equipmentId, jobId)
       setEditingId(null)
-      router.refresh()
     })
   }
 
@@ -117,11 +145,9 @@ export function EquipmentSection({
                               key={eq.id}
                               item={eq}
                               jobId={jobId}
+                              db={db}
                               isPendingDelete={isPending}
-                              onSuccess={() => {
-                                setEditingId(null)
-                                router.refresh()
-                              }}
+                              onSuccess={() => setEditingId(null)}
                               onCancel={() => setEditingId(null)}
                               onDelete={() => handleDelete(eq.id)}
                             />
@@ -173,10 +199,8 @@ export function EquipmentSection({
                 orgId={orgId}
                 jobId={jobId}
                 serviceLocationId={serviceLocationId}
-                onSuccess={() => {
-                  setShowForm(false)
-                  router.refresh()
-                }}
+                db={db}
+                onSuccess={() => setShowForm(false)}
                 onCancel={() => setShowForm(false)}
               />
             )}
@@ -240,6 +264,7 @@ function Spec({ label, value }: { label: string; value: string | null | undefine
 function EditEquipmentForm({
   item,
   jobId,
+  db,
   isPendingDelete,
   onSuccess,
   onCancel,
@@ -247,6 +272,7 @@ function EditEquipmentForm({
 }: {
   item: CachedEquipment
   jobId: string
+  db: import('@/app/(tech)/lib/dexie').TechSyncDb
   isPendingDelete: boolean
   onSuccess: () => void
   onCancel: () => void
@@ -265,6 +291,7 @@ function EditEquipmentForm({
       if (result.error) {
         setError(result.error)
       } else {
+        await db.equipment.update(item.id, equipmentFieldsFromFormData(item.kind, item.serviceLocationId, formData))
         onSuccess()
       }
     })
@@ -417,15 +444,17 @@ function EditEquipmentForm({
 // ── Add form ──────────────────────────────────────────────────────────────────
 
 function AddEquipmentForm({
-  orgId: _orgId,
+  orgId,
   jobId,
   serviceLocationId,
+  db,
   onSuccess,
   onCancel,
 }: {
   orgId: string
   jobId: string
   serviceLocationId: string
+  db: import('@/app/(tech)/lib/dexie').TechSyncDb
   onSuccess: () => void
   onCancel: () => void
 }) {
@@ -442,7 +471,12 @@ function AddEquipmentForm({
       const result = await createTechEquipmentAction(serviceLocationId, jobId, formData)
       if (result.error) {
         setError(result.error)
-      } else {
+      } else if (result.id) {
+        await db.equipment.put({
+          id: result.id,
+          tenantId: orgId,
+          ...equipmentFieldsFromFormData(kind, serviceLocationId, formData),
+        })
         onSuccess()
       }
     })

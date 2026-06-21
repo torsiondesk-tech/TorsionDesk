@@ -32,6 +32,7 @@ interface JobsTableProps {
 }
 
 const MOBILE_HIDDEN: Record<string, string> = {
+  contact: 'hidden md:table-cell',
   city: 'hidden sm:table-cell',
   category: 'hidden md:table-cell',
   priority: 'hidden sm:table-cell',
@@ -64,6 +65,15 @@ const columns: ColumnDef<JobRow>[] = [
   {
     accessorKey: 'customerName',
     header: 'Customer',
+  },
+  {
+    id: 'contact',
+    header: 'Contact',
+    cell: ({ row }) => {
+      const { contactFirstName, contactLastName } = row.original
+      if (!contactFirstName && !contactLastName) return <span className="text-muted-foreground">—</span>
+      return [contactFirstName, contactLastName].filter(Boolean).join(' ')
+    },
   },
   {
     accessorKey: 'description',

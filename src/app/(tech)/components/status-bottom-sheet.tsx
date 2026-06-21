@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   Sheet,
@@ -19,6 +18,7 @@ import {
 } from '@/lib/jobs/transitions'
 import { transitionJobStatusAction } from '@/app/(tech)/tech/jobs/actions'
 import { enqueueOutboxItem } from '@/app/(tech)/lib/sync'
+import { createTechDb } from '@/app/(tech)/lib/dexie'
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { cn } from '@/lib/utils'
 
@@ -52,7 +52,6 @@ export function StatusBottomSheet({
   const [status, setStatus] = useState<JobStatusValue>(currentStatus)
   const [isPending, startTransition] = useTransition()
   const online = useOnline()
-  const router = useRouter()
 
   const options = ALLOWED_TRANSITIONS[status] ?? []
 
@@ -65,10 +64,11 @@ export function StatusBottomSheet({
             "Couldn't update status. The office may have changed this job. Pull down to refresh."
           )
         } else {
+          const db = createTechDb(orgId)
+          await db.jobs.update(jobId, { status: nextStatus })
           setStatus(nextStatus)
           setOpen(false)
           toast.success(`Status updated to ${statusLabel(nextStatus)}`)
-          router.refresh()
         }
       })
     } else {
@@ -76,10 +76,11 @@ export function StatusBottomSheet({
         type: 'job_status_update',
         payload: { jobId, toStatus: nextStatus },
       })
+      const db = createTechDb(orgId)
+      await db.jobs.update(jobId, { status: nextStatus })
       setStatus(nextStatus)
       setOpen(false)
       toast.info(`Queued ${statusLabel(nextStatus)} — will sync when you're back online`)
-      router.refresh()
     }
   }
 

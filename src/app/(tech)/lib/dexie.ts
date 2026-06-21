@@ -73,6 +73,8 @@ export interface CachedJob {
   postalCode: string | null
   contactPhone: string | null
   contactEmail: string | null
+  contactFirstName: string | null
+  contactLastName: string | null
 }
 
 export interface CachedLocation {
@@ -211,6 +213,17 @@ export class TechSyncDb extends Dexie {
     })
     // v6: cache server-confirmed signature metadata so the Sign tab doesn't show blank pads offline
     this.version(6).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      signatureMeta: 'id, jobId, [jobId+signatureType]',
+      outbox: 'id, type, syncStatus, createdAt, seq',
+    })
+    // v7: added contactFirstName + contactLastName to CachedJob for immediate contact name updates
+    this.version(7).stores({
       jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
       serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
       equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',

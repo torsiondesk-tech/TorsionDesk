@@ -76,8 +76,8 @@ export function TechJobDetailClient({ orgId, userId }: TechJobDetailClientProps)
     job.contactId || job.contactPhone || job.contactEmail
       ? {
           id: job.contactId ?? 'cached',
-          firstName: job.customerName ?? 'Customer',
-          lastName: null as string | null,
+          firstName: job.contactFirstName ?? job.customerName ?? 'Customer',
+          lastName: job.contactLastName ?? null,
           phones: job.contactPhone
             ? [{ id: 'p0', number: job.contactPhone, isPrimary: true as boolean | null }]
             : [],
@@ -130,6 +130,7 @@ export function TechJobDetailClient({ orgId, userId }: TechJobDetailClientProps)
 
         <TabsContent value="summary" className="flex flex-col gap-4 mt-4">
           <TechContactCard
+            orgId={orgId}
             jobId={job.id}
             customerId={job.customerId}
             customerName={job.customerName ?? ''}
@@ -137,6 +138,7 @@ export function TechJobDetailClient({ orgId, userId }: TechJobDetailClientProps)
           />
 
           <TechLocationCard
+            orgId={orgId}
             jobId={job.id}
             customerId={job.customerId}
             serviceLocation={serviceLocation}

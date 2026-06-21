@@ -32,6 +32,8 @@ function toJobRow(job: CachedJob): JobRow {
     postalCode: job.postalCode,
     contactPhone: job.contactPhone,
     contactEmail: job.contactEmail,
+    contactFirstName: job.contactFirstName ?? null,
+    contactLastName: job.contactLastName ?? null,
     category: null,
     priority: null,
     status: job.status,
@@ -81,6 +83,8 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
       postalCode: row.postalCode,
       contactPhone: row.contactPhone,
       contactEmail: row.contactEmail,
+      contactFirstName: row.contactFirstName ?? null,
+      contactLastName: row.contactLastName ?? null,
     }))
     db.open()
       .then(() => db.jobs.count())

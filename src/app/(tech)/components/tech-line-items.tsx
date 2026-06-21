@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -55,7 +54,6 @@ function computeTotal(items: LineItemRow[]): number {
 }
 
 export function TechLineItems({ jobId, items }: TechLineItemsProps) {
-  const router = useRouter()
   const online = useOnline()
   const [isPending, startTransition] = useTransition()
 
@@ -149,7 +147,6 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
         toast.success('Item added')
         setAddOpen(false)
         resetAddSheet()
-        router.refresh()
       } catch {
         toast.error('Failed to add item')
       }
@@ -171,7 +168,6 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
         toast.success('Discount added')
         setAddOpen(false)
         resetAddSheet()
-        router.refresh()
       } catch {
         toast.error('Failed to add discount')
       }
@@ -200,7 +196,6 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
         })
         toast.success('Item updated')
         setEditingItem(null)
-        router.refresh()
       } catch {
         toast.error('Failed to update item')
       }
@@ -212,7 +207,6 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
       try {
         await deleteJobLineItem(item.id, jobId)
         toast.success('Item removed')
-        router.refresh()
       } catch {
         toast.error('Failed to remove item')
       }

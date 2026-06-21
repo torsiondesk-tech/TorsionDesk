@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { MapPin, Pencil, ChevronsUpDown, Plus, Check } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,6 +16,7 @@ import {
 import { updateTechLocationAction } from '@/app/(tech)/tech/customers/actions'
 import { addAndAssignJobLocationAction, assignJobLocationAction } from '@/app/(tech)/tech/jobs/actions'
 import { searchPlacesAction, getPlaceDetailsAction, type PlaceSuggestion } from '@/lib/places-actions'
+import { createTechDb } from '@/app/(tech)/lib/dexie'
 import { toast } from 'sonner'
 
 interface ServiceLocation {
@@ -30,6 +30,7 @@ interface ServiceLocation {
 }
 
 interface TechLocationCardProps {
+  orgId: string
   jobId: string
   customerId: string
   serviceLocation: ServiceLocation | null
@@ -132,8 +133,7 @@ function locationLabel(loc: ServiceLocation): string {
   ].filter(Boolean).join(' — ') || 'Unnamed location'
 }
 
-export function TechLocationCard({ jobId, customerId, serviceLocation, availableLocations }: TechLocationCardProps) {
-  const router = useRouter()
+export function TechLocationCard({ orgId, jobId, customerId, serviceLocation, availableLocations }: TechLocationCardProps) {
   const [selectOpen, setSelectOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -146,9 +146,10 @@ export function TechLocationCard({ jobId, customerId, serviceLocation, available
     const result = await assignJobLocationAction({ jobId, locationId })
     setAssigning(null)
     if (!result.success) { toast.error(result.error); return }
+    const db = createTechDb(orgId)
+    await db.jobs.update(jobId, { serviceLocationId: locationId })
     toast.success('Location updated')
     setSelectOpen(false)
-    router.refresh()
   }
 
   async function handleAdd(vals: { address: string; city: string; state: string; zip: string }) {
@@ -160,10 +161,32 @@ export function TechLocationCard({ jobId, customerId, serviceLocation, available
     })
     setAddSaving(false)
     if (!result.success) { toast.error(result.error); return }
+    const db = createTechDb(orgId)
+    await db.serviceLocations.put({
+      id: result.locationId,
+      tenantId: orgId,
+      customerId,
+      name: null,
+      addressLine1: vals.address || null,
+      addressLine2: null,
+      city: vals.city || null,
+      state: vals.state || null,
+      postalCode: vals.zip || null,
+      country: null,
+      latitude: null,
+      longitude: null,
+      gated: false,
+    })
+    await db.jobs.update(jobId, {
+      serviceLocationId: result.locationId,
+      addressLine1: vals.address || null,
+      city: vals.city || null,
+      state: vals.state || null,
+      postalCode: vals.zip || null,
+    })
     toast.success('Location added')
     setSelectOpen(false)
     setShowAddForm(false)
-    router.refresh()
   }
 
   async function handleEdit(vals: { address: string; city: string; state: string; zip: string }) {
@@ -176,9 +199,21 @@ export function TechLocationCard({ jobId, customerId, serviceLocation, available
     })
     setEditSaving(false)
     if (!result.success) { toast.error(result.error); return }
+    const db = createTechDb(orgId)
+    await db.serviceLocations.update(serviceLocation.id, {
+      addressLine1: vals.address || null,
+      city: vals.city || null,
+      state: vals.state || null,
+      postalCode: vals.zip || null,
+    })
+    await db.jobs.update(jobId, {
+      addressLine1: vals.address || null,
+      city: vals.city || null,
+      state: vals.state || null,
+      postalCode: vals.zip || null,
+    })
     toast.success('Location saved')
     setEditOpen(false)
-    router.refresh()
   }
 
   const parts = serviceLocation

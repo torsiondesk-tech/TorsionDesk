@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { User, Phone, Mail, Pencil } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { upsertTechContactAction } from '@/app/(tech)/tech/customers/actions'
+import { createTechDb } from '@/app/(tech)/lib/dexie'
 import { formatPhone, formatPhoneInput } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -27,14 +27,14 @@ interface ContactInfo {
 }
 
 interface TechContactCardProps {
+  orgId: string
   jobId: string
   customerId: string
   customerName: string
   contact: ContactInfo | null
 }
 
-export function TechContactCard({ jobId, customerId, customerName, contact }: TechContactCardProps) {
-  const router = useRouter()
+export function TechContactCard({ orgId, jobId, customerId, customerName, contact }: TechContactCardProps) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -77,9 +77,16 @@ export function TechContactCard({ jobId, customerId, customerName, contact }: Te
       toast.error(result.error)
       return
     }
+    const db = createTechDb(orgId)
+    await db.jobs.update(jobId, {
+      contactId: result.contactId,
+      contactPhone: phone || null,
+      contactEmail: email || null,
+      contactFirstName: firstName.trim() || null,
+      contactLastName: lastName.trim() || null,
+    })
     toast.success('Contact saved')
     setOpen(false)
-    router.refresh()
   }
 
   return (

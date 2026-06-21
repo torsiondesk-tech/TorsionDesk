@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState, useMemo, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { Camera, Images, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -67,7 +66,6 @@ async function compressImage(blob: Blob, maxPx = 1920, quality = 0.85): Promise<
 export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
   const online = useOnline()
   const db = useMemo(() => createTechDb(orgId), [orgId])
 
@@ -195,7 +193,6 @@ export function PhotoUploader({ orgId, jobId, userId }: PhotoUploaderProps) {
     try {
       await deleteJobPhotoAction(jobId, deleteUploadedId)
       await fetchServerPhotos()
-      router.refresh()
     } finally {
       setDeleting(false)
       setDeleteUploadedId(null)

@@ -69,6 +69,8 @@ describe('TechSyncDb', () => {
       postalCode: null,
       contactPhone: null,
       contactEmail: null,
+      contactFirstName: null,
+      contactLastName: null,
     }
 
     await db.jobs.add(job)

@@ -52,6 +52,8 @@ export interface JobRow {
   postalCode: string | null
   contactPhone: string | null
   contactEmail: string | null
+  contactFirstName: string | null
+  contactLastName: string | null
   category: string | null
   priority: string | null
   status: string
@@ -255,6 +257,8 @@ export async function listJobs(
           ORDER BY ce.is_primary DESC, ce.created_at ASC
           LIMIT 1
         )`,
+        contactFirstName: contacts.firstName,
+        contactLastName: contacts.lastName,
         category: jobCategories.name,
         priority: jobs.priority,
         status: jobs.status,
@@ -269,6 +273,7 @@ export async function listJobs(
       .leftJoin(customers, eq(customers.id, jobs.customerId))
       .leftJoin(serviceLocations, eq(serviceLocations.id, jobs.serviceLocationId))
       .leftJoin(jobCategories, eq(jobCategories.id, jobs.categoryId))
+      .leftJoin(contacts, eq(contacts.id, jobs.contactId))
       .where(and(...conditions))
       .orderBy(order)
       .limit(pageSize)

@@ -473,6 +473,8 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       postalCode: row.postalCode ?? null,
       contactPhone: row.contactPhone ?? null,
       contactEmail: row.contactEmail ?? null,
+      contactFirstName: row.contactFirstName ?? null,
+      contactLastName: row.contactLastName ?? null,
     }))
 
     // Atomic transaction so useLiveQuery sees jobs go old→new in one step,
