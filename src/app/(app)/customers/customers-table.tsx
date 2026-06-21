@@ -100,6 +100,7 @@ export function CustomersTable({
   page,
   pageSize,
 }: CustomersTableProps) {
+  const [q] = useQueryState('q')
   const [, setPage] = useQueryState('page')
   const [isPending, startTransition] = useTransition()
 
@@ -151,12 +152,16 @@ export function CustomersTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-32 text-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="text-muted-foreground">No customers yet.</p>
-                    <Link href="/customers/new">
-                      <Button variant="outline" size="sm">Create your first customer</Button>
-                    </Link>
-                  </div>
+                  {q ? (
+                    <p className="text-muted-foreground">No customers match &ldquo;{q}&rdquo;.</p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-muted-foreground">No customers yet.</p>
+                      <Link href="/customers/new">
+                        <Button variant="outline" size="sm">Create your first customer</Button>
+                      </Link>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             )}
