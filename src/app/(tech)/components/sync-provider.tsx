@@ -13,9 +13,9 @@ interface TechContextValue {
 export const TechContext = createContext<TechContextValue | null>(null)
 
 export function useTechContext(): TechContextValue {
-  const ctx = useContext(TechContext)
-  if (!ctx) throw new Error('useTechContext must be used within TechSyncProvider')
-  return ctx
+  // During SSR/prerender Clerk isn't loaded yet so context is null.
+  // Return empty-string defaults — client re-renders with real values before any action fires.
+  return useContext(TechContext) ?? { orgId: '', userId: '' }
 }
 
 export function TechSyncProvider({ children }: { children: ReactNode }) {
