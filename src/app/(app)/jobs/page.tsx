@@ -129,14 +129,14 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
 
       {/* Main content */}
       <div className="flex-1 min-w-0 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Jobs</h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Jobs</h1>
             <p className="text-sm text-muted-foreground">
               Manage your jobs and service calls.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <JobsFilterSheet tagCounts={tagCounts} />
             <Link href="/jobs/new">
               <Button size="sm">

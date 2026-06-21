@@ -22,7 +22,7 @@ interface PoolTabsProps {
 
 export function PoolTabs({ counts, activeTab, onTabChange }: PoolTabsProps) {
   return (
-    <div className="flex items-center gap-1 border-b pb-2">
+    <div className="flex items-center gap-1 border-b pb-2 overflow-x-auto">
       {TABS.map((t) => {
         const count = t.key === 'all' ? counts.total : (counts[t.key] ?? 0)
         const isActive = activeTab === t.key
@@ -32,7 +32,7 @@ export function PoolTabs({ counts, activeTab, onTabChange }: PoolTabsProps) {
             data-testid={`pool-tab-${t.key}`}
             onClick={() => onTabChange(t.key)}
             className={cn(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+              'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
               isActive
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',

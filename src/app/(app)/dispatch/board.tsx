@@ -348,9 +348,9 @@ export function DispatchBoard({
       <StatusColorProvider colors={colorMap}>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex flex-col h-full gap-4 animate-in fade-in-0 duration-300">
-          <div className="flex items-center justify-between shrink-0">
+          <div className="flex flex-col gap-2 shrink-0 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Dispatch Board</h1>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Dispatch Board</h1>
               <p className="text-sm text-muted-foreground">
                 Drag jobs onto technician days to assign.
               </p>
