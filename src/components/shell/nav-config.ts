@@ -8,6 +8,7 @@ import {
   Receipt,
   BarChart3,
   Settings,
+  Smartphone,
   type LucideIcon,
 } from 'lucide-react'
 import type { ModuleKey } from '@/lib/roles'
@@ -30,4 +31,5 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'invoicing', label: 'Invoicing', href: '/invoicing', icon: Receipt, enabled: false },
   { key: 'reports', label: 'Reports', href: '/reports', icon: BarChart3, enabled: false },
   { key: 'settings', label: 'Settings', href: '/settings', icon: Settings, enabled: true },
+  { key: 'field_view', label: 'Field View', href: '/tech/jobs', icon: Smartphone, enabled: true },
 ]

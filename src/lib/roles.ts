@@ -23,6 +23,7 @@ export type ModuleKey =
   | 'invoicing'
   | 'reports'
   | 'settings'
+  | 'field_view'
 
 // Operational modules a dispatcher can see (no settings).
 const DISPATCHER_MODULES: ModuleKey[] = [
@@ -36,8 +37,8 @@ const DISPATCHER_MODULES: ModuleKey[] = [
   'reports',
 ]
 
-// Admin sees everything the dispatcher does PLUS settings.
-const ADMIN_MODULES: ModuleKey[] = [...DISPATCHER_MODULES, 'settings']
+// Admin sees everything the dispatcher does PLUS settings and field view.
+const ADMIN_MODULES: ModuleKey[] = [...DISPATCHER_MODULES, 'settings', 'field_view']
 
 const ROLE_MODULES: Record<string, ModuleKey[]> = {
   'org:admin': ADMIN_MODULES,
