@@ -158,12 +158,29 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
   // local midnight via UTC extraction so groupJobsByDay's local-getter logic works.
   const rows = jobs !== undefined
     ? jobs.map(toJobRow)
-    : initialRows.map(row => ({
-        ...row,
-        startDate: row.startDate
-          ? parseCalendarDate(row.startDate.toISOString().slice(0, 10))
-          : null,
-      }))
+    : initialRows.map(row => {
+        // unstable_cache JSON-serializes Date objects to ISO strings.
+        // Handle both Date and string defensively.
+        const startRaw = row.startDate as Date | string | null
+        const winStart = row.arrivalWindowStart as Date | string | null
+        const winEnd = row.arrivalWindowEnd as Date | string | null
+        return {
+          ...row,
+          startDate: startRaw
+            ? parseCalendarDate(
+                typeof startRaw === 'string'
+                  ? startRaw.slice(0, 10)
+                  : startRaw.toISOString().slice(0, 10)
+              )
+            : null,
+          arrivalWindowStart: winStart
+            ? typeof winStart === 'string' ? new Date(winStart) : winStart
+            : null,
+          arrivalWindowEnd: winEnd
+            ? typeof winEnd === 'string' ? new Date(winEnd) : winEnd
+            : null,
+        }
+      })
   const allGroups = groupJobsByDay(rows, today)
   const { upcoming, past } = splitGroupsByTime(allGroups, today)
   const activeGroups = tab === 'upcoming' ? upcoming : past
