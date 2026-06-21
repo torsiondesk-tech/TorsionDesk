@@ -74,6 +74,11 @@ export async function listCustomers(
             JOIN contacts c ON ce.contact_id = c.id
             WHERE c.customer_id = ${customers.id} AND ce.address ILIKE ${term}
           )
+          OR EXISTS (
+            SELECT 1 FROM service_locations sl
+            WHERE sl.customer_id = ${customers.id}
+              AND (sl.address_line1 ILIKE ${term} OR sl.city ILIKE ${term} OR sl.postal_code ILIKE ${term})
+          )
           ${phoneClause}
         )`,
       )
