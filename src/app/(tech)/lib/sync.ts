@@ -660,7 +660,7 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
     hydrateTechData(orgId, userId).catch((err) => {
       console.warn('[sync] poll hydrate failed', err)
     })
-  }, 15_000)
+  }, 60_000)
 
   const client = createBrowserClient()
   const channel = client.channel(`dispatch:${orgId}`, {
