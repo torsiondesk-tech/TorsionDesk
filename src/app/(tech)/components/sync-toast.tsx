@@ -3,13 +3,11 @@
 import { useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb } from '@/app/(tech)/lib/dexie'
+import { useTechContext } from '@/app/(tech)/components/sync-provider'
 import { toast } from 'sonner'
 
-interface SyncToastProps {
-  orgId: string
-}
-
-export function SyncToast({ orgId }: SyncToastProps) {
+export function SyncToast() {
+  const { orgId } = useTechContext()
   const previous = useRef<{
     pending: number
     failed: number

@@ -652,9 +652,13 @@ export function startSyncLoop(orgId: string, userId: string): () => void {
   document.addEventListener('visibilitychange', onVisibility)
 
   flush()
-  hydrateTechData(orgId, userId).catch((err) => {
-    console.warn('[sync] initial hydrate failed', err)
-  })
+  // Only hydrate immediately if Dexie is empty (first-ever open on this device).
+  // On subsequent opens with warm cache, the 60-second poll handles freshness.
+  const _db = createTechDb(orgId)
+  _db.open()
+    .then(() => _db.jobs.count())
+    .then((n) => { if (n === 0) hydrateNow() })
+    .catch(() => hydrateNow())
 
   const pollId = setInterval(() => {
     if (!navigator.onLine) return

@@ -3,16 +3,13 @@
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { usePendingCount, useFailedCount } from '@/app/(tech)/lib/use-tech-data'
 import { flushOutbox } from '@/app/(tech)/lib/sync'
+import { useTechContext } from '@/app/(tech)/components/sync-provider'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { CheckCircle2, CloudOff, RotateCcw } from 'lucide-react'
 
-interface OfflineBadgeProps {
-  orgId: string
-  userId: string
-}
-
-export function OfflineBadge({ orgId, userId }: OfflineBadgeProps) {
+export function OfflineBadge() {
+  const { orgId, userId } = useTechContext()
   const online = useOnline()
   const pending = usePendingCount(orgId)
   const failed = useFailedCount(orgId)

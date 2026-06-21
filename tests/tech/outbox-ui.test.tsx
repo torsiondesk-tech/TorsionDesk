@@ -13,6 +13,10 @@ vi.mock('@/app/(tech)/lib/use-tech-data', () => ({
   useFailedCount: vi.fn(),
 }))
 
+vi.mock('@/app/(tech)/components/sync-provider', () => ({
+  useTechContext: vi.fn(() => ({ orgId, userId })),
+}))
+
 import { useOnline } from '@/app/(tech)/lib/use-online'
 import { usePendingCount, useFailedCount } from '@/app/(tech)/lib/use-tech-data'
 
@@ -64,7 +68,7 @@ describe('outbox visual flagging (TECH-14)', () => {
     const pending = await db.outbox.where('syncStatus').equals('pending').count()
     mockedPending.mockReturnValue(pending)
 
-    render(<OfflineBadge orgId={orgId} userId={userId} />)
+    render(<OfflineBadge />)
 
     expect(screen.getByText(`${pending} pending`)).toBeInTheDocument()
   })
@@ -78,7 +82,7 @@ describe('outbox visual flagging (TECH-14)', () => {
     mockedPending.mockReturnValue(0)
     mockedFailed.mockReturnValue(0)
 
-    render(<OfflineBadge orgId={orgId} userId={userId} />)
+    render(<OfflineBadge />)
 
     expect(screen.getByText('Offline')).toBeInTheDocument()
   })
@@ -92,7 +96,7 @@ describe('outbox visual flagging (TECH-14)', () => {
     mockedPending.mockReturnValue(0)
     mockedFailed.mockReturnValue(1)
 
-    render(<OfflineBadge orgId={orgId} userId={userId} />)
+    render(<OfflineBadge />)
 
     expect(screen.getByText('Sync failed — retry')).toBeInTheDocument()
   })

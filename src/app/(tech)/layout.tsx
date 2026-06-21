@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 import type { Metadata, Viewport } from 'next'
-import { auth } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
 import { BottomNav } from './components/bottom-nav'
 import { Toaster } from '@/components/ui/sonner'
 import { TechSyncProvider } from './components/sync-provider'
@@ -22,23 +20,18 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export default async function TechLayout({
+export default function TechLayout({
   children,
 }: {
   children: ReactNode
 }) {
-  const { orgId, userId } = await auth()
-  if (!orgId || !userId) {
-    redirect('/sign-in')
-  }
-
   return (
-    <TechSyncProvider orgId={orgId} userId={userId}>
+    <TechSyncProvider>
       <div className="bg-background h-dvh overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background/95 backdrop-blur px-4">
           <span className="font-semibold">TorsionDesk Field</span>
           <div className="flex items-center gap-1">
-            <OfflineBadge orgId={orgId} userId={userId} />
+            <OfflineBadge />
             <TechSignOutButton />
           </div>
         </header>
@@ -46,7 +39,7 @@ export default async function TechLayout({
         <BottomNav />
         <CreateButton />
         <Toaster />
-        <SyncToast orgId={orgId} />
+        <SyncToast />
       </div>
     </TechSyncProvider>
   )

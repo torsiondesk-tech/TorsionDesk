@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { startSyncLoop, TECH_DATA_UPDATE_FAILED } from '@/app/(tech)/lib/sync'
 import { toast } from 'sonner'
 
@@ -17,18 +18,14 @@ export function useTechContext(): TechContextValue {
   return ctx
 }
 
-interface TechSyncProviderProps {
-  orgId: string
-  userId: string
-  children: ReactNode
-}
+export function TechSyncProvider({ children }: { children: ReactNode }) {
+  const { orgId, userId, isLoaded } = useAuth()
 
-export function TechSyncProvider({ orgId, userId, children }: TechSyncProviderProps) {
   useEffect(() => {
-    if (!orgId || !userId) return
+    if (!isLoaded || !orgId || !userId) return
     const cleanup = startSyncLoop(orgId, userId)
     return cleanup
-  }, [orgId, userId])
+  }, [isLoaded, orgId, userId])
 
   useEffect(() => {
     const onDataFailed = (e: Event) => {
@@ -41,6 +38,10 @@ export function TechSyncProvider({ orgId, userId, children }: TechSyncProviderPr
       window.removeEventListener(TECH_DATA_UPDATE_FAILED, onDataFailed)
     }
   }, [])
+
+  // Clerk reads the JWT from cookies — works offline. Render null for the brief
+  // frame before Clerk's client JS hydrates (avoids context consumers throwing).
+  if (!isLoaded || !orgId || !userId) return null
 
   return <TechContext.Provider value={{ orgId, userId }}>{children}</TechContext.Provider>
 }
