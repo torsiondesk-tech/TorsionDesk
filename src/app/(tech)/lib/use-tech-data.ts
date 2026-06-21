@@ -119,6 +119,25 @@ export function useTechJob(orgId: string, jobId: string) {
   )
 }
 
+export function useTechJobDetail(orgId: string, jobId: string) {
+  return useLiveQuery(
+    async () => {
+      const db = createTechDb(orgId)
+      await db.open()
+      const job = await db.jobs.get(jobId)
+      if (!job) return { job: null, locations: [] as import('./dexie').CachedLocation[], equipment: [] as import('./dexie').CachedEquipment[] }
+      const [locations, equipment] = await Promise.all([
+        db.serviceLocations.where({ customerId: job.customerId }).toArray(),
+        job.serviceLocationId
+          ? db.equipment.where({ serviceLocationId: job.serviceLocationId }).toArray()
+          : Promise.resolve([] as import('./dexie').CachedEquipment[]),
+      ])
+      return { job, locations, equipment }
+    },
+    [orgId, jobId],
+  )
+}
+
 export function useTechEquipmentByLocation(orgId: string, serviceLocationId: string | null) {
   return useLiveQuery(
     async () => {

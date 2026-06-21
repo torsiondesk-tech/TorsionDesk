@@ -15,7 +15,7 @@ import { TechLineItems } from './tech-line-items'
 import { TechContactCard } from './tech-contact-card'
 import { TechLocationCard } from './tech-location-card'
 import { JobDescription } from './job-description'
-import { useTechJob, useTechLocations, useTechEquipmentByLocation } from '@/app/(tech)/lib/use-tech-data'
+import { useTechJobDetail } from '@/app/(tech)/lib/use-tech-data'
 import { parseCalendarDate } from '@/lib/utils'
 
 interface TechJobDetailClientProps {
@@ -27,17 +27,17 @@ export function TechJobDetailClient({ orgId, userId }: TechJobDetailClientProps)
   const params = useParams()
   const jobId = params.id as string
 
-  const job = useTechJob(orgId, jobId)
-  const customerLocations = useTechLocations(orgId, job?.customerId)
-  const equipment = useTechEquipmentByLocation(orgId, job?.serviceLocationId ?? null)
+  const detail = useTechJobDetail(orgId, jobId)
 
-  if (job === undefined || customerLocations === undefined || equipment === undefined) {
+  if (detail === undefined) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
+
+  const { job, locations: customerLocations, equipment } = detail
 
   if (!job) {
     return (
