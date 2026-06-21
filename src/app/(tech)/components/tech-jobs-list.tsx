@@ -17,6 +17,12 @@ interface TechJobsListProps {
   initialRows: JobRow[]
 }
 
+// unstable_cache JSON-serializes Date objects to strings; handle both shapes.
+function toISOStr(v: Date | string | null | undefined): string | null {
+  if (!v) return null
+  return typeof v === 'string' ? v : v.toISOString()
+}
+
 function toJobRow(job: CachedJob): JobRow {
   return {
     id: job.id,
@@ -70,9 +76,9 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
       serviceLocationId: row.serviceLocationId,
       status: row.status,
       description: row.description,
-      startDate: row.startDate ? row.startDate.toISOString().slice(0, 10) : null,
-      arrivalWindowStart: row.arrivalWindowStart?.toISOString() ?? null,
-      arrivalWindowEnd: row.arrivalWindowEnd?.toISOString() ?? null,
+      startDate: toISOStr(row.startDate as Date | string | null)?.slice(0, 10) ?? null,
+      arrivalWindowStart: toISOStr(row.arrivalWindowStart as Date | string | null),
+      arrivalWindowEnd: toISOStr(row.arrivalWindowEnd as Date | string | null),
       notesForTechs: row.notesForTechs,
       completionNotes: row.completionNotes,
       assigneeUserIds: [userId],
@@ -159,26 +165,14 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
   const rows = jobs !== undefined
     ? jobs.map(toJobRow)
     : initialRows.map(row => {
-        // unstable_cache JSON-serializes Date objects to ISO strings.
-        // Handle both Date and string defensively.
-        const startRaw = row.startDate as Date | string | null
-        const winStart = row.arrivalWindowStart as Date | string | null
-        const winEnd = row.arrivalWindowEnd as Date | string | null
+        const startStr = toISOStr(row.startDate as Date | string | null)?.slice(0, 10) ?? null
+        const winStartStr = toISOStr(row.arrivalWindowStart as Date | string | null)
+        const winEndStr = toISOStr(row.arrivalWindowEnd as Date | string | null)
         return {
           ...row,
-          startDate: startRaw
-            ? parseCalendarDate(
-                typeof startRaw === 'string'
-                  ? startRaw.slice(0, 10)
-                  : startRaw.toISOString().slice(0, 10)
-              )
-            : null,
-          arrivalWindowStart: winStart
-            ? typeof winStart === 'string' ? new Date(winStart) : winStart
-            : null,
-          arrivalWindowEnd: winEnd
-            ? typeof winEnd === 'string' ? new Date(winEnd) : winEnd
-            : null,
+          startDate: startStr ? parseCalendarDate(startStr) : null,
+          arrivalWindowStart: winStartStr ? new Date(winStartStr) : null,
+          arrivalWindowEnd: winEndStr ? new Date(winEndStr) : null,
         }
       })
   const allGroups = groupJobsByDay(rows, today)
