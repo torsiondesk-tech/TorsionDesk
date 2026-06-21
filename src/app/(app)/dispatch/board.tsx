@@ -22,6 +22,7 @@ import { JobBlock } from './grid/job-block'
 import { JobPool } from './pool/job-pool'
 import { PoolCardContent } from './pool/pool-card'
 import { DispatchPopup } from './popup/dispatch-popup'
+import { MobileDispatch } from './mobile-view'
 import { useRealtimeSync } from './hooks/use-realtime-sync'
 import { StatusColorProvider, type StatusColorMap } from './contexts/status-color-context'
 import { Toaster } from '@/components/ui/sonner'
@@ -346,42 +347,64 @@ export function DispatchBoard({
   return (
     <>
       <StatusColorProvider colors={colorMap}>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex flex-col h-full gap-4 animate-in fade-in-0 duration-300">
-          <div className="flex flex-col gap-2 shrink-0 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Dispatch Board</h1>
-              <p className="text-sm text-muted-foreground">
-                Drag jobs onto technician days to assign.
-              </p>
+
+        {/* ── Mobile layout (< lg): tap-friendly list, no drag-and-drop ── */}
+        <div className="flex flex-col gap-4 animate-in fade-in-0 duration-300 lg:hidden">
+          <div className="shrink-0">
+            <h1 className="text-2xl font-semibold tracking-tight">Dispatch</h1>
+            <p className="text-sm text-muted-foreground">Tap a job to view details and assign.</p>
+            <div className="mt-2">
+              <WeekNavigator weekStart={weekStart} />
             </div>
-            <WeekNavigator weekStart={weekStart} />
           </div>
-
-          <div className="flex-1 min-h-0">
-            <WeekGrid
-              technicians={technicians}
-              jobs={localJobs}
-              estimates={[]}
-              weekDates={weekDates}
-              isLoading={isPending}
-              onJobClick={openPopup}
-            />
-          </div>
-
-          <JobPool jobs={localPoolJobs} counts={counts} onJobClick={openPopup} />
+          <MobileDispatch
+            technicians={technicians}
+            jobs={localJobs}
+            poolJobs={localPoolJobs}
+            counts={counts}
+            weekDates={weekDates}
+            onJobClick={openPopup}
+          />
         </div>
 
-        <DragOverlay>
-          {activeJob ? (
-            activeFromPool ? (
-              <PoolCardContent job={activeJob} isOverlay />
-            ) : (
-              <JobBlock job={activeJob} isOverlay />
-            )
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        {/* ── Desktop layout (lg+): full drag-and-drop week grid ── */}
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="hidden lg:flex flex-col h-full gap-4 animate-in fade-in-0 duration-300">
+            <div className="flex items-center justify-between shrink-0">
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight">Dispatch Board</h1>
+                <p className="text-sm text-muted-foreground">
+                  Drag jobs onto technician days to assign.
+                </p>
+              </div>
+              <WeekNavigator weekStart={weekStart} />
+            </div>
+
+            <div className="flex-1 min-h-0">
+              <WeekGrid
+                technicians={technicians}
+                jobs={localJobs}
+                estimates={[]}
+                weekDates={weekDates}
+                isLoading={isPending}
+                onJobClick={openPopup}
+              />
+            </div>
+
+            <JobPool jobs={localPoolJobs} counts={counts} onJobClick={openPopup} />
+          </div>
+
+          <DragOverlay>
+            {activeJob ? (
+              activeFromPool ? (
+                <PoolCardContent job={activeJob} isOverlay />
+              ) : (
+                <JobBlock job={activeJob} isOverlay />
+              )
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
       </StatusColorProvider>
       <DispatchPopup
         job={popupJob}
