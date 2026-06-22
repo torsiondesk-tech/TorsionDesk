@@ -3,10 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { listJobs } from '@/lib/jobs/jobs'
 import { transitionJobStatusAction as _transitionJobStatusAction } from '@/app/(app)/jobs/actions'
 import { broadcastJobEvent } from '@/lib/jobs/broadcast'
+import type { CachedLineItem } from '@/app/(tech)/lib/dexie'
 
 export interface CreateTechJobInput {
   customerId: string
@@ -141,6 +142,61 @@ export async function listTechJobsAction(orgId: string, userId: string) {
   return listJobs(orgId, {
     assigneeUserId: userId,
     pageSize: 200,
+  })
+}
+
+export async function getJobLineItemsAction(
+  orgId: string,
+  jobIds: string[],
+): Promise<Record<string, CachedLineItem[]>> {
+  const { orgId: sessionOrgId } = await auth()
+  if (!sessionOrgId || sessionOrgId !== orgId) {
+    throw new Error('Unauthorized')
+  }
+
+  if (jobIds.length === 0) return {}
+
+  const { withTenant } = await import('@/db/with-tenant')
+  const { jobLineItems } = await import('@/db/schema')
+
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        id: jobLineItems.id,
+        jobId: jobLineItems.jobId,
+        type: jobLineItems.type,
+        refId: jobLineItems.refId,
+        title: jobLineItems.title,
+        description: jobLineItems.description,
+        qty: jobLineItems.qty,
+        rate: jobLineItems.rate,
+        cost: jobLineItems.cost,
+        taxItemId: jobLineItems.taxItemId,
+        sortOrder: jobLineItems.sortOrder,
+      })
+      .from(jobLineItems)
+      .where(and(eq(jobLineItems.tenantId, orgId), inArray(jobLineItems.jobId, jobIds)))
+      .orderBy(jobLineItems.sortOrder)
+
+    const grouped: Record<string, CachedLineItem[]> = {}
+    for (const row of rows) {
+      const item: CachedLineItem = {
+        id: row.id,
+        type: row.type as CachedLineItem['type'],
+        refId: row.refId ?? null,
+        title: row.title ?? null,
+        description: row.description ?? null,
+        qty: row.qty ?? null,
+        rate: row.rate ?? null,
+        cost: row.cost ?? null,
+        taxItemId: row.taxItemId ?? null,
+        sortOrder: row.sortOrder ?? null,
+      }
+      const list = grouped[row.jobId] ?? []
+      list.push(item)
+      grouped[row.jobId] = list
+    }
+    return grouped
   })
 }
 

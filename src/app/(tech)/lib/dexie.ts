@@ -75,6 +75,7 @@ export interface CachedJob {
   contactEmail: string | null
   contactFirstName: string | null
   contactLastName: string | null
+  lineItems: CachedLineItem[]
 }
 
 export interface CachedLocation {
@@ -119,6 +120,19 @@ export interface CachedEquipment {
   length: string | null
   windDirection: 'left' | 'right' | 'pair' | null
   cycleRating: number | null
+}
+
+export interface CachedLineItem {
+  id: string
+  type: 'product' | 'service' | 'discount' | 'expense'
+  refId: string | null
+  title: string | null
+  description: string | null
+  qty: string | null
+  rate: string | null
+  cost: string | null
+  taxItemId: string | null
+  sortOrder: number | null
 }
 
 export interface CachedEstimate {
@@ -224,6 +238,17 @@ export class TechSyncDb extends Dexie {
     })
     // v7: added contactFirstName + contactLastName to CachedJob for immediate contact name updates
     this.version(7).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      signatureMeta: 'id, jobId, [jobId+signatureType]',
+      outbox: 'id, type, syncStatus, createdAt, seq',
+    })
+    // v8: cache job line items so the tech PWA Line Items card displays live data
+    this.version(8).stores({
       jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
       serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
       equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',

@@ -91,6 +91,7 @@ export function TechJobsList({ orgId, userId, initialRows }: TechJobsListProps) 
       contactEmail: row.contactEmail,
       contactFirstName: row.contactFirstName ?? null,
       contactLastName: row.contactLastName ?? null,
+      lineItems: [],
     }))
     db.open()
       .then(() => db.jobs.count())

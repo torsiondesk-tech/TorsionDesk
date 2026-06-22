@@ -941,6 +941,7 @@ export async function addJobLineItem(
   })
 
   revalidatePath(`/jobs/${jobId}`)
+  after(() => broadcastJobEvent(orgId, 'job-updated', { jobId }).catch(() => {}))
 }
 
 export async function updateJobLineItem(
@@ -984,6 +985,7 @@ export async function updateJobLineItem(
   })
 
   revalidatePath(`/jobs/${jobId}`)
+  after(() => broadcastJobEvent(orgId, 'job-updated', { jobId }).catch(() => {}))
 }
 
 export async function deleteJobLineItem(
@@ -1006,6 +1008,7 @@ export async function deleteJobLineItem(
   })
 
   revalidatePath(`/jobs/${jobId}`)
+  after(() => broadcastJobEvent(orgId, 'job-updated', { jobId }).catch(() => {}))
 }
 
 // ── RPC-style catalog search ─────────────────────────────────────────────────

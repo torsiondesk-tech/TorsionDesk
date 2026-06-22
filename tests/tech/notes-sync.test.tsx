@@ -68,6 +68,7 @@ describe('completion notes sync', () => {
       contactEmail: null,
       contactFirstName: null,
       contactLastName: null,
+      lineItems: [],
     }
     await db.jobs.add(job)
   })

@@ -172,7 +172,12 @@ export function TechJobDetailClient({ orgId, userId }: TechJobDetailClientProps)
               <CardTitle className="text-base">Line Items</CardTitle>
             </CardHeader>
             <CardContent>
-              <TechLineItems jobId={job.id} items={[]} />
+              <TechLineItems
+                jobId={job.id}
+                orgId={orgId}
+                userId={userId}
+                items={job.lineItems ?? []}
+              />
             </CardContent>
           </Card>
         </TabsContent>

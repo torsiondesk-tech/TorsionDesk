@@ -8,6 +8,7 @@ import {
   confirmJobSignatureAction,
   saveCompletionNotesAction,
   getEquipmentByServiceLocationsAction,
+  getJobLineItemsAction,
 } from '@/app/(tech)/tech/jobs/actions'
 import {
   getJobPhotoUploadUrlAction,
@@ -451,31 +452,40 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
   }
 
   try {
-    const cachedJobs: CachedJob[] = jobRows.map((row) => ({
-      id: row.id,
-      tenantId: orgId,
-      jobNo: row.jobNo,
-      customerId: row.customerId,
-      contactId: (row as { contactId?: string | null }).contactId ?? null,
-      serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
-      status: row.status,
-      description: row.description,
-      startDate: row.startDate ? row.startDate.toISOString().slice(0, 10) : null,
-      arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
-      arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
-      notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
-      completionNotes: (row as { completionNotes?: string | null }).completionNotes ?? null,
-      assigneeUserIds: [userId],
-      customerName: row.customerName ?? null,
-      addressLine1: row.addressLine1 ?? null,
-      city: row.city ?? null,
-      state: row.state ?? null,
-      postalCode: row.postalCode ?? null,
-      contactPhone: row.contactPhone ?? null,
-      contactEmail: row.contactEmail ?? null,
-      contactFirstName: row.contactFirstName ?? null,
-      contactLastName: row.contactLastName ?? null,
-    }))
+    const lineItemsByJobId = await getJobLineItemsAction(
+      orgId,
+      jobRows.map((row) => row.id),
+    )
+
+    const cachedJobs: CachedJob[] = jobRows.map((row) => {
+      const lineItems = lineItemsByJobId[row.id] ?? []
+      return {
+        id: row.id,
+        tenantId: orgId,
+        jobNo: row.jobNo,
+        customerId: row.customerId,
+        contactId: (row as { contactId?: string | null }).contactId ?? null,
+        serviceLocationId: (row as { serviceLocationId?: string | null }).serviceLocationId ?? null,
+        status: row.status,
+        description: row.description,
+        startDate: row.startDate ? row.startDate.toISOString().slice(0, 10) : null,
+        arrivalWindowStart: (row as { arrivalWindowStart?: string | null }).arrivalWindowStart ?? null,
+        arrivalWindowEnd: (row as { arrivalWindowEnd?: string | null }).arrivalWindowEnd ?? null,
+        notesForTechs: (row as { notesForTechs?: string | null }).notesForTechs ?? null,
+        completionNotes: (row as { completionNotes?: string | null }).completionNotes ?? null,
+        assigneeUserIds: [userId],
+        customerName: row.customerName ?? null,
+        addressLine1: row.addressLine1 ?? null,
+        city: row.city ?? null,
+        state: row.state ?? null,
+        postalCode: row.postalCode ?? null,
+        contactPhone: row.contactPhone ?? null,
+        contactEmail: row.contactEmail ?? null,
+        contactFirstName: row.contactFirstName ?? null,
+        contactLastName: row.contactLastName ?? null,
+        lineItems,
+      }
+    })
 
     // Atomic transaction so useLiveQuery sees jobs go old→new in one step,
     // never through an empty intermediate state that would flash the loading spinner.

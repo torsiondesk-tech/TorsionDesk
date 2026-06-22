@@ -22,10 +22,11 @@ import {
   searchServicesAction,
 } from '@/app/(app)/jobs/actions'
 import { useOnline } from '@/app/(tech)/lib/use-online'
+import { hydrateTechData } from '@/app/(tech)/lib/sync'
 import { cn } from '@/lib/utils'
-import type { JobDetail } from '@/lib/jobs/jobs'
+import type { CachedLineItem } from '@/app/(tech)/lib/dexie'
 
-type LineItemRow = JobDetail['lineItems'][number]
+type LineItemRow = CachedLineItem
 
 type SearchResult = {
   id: string
@@ -37,6 +38,8 @@ type SearchResult = {
 
 interface TechLineItemsProps {
   jobId: string
+  orgId: string
+  userId: string
   items: LineItemRow[]
 }
 
@@ -53,9 +56,20 @@ function computeTotal(items: LineItemRow[]): number {
   }, 0)
 }
 
-export function TechLineItems({ jobId, items }: TechLineItemsProps) {
+export function TechLineItems({ jobId, orgId, userId, items }: TechLineItemsProps) {
   const online = useOnline()
   const [isPending, startTransition] = useTransition()
+
+  const refresh = useCallback(async () => {
+    // Same-session refresh: Realtime uses self:false, so this tab will not
+    // receive its own broadcast. Pull fresh server state immediately after a
+    // successful mutation so the newly added/updated line item appears at once.
+    try {
+      await hydrateTechData(orgId, userId)
+    } catch {
+      // Hydrate failures are logged by sync.ts; don't surface them here.
+    }
+  }, [orgId, userId])
 
   // ── Add sheet ────────────────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false)
@@ -147,6 +161,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
         toast.success('Item added')
         setAddOpen(false)
         resetAddSheet()
+        await refresh()
       } catch {
         toast.error('Failed to add item')
       }
@@ -168,6 +183,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
         toast.success('Discount added')
         setAddOpen(false)
         resetAddSheet()
+        await refresh()
       } catch {
         toast.error('Failed to add discount')
       }
@@ -196,6 +212,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
         })
         toast.success('Item updated')
         setEditingItem(null)
+        await refresh()
       } catch {
         toast.error('Failed to update item')
       }
@@ -207,6 +224,7 @@ export function TechLineItems({ jobId, items }: TechLineItemsProps) {
       try {
         await deleteJobLineItem(item.id, jobId)
         toast.success('Item removed')
+        await refresh()
       } catch {
         toast.error('Failed to remove item')
       }
