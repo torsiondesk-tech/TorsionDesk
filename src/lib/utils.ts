@@ -60,6 +60,18 @@ export function toISODate(d: Date | string): string {
  * - Any other Date (client-local midnight or wall-clock time) uses local getters,
  *   because its calendar day is defined by the viewer's local timezone.
  */
+/** Return the Monday of the week containing the given date, at local midnight.
+ *  Week starts on Monday; Sunday belongs to the previous Monday's week.
+ */
+export function getMonday(d: Date): Date {
+  const date = new Date(d)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + diff)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
 export function parseCalendarDate(d: Date | string | null | undefined): Date | null {
   if (!d) return null
   if (d instanceof Date) {

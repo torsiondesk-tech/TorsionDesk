@@ -240,7 +240,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
         </TabsContent>
 
         <TabsContent value="sign">
-          <SignTab signatures={signatureUrls} />
+          <SignTab jobId={job.id} signatures={signatureUrls} />
         </TabsContent>
       </Tabs>
     </div>

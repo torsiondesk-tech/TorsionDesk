@@ -1560,6 +1560,54 @@ export async function getJobSignedSignaturesAction(
   }
 }
 
+/**
+ * Update signature metadata (type and/or signer name).
+ */
+export async function updateJobSignatureAction(
+  jobId: string,
+  signatureId: string,
+  input: {
+    signatureType?: 'start' | 'complete' | null
+    signedBy?: string
+  },
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    const { updateJobSignature } = await import('@/lib/jobs/signatures')
+    await updateJobSignature(orgId, jobId, signatureId, input)
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    logger.error('updateJobSignatureAction', err)
+    return { error: message }
+  }
+}
+
+/**
+ * Delete a signature from Storage and DB.
+ */
+export async function deleteJobSignatureAction(
+  jobId: string,
+  signatureId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    const { deleteJobSignature } = await import('@/lib/jobs/signatures')
+    await deleteJobSignature(orgId, jobId, signatureId)
+    revalidatePath(`/jobs/${jobId}`)
+    return { success: true }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    logger.error('deleteJobSignatureAction', err)
+    return { error: message }
+  }
+}
+
 // ── Apply Template ───────────────────────────────────────────────────────────
 
 export async function applyTemplateAction(

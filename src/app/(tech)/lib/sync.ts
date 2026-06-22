@@ -134,7 +134,7 @@ function isTransientError(err: unknown): boolean {
   const msg = err.message.toLowerCase()
   return (
     msg.includes('failed to fetch') ||
-    msg.includes('load failed') ||      // Safari / iOS
+    /\bload failed\b/.test(msg) ||      // Safari / iOS (whole words only — not "upload failed")
     msg.includes('networkerror') ||     // Firefox
     msg.includes('network request failed')
   )

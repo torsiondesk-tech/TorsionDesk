@@ -6,16 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
-import { cn, toISODate } from '@/lib/utils'
-
-function getMonday(d: Date): Date {
-  const date = new Date(d)
-  const day = date.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  date.setDate(date.getDate() + diff)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
+import { cn, toISODate, getMonday } from '@/lib/utils'
 
 function formatRange(weekStart: string): string {
   const start = new Date(`${weekStart}T00:00:00`)

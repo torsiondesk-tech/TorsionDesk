@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core'
 import { updateJobAssignment, unassignJob, getJobPopupData } from './actions'
 import type { WeekJob, Technician, PoolCounts, PopupData } from './actions'
-import { toISODate, parseCalendarDate } from '@/lib/utils'
+import { toISODate, parseCalendarDate, getMonday } from '@/lib/utils'
 import { WeekNavigator } from './components/week-navigator'
 import { WeekGrid } from './grid/week-grid'
 import { JobBlock } from './grid/job-block'
@@ -110,6 +110,17 @@ export function DispatchBoard({
     const handler = () => router.refresh()
     window.addEventListener('dispatch:refresh', handler)
     return () => window.removeEventListener('dispatch:refresh', handler)
+  }, [router])
+
+  // If the page was loaded without an explicit weekStart, the server defaulted
+  // to its own UTC calendar day. Snap the URL to the viewer's local Monday so
+  // the board shows the week that actually contains the user's today.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (!params.get('weekStart')) {
+      const localMonday = toISODate(getMonday(new Date()))
+      router.replace(`?weekStart=${localMonday}`, { scroll: false })
+    }
   }, [router])
 
   const openPopup = useCallback(

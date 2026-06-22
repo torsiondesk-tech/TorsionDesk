@@ -132,3 +132,94 @@ export async function getJobSignatureSignedUrls(
     return results
   })
 }
+
+/**
+ * Update editable signature metadata (type and/or signer name).
+ * The signature image itself cannot be replaced; capture a new signature instead.
+ */
+export async function updateJobSignature(
+  orgId: string,
+  jobId: string,
+  signatureId: string,
+  input: {
+    signatureType?: 'start' | 'complete' | null
+    signedBy?: string
+  },
+): Promise<void> {
+  if (!orgId) throw new Error('Missing orgId')
+
+  await withTenant(orgId, async (tx) => {
+    const setFields: Record<string, unknown> = {
+      updatedAt: new Date(),
+    }
+
+    if (input.signatureType !== undefined) {
+      setFields.signatureType = input.signatureType
+    }
+    if (input.signedBy !== undefined) {
+      const trimmed = input.signedBy.trim()
+      if (!trimmed) throw new Error('Signed-by name is required')
+      setFields.signedBy = trimmed
+    }
+
+    const [row] = await tx
+      .update(jobSignatures)
+      .set(setFields)
+      .where(
+        and(
+          eq(jobSignatures.tenantId, orgId),
+          eq(jobSignatures.id, signatureId),
+          eq(jobSignatures.jobId, jobId),
+        ),
+      )
+      .returning({ id: jobSignatures.id })
+
+    if (!row) throw new Error('Signature not found')
+  })
+}
+
+/**
+ * Delete a signature from Storage and the DB.
+ */
+export async function deleteJobSignature(
+  orgId: string,
+  jobId: string,
+  signatureId: string,
+): Promise<void> {
+  if (!orgId) throw new Error('Missing orgId')
+
+  const supabase = getServiceClient()
+
+  await withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({ storagePath: jobSignatures.storagePath })
+      .from(jobSignatures)
+      .where(
+        and(
+          eq(jobSignatures.tenantId, orgId),
+          eq(jobSignatures.id, signatureId),
+          eq(jobSignatures.jobId, jobId),
+        ),
+      )
+      .limit(1)
+
+    if (rows.length === 0) {
+      throw new Error('Signature not found')
+    }
+
+    const { storagePath } = rows[0]
+
+    // Delete from Storage best-effort; don't block on storage errors
+    await supabase.storage.from(BUCKET).remove([storagePath])
+
+    await tx
+      .delete(jobSignatures)
+      .where(
+        and(
+          eq(jobSignatures.tenantId, orgId),
+          eq(jobSignatures.id, signatureId),
+          eq(jobSignatures.jobId, jobId),
+        ),
+      )
+  })
+}
