@@ -34,12 +34,24 @@ interface JobDetailPageProps {
   searchParams: Promise<{ edit?: string }>
 }
 
-/** Extract YYYY-MM-DD for a `type="date"` input. Uses local calendar getters
- *  so timezone offsets never shift the day (e.g. UTC+2 midnight → previous day).
+/** Extract YYYY-MM-DD for a `type="date"` input.
+ *
+ * Server-returned `Date` objects for `timestamp` columns are at UTC midnight.
+ * In US timezones, local getters would shift the day, so we read the UTC calendar
+ * date via `.toISOString().slice(0, 10)`. String inputs (already YYYY-MM-DD) are
+ * sliced directly. Local-midnight Dates (e.g. from `new Date(y,m,d)`) use local
+ * getters so the intended local calendar day is preserved.
  */
 function toDateInputValue(d: Date | string | null): string | null {
   if (!d) return null
-  return toISODate(d)
+  if (typeof d === 'string') return d.slice(0, 10)
+  // Server UTC midnight Date → read UTC calendar day.
+  const isUtcMidnight =
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  return isUtcMidnight ? d.toISOString().slice(0, 10) : toISODate(d)
 }
 
 function toDateTimeLocalValue(d: Date | string | null): string | null {

@@ -484,8 +484,11 @@ export async function createJob(
             assignedAgentId: data.assignedAgentId,
             billingType: data.billingType,
             priority: data.priority,
-            startDate: data.startDate ? new Date(data.startDate) : null,
-            endDate: data.endDate ? new Date(data.endDate) : null,
+            // Explicit local-midnight constructor preserves the intended calendar
+            // date when the server serializes it to Postgres (matches the rules in
+            // CLAUDE.md for calendar-date columns).
+            startDate: data.startDate ? new Date(`${data.startDate}T00:00:00`) : null,
+            endDate: data.endDate ? new Date(`${data.endDate}T00:00:00`) : null,
             arrivalWindowStart: combineDateTime(data.startDate, data.arrivalWindowStart),
             arrivalWindowEnd: combineDateTime(data.startDate, data.arrivalWindowEnd),
             estimatedDuration: data.estimatedDuration,
@@ -774,8 +777,9 @@ export async function updateJob(
         assignedAgentId: data.assignedAgentId,
         billingType: data.billingType,
         priority: data.priority,
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        endDate: data.endDate ? new Date(data.endDate) : null,
+        // Explicit local-midnight constructor preserves the intended calendar date.
+        startDate: data.startDate ? new Date(`${data.startDate}T00:00:00`) : null,
+        endDate: data.endDate ? new Date(`${data.endDate}T00:00:00`) : null,
         arrivalWindowStart: combineDateTime(data.startDate, data.arrivalWindowStart),
         arrivalWindowEnd: combineDateTime(data.startDate, data.arrivalWindowEnd),
         estimatedDuration: data.estimatedDuration,
