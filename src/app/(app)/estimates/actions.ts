@@ -17,6 +17,8 @@ import {
   customerEvents,
   customers,
   contacts,
+  contactPhones,
+  contactEmails,
   serviceLocations,
   jobCategories,
   taxItems,
@@ -29,9 +31,11 @@ import {
   estimateTemplateTasks,
 } from '@/db/schema'
 import { nextEstimateNo } from '@/lib/estimates/estimate-number'
+import { nextAccountNo } from '@/lib/account-number'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { estimateStatusLabel } from '@/lib/estimates/status'
 import { logger } from '@/lib/logger'
+import { normalizePhone } from '@/lib/utils'
 import type { CachedEstimate } from '@/app/(tech)/lib/dexie'
 import {
   searchProductsAction as jobsSearchProductsAction,
@@ -292,9 +296,103 @@ export async function createOfficeEstimateAction(
   while (attempts < maxAttempts) {
     try {
       const id = await withTenant(orgId, async (tx) => {
-        await guardCustomer(tx, orgId, d.customerId)
-        await guardContact(tx, orgId, d.contactId)
-        await guardServiceLocation(tx, orgId, d.serviceLocationId)
+        // Resolve or create customer
+        let resolvedCustomerId = d.customerId ?? ''
+        if (d.customerId) {
+          await guardCustomer(tx, orgId, d.customerId)
+          resolvedCustomerId = d.customerId
+        } else if (d.newCustomerName) {
+          const accountNo = await nextAccountNo(tx, orgId)
+          const [newCust] = await tx
+            .insert(customers)
+            .values({ tenantId: orgId, accountNo, name: d.newCustomerName })
+            .returning({ id: customers.id })
+          resolvedCustomerId = newCust.id
+        }
+
+        // Resolve or create contact
+        let resolvedContactId: string | null = null
+        if (d.contactId) {
+          await guardContact(tx, orgId, d.contactId)
+          resolvedContactId = d.contactId
+        } else if (d.newContactFirstName || d.newContactLastName) {
+          const [newContact] = await tx
+            .insert(contacts)
+            .values({
+              tenantId: orgId,
+              customerId: resolvedCustomerId,
+              firstName: d.newContactFirstName || '',
+              lastName: d.newContactLastName || null,
+            })
+            .returning({ id: contacts.id })
+          resolvedContactId = newContact.id
+          const phoneDigits = normalizePhone(d.newContactPhone)
+          if (phoneDigits) {
+            await tx.insert(contactPhones).values({
+              tenantId: orgId,
+              contactId: resolvedContactId,
+              number: phoneDigits,
+              isPrimary: true,
+            })
+          }
+          if (d.newContactEmail) {
+            await tx.insert(contactEmails).values({
+              tenantId: orgId,
+              contactId: resolvedContactId,
+              address: d.newContactEmail,
+              type: 'work',
+              isPrimary: true,
+            })
+          }
+
+          // Auto-promote to primary if customer has none yet
+          const [custForContact] = await tx
+            .select({ primaryContactId: customers.primaryContactId })
+            .from(customers)
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+            .limit(1)
+          if (!custForContact?.primaryContactId) {
+            await tx
+              .update(customers)
+              .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+              .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          }
+        }
+
+        // Resolve or create service location
+        let resolvedLocationId: string | null = null
+        if (d.serviceLocationId) {
+          await guardServiceLocation(tx, orgId, d.serviceLocationId)
+          resolvedLocationId = d.serviceLocationId
+        } else if (d.newLocationAddress1) {
+          const [newLoc] = await tx
+            .insert(serviceLocations)
+            .values({
+              tenantId: orgId,
+              customerId: resolvedCustomerId,
+              addressLine1: d.newLocationAddress1,
+              addressLine2: d.newLocationAddress2 ?? null,
+              city: d.newLocationCity ?? null,
+              state: d.newLocationState ?? null,
+              postalCode: d.newLocationPostalCode ?? null,
+            })
+            .returning({ id: serviceLocations.id })
+          resolvedLocationId = newLoc.id
+
+          // Auto-promote to primary if customer has none yet
+          const [cust] = await tx
+            .select({ primaryLocationId: customers.primaryLocationId })
+            .from(customers)
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+            .limit(1)
+          if (!cust?.primaryLocationId) {
+            await tx
+              .update(customers)
+              .set({ primaryLocationId: newLoc.id, updatedAt: new Date() })
+              .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          }
+        }
+
         await guardCategory(tx, orgId, d.categoryId)
 
         const estimateNo = await nextEstimateNo(tx, orgId)
@@ -304,9 +402,9 @@ export async function createOfficeEstimateAction(
           .values({
             tenantId: orgId,
             estimateNo,
-            customerId: d.customerId,
-            contactId: d.contactId,
-            serviceLocationId: d.serviceLocationId,
+            customerId: resolvedCustomerId,
+            contactId: resolvedContactId,
+            serviceLocationId: resolvedLocationId,
             categoryId: d.categoryId,
             description: d.description,
             poNumber: d.poNumber,
@@ -420,7 +518,17 @@ export async function createOfficeEstimateAction(
 
 // Office-only update schema: accepts full estimate fields + line items + groups.
 const updateEstimateSchema = z.object({
-  customerId: z.string().min(1),
+  customerId: emptyToUndefined,
+  newCustomerName: emptyToUndefined,
+  newContactFirstName: emptyToUndefined,
+  newContactLastName: emptyToUndefined,
+  newContactPhone: emptyToUndefined,
+  newContactEmail: emptyToUndefined,
+  newLocationAddress1: emptyToUndefined,
+  newLocationAddress2: emptyToUndefined,
+  newLocationCity: emptyToUndefined,
+  newLocationState: emptyToUndefined,
+  newLocationPostalCode: emptyToUndefined,
   contactId: emptyToNull,
   serviceLocationId: emptyToNull,
   categoryId: emptyToNull,
@@ -444,6 +552,9 @@ const updateEstimateSchema = z.object({
   assigneeUserIds: z.array(z.string()).default([]),
   lineItems: z.string().default('[]'),
   groups: z.string().default('[]'),
+}).refine((data) => data.customerId || data.newCustomerName, {
+  message: 'Customer is required.',
+  path: ['customerId'],
 })
 
 export async function updateEstimateAction(
@@ -489,9 +600,104 @@ export async function updateEstimateAction(
   try {
     await withTenant(orgId, async (tx) => {
       await guardEstimateOwner(tx, orgId, estimateId)
-      await guardCustomer(tx, orgId, d.customerId)
-      await guardContact(tx, orgId, d.contactId)
-      await guardServiceLocation(tx, orgId, d.serviceLocationId)
+
+      // Resolve or create customer
+      let resolvedCustomerId = d.customerId ?? ''
+      if (d.customerId) {
+        await guardCustomer(tx, orgId, d.customerId)
+        resolvedCustomerId = d.customerId
+      } else if (d.newCustomerName) {
+        const accountNo = await nextAccountNo(tx, orgId)
+        const [newCust] = await tx
+          .insert(customers)
+          .values({ tenantId: orgId, accountNo, name: d.newCustomerName })
+          .returning({ id: customers.id })
+        resolvedCustomerId = newCust.id
+      }
+
+      // Resolve or create contact
+      let resolvedContactId: string | null = null
+      if (d.contactId) {
+        await guardContact(tx, orgId, d.contactId)
+        resolvedContactId = d.contactId
+      } else if (d.newContactFirstName || d.newContactLastName) {
+        const [newContact] = await tx
+          .insert(contacts)
+          .values({
+            tenantId: orgId,
+            customerId: resolvedCustomerId,
+            firstName: d.newContactFirstName || '',
+            lastName: d.newContactLastName || null,
+          })
+          .returning({ id: contacts.id })
+        resolvedContactId = newContact.id
+        const phoneDigits = normalizePhone(d.newContactPhone)
+        if (phoneDigits) {
+          await tx.insert(contactPhones).values({
+            tenantId: orgId,
+            contactId: resolvedContactId,
+            number: phoneDigits,
+            isPrimary: true,
+          })
+        }
+        if (d.newContactEmail) {
+          await tx.insert(contactEmails).values({
+            tenantId: orgId,
+            contactId: resolvedContactId,
+            address: d.newContactEmail,
+            type: 'work',
+            isPrimary: true,
+          })
+        }
+
+        // Auto-promote to primary if customer has none yet
+        const [custForContact] = await tx
+          .select({ primaryContactId: customers.primaryContactId })
+          .from(customers)
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          .limit(1)
+        if (!custForContact?.primaryContactId) {
+          await tx
+            .update(customers)
+            .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+        }
+      }
+
+      // Resolve or create service location
+      let resolvedLocationId: string | null = null
+      if (d.serviceLocationId) {
+        await guardServiceLocation(tx, orgId, d.serviceLocationId)
+        resolvedLocationId = d.serviceLocationId
+      } else if (d.newLocationAddress1) {
+        const [newLoc] = await tx
+          .insert(serviceLocations)
+          .values({
+            tenantId: orgId,
+            customerId: resolvedCustomerId,
+            addressLine1: d.newLocationAddress1,
+            addressLine2: d.newLocationAddress2 ?? null,
+            city: d.newLocationCity ?? null,
+            state: d.newLocationState ?? null,
+            postalCode: d.newLocationPostalCode ?? null,
+          })
+          .returning({ id: serviceLocations.id })
+        resolvedLocationId = newLoc.id
+
+        // Auto-promote to primary if customer has none yet
+        const [cust] = await tx
+          .select({ primaryLocationId: customers.primaryLocationId })
+          .from(customers)
+          .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          .limit(1)
+        if (!cust?.primaryLocationId) {
+          await tx
+            .update(customers)
+            .set({ primaryLocationId: newLoc.id, updatedAt: new Date() })
+            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+        }
+      }
+
       await guardCategory(tx, orgId, d.categoryId)
 
       // Replace groups
@@ -575,9 +781,9 @@ export async function updateEstimateAction(
       await tx
         .update(estimates)
         .set({
-          customerId: d.customerId,
-          contactId: d.contactId,
-          serviceLocationId: d.serviceLocationId,
+          customerId: resolvedCustomerId,
+          contactId: resolvedContactId,
+          serviceLocationId: resolvedLocationId,
           categoryId: d.categoryId,
           description: d.description,
           poNumber: d.poNumber,
