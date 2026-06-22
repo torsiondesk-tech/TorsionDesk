@@ -31,6 +31,7 @@ interface ServicesTableProps {
   page: number
   pageSize: number
   onDelete?: (id: string) => void
+  q?: string | null
 }
 
 const MOBILE_HIDDEN: Record<string, string> = {
@@ -45,6 +46,7 @@ export function ServicesTable({
   page,
   pageSize,
   onDelete,
+  q,
 }: ServicesTableProps) {
   const [, setPage] = useQueryState('page')
   const [isPending, startTransition] = useTransition()
@@ -191,18 +193,22 @@ export function ServicesTable({
                   colSpan={table.getAllColumns().length}
                   className="h-32 text-center"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="text-muted-foreground">No services yet</p>
-                    <p className="text-sm text-muted-foreground">
-                      Add your first service to start building the catalog.
-                    </p>
-                    <Link href="/catalog/services/new">
-                      <Button variant="outline" size="sm">
-                        <Plus className="size-4" />
-                        New Service
-                      </Button>
-                    </Link>
-                  </div>
+                  {q ? (
+                    <p className="text-muted-foreground">No services match &ldquo;{q}&rdquo;.</p>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-muted-foreground">No services yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        Add your first service to start building the catalog.
+                      </p>
+                      <Link href="/catalog/services/new">
+                        <Button variant="outline" size="sm">
+                          <Plus className="size-4" />
+                          New Service
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             )}

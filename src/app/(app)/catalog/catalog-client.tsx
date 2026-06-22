@@ -139,6 +139,7 @@ export function CatalogClient({
             page={currentPage}
             pageSize={25}
             onDelete={handleDeleteService}
+            q={q}
           />
         ) : (
           <ProductsTable
@@ -147,6 +148,7 @@ export function CatalogClient({
             page={currentPage}
             pageSize={25}
             onDelete={handleDeleteProduct}
+            q={q}
           />
         )}
       </div>
