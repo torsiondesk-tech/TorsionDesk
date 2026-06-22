@@ -95,6 +95,7 @@ export function JobDetailShell({
             orgMembers={orgMembers}
             categoryName={categoryName}
             sourceName={sourceName}
+            taxItems={referenceData.taxItems}
           />
           <SiteVisits jobId={job.id} visits={job.siteVisits} />
           <JobTasks

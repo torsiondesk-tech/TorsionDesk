@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useMemo } from 'react'
 import {
   Phone,
   Mail,
@@ -16,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatPhone } from '@/lib/utils'
 import { statusBadgeVariant, statusLabel } from '@/lib/jobs/transitions'
+import { computeJobTotals } from '@/lib/jobs/totals'
 import type { JobDetail } from '@/lib/jobs/jobs'
 
 interface JobSummaryProps {
@@ -23,6 +25,7 @@ interface JobSummaryProps {
   orgMembers: Array<{ id: string; label: string }>
   categoryName?: string
   sourceName?: string
+  taxItems: Array<{ id: string; name: string; rate: string | null }>
 }
 
 export function JobSummary({
@@ -30,6 +33,7 @@ export function JobSummary({
   orgMembers,
   categoryName,
   sourceName,
+  taxItems,
 }: JobSummaryProps) {
   const primaryPhone =
     job.contact?.phones.find((p) => p.isPrimary) ?? job.contact?.phones[0]
@@ -82,6 +86,25 @@ export function JobSummary({
 
   const lineTotal = (li: (typeof job.lineItems)[0]) =>
     (parseFloat(li.qty || '0') || 0) * (parseFloat(li.rate || '0') || 0)
+
+  const totals = useMemo(
+    () =>
+      computeJobTotals(
+        job.lineItems.map((li) => ({
+          type: (li.type ?? 'product') as
+            | 'product'
+            | 'service'
+            | 'discount'
+            | 'expense',
+          qty: String(li.qty ?? '1'),
+          rate: String(li.rate ?? '0'),
+          cost: String(li.cost ?? '0'),
+          taxRate:
+            taxItems.find((t) => t.id === li.taxItemId)?.rate ?? null,
+        })),
+      ),
+    [job.lineItems, taxItems],
+  )
 
   return (
     <div className="space-y-6">
@@ -398,53 +421,117 @@ export function JobSummary({
           <CardTitle className="text-base font-semibold">Line Items</CardTitle>
         </CardHeader>
         <CardContent>
-          {job.lineItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No line items yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b bg-muted">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Item</th>
-                    <th className="px-3 py-2 font-medium">Qty</th>
-                    <th className="px-3 py-2 font-medium">Rate</th>
-                    <th className="px-3 py-2 font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {job.lineItems.map((li) => (
-                    <tr key={li.id}>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col">
-                          {li.title ? (
-                            <>
-                              <span className="font-medium">
-                                {li.title}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {li.description}
-                              </span>
-                            </>
-                          ) : (
-                            <span>{li.description}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">{li.qty}</td>
-                      <td className="px-3 py-2">
-                        ${parseFloat(li.rate || '0').toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2">
-                        ${lineTotal(li).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="flex flex-col gap-6 lg:flex-row">
+            {/* Line items table */}
+            <div className="flex-1">
+              {job.lineItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No line items yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b bg-muted">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Item</th>
+                        <th className="px-3 py-2 font-medium">Qty</th>
+                        <th className="px-3 py-2 font-medium">Rate</th>
+                        <th className="px-3 py-2 font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {job.lineItems.map((li) => (
+                        <tr key={li.id}>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-col">
+                              {li.title ? (
+                                <>
+                                  <span className="font-medium">
+                                    {li.title}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {li.description}
+                                  </span>
+                                </>
+                              ) : (
+                                <span>{li.description}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">{li.qty}</td>
+                          <td className="px-3 py-2">
+                            ${parseFloat(li.rate || '0').toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2">
+                            ${lineTotal(li).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Totals panel */}
+            <div className="w-full rounded-xl border bg-card p-5 lg:w-72">
+              <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Totals
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Products</span>
+                  <span>${totals.products}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Services</span>
+                  <span>${totals.services}</span>
+                </div>
+                <div className="flex justify-between text-destructive">
+                  <span>Discounts</span>
+                  <span>-${totals.discount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Taxes & Fees</span>
+                  <span>${totals.taxes}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Drive & Labor</span>
+                  <span>${totals.driveLabor}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Billable Expenses</span>
+                  <span>${totals.expenses}</span>
+                </div>
+                <div className="my-2 h-px bg-border" />
+                <div className="flex justify-between font-semibold">
+                  <span>Job Total</span>
+                  <span>${totals.jobTotal}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payments / Deposits</span>
+                  <span>${totals.payments}</span>
+                </div>
+                <div className="my-2 h-px bg-border" />
+                <div className="flex justify-between font-semibold">
+                  <span>Total Due</span>
+                  <span>${totals.totalDue}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Job Cost</span>
+                  <span>${totals.jobCost}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Gross Profit</span>
+                  <span>${totals.grossProfit}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Gross Profit %</span>
+                  <span>{totals.grossProfitPct ?? '—'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
