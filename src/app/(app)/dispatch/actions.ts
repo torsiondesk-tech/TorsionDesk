@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { z } from 'zod'
-import { eq, and, or, sql, count, gte, lte, isNull, notInArray, inArray } from 'drizzle-orm'
+import { eq, and, or, sql, count, isNull, notInArray, inArray } from 'drizzle-orm'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import { broadcastJobEvent } from '@/lib/jobs/broadcast'
@@ -579,9 +579,6 @@ export async function getWeekJobs(
   weekStart: string,
   weekEnd: string,
 ): Promise<WeekJob[]> {
-  const start = new Date(`${weekStart}T00:00:00`)
-  const end = new Date(`${weekEnd}T23:59:59`)
-
   return withTenant(orgId, async (tx) => {
     const rows = await tx
       .select({
@@ -604,8 +601,15 @@ export async function getWeekJobs(
       .where(
         and(
           eq(jobs.tenantId, orgId),
-          lte(jobs.startDate, end),
-          or(isNull(jobs.endDate), gte(jobs.endDate, start)),
+          // Compare calendar dates, not wall-clock instants. startDate/endDate are
+          // timestamp columns, but they are always stored at midnight (UTC). Casting
+          // to date before comparing with the ISO week bounds avoids timezone-shift
+          // bugs that excluded the whole current week in non-UTC timezones.
+          sql`${jobs.startDate}::date <= ${weekEnd}`,
+          or(
+            isNull(jobs.endDate),
+            sql`${jobs.endDate}::date >= ${weekStart}`,
+          ),
         ),
       )
       .orderBy(jobs.arrivalWindowStart)

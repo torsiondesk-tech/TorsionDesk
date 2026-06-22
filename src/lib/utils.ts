@@ -50,16 +50,29 @@ export function toISODate(d: Date | string): string {
 }
 
 /**
- * Rehydrate a server-returned date into a local-midnight Date that preserves the
- * intended CALENDAR date. Database timestamps are stored as UTC midnight, so using
- * local getters on a raw Date can shift the day when the client timezone is not UTC.
- * We normalize by extracting the ISO YYYY-MM-DD component (via UTC getters) and
- * building a fresh local-midnight Date so the calendar day is exact everywhere.
+ * Rehydrate a server-returned or client-constructed date into a local-midnight
+ * Date that preserves the intended CALENDAR date.
+ *
+ * - String input (`YYYY-MM-DD...`) is parsed as a local-midnight calendar date.
+ * - Date objects that are exactly UTC midnight are treated as server-returned
+ *   UTC-midnight calendar dates (Kind 2 in the project date rules). We extract the
+ *   ISO YYYY-MM-DD via UTC getters so US timezones don't shift the day.
+ * - Any other Date (client-local midnight or wall-clock time) uses local getters,
+ *   because its calendar day is defined by the viewer's local timezone.
  */
 export function parseCalendarDate(d: Date | string | null | undefined): Date | null {
   if (!d) return null
   if (d instanceof Date) {
-    const iso = toISODate(d)
+    const isUtcMidnight =
+      d.getUTCHours() === 0 &&
+      d.getUTCMinutes() === 0 &&
+      d.getUTCSeconds() === 0 &&
+      d.getUTCMilliseconds() === 0
+
+    const iso = isUtcMidnight
+      ? d.toISOString().slice(0, 10) // UTC midnight: read the UTC calendar day
+      : toISODate(d)                 // local Date: read the local calendar day
+
     const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
     if (m) {
       return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))

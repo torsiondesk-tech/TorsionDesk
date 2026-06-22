@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core'
 import { updateJobAssignment, unassignJob, getJobPopupData } from './actions'
 import type { WeekJob, Technician, PoolCounts, PopupData } from './actions'
-import { toISODate } from '@/lib/utils'
+import { toISODate, parseCalendarDate } from '@/lib/utils'
 import { WeekNavigator } from './components/week-navigator'
 import { WeekGrid } from './grid/week-grid'
 import { JobBlock } from './grid/job-block'
@@ -35,34 +35,6 @@ function parseDate(d: unknown): Date | null {
   if (!d) return null
   if (d instanceof Date) return d
   const parsed = new Date(d as string)
-  return isNaN(parsed.getTime()) ? null : parsed
-}
-
-/** Parse a server-returned date into a local-midnight Date that preserves the
- *  intended CALENDAR date. Using `new Date(isoString)` shifts the day when the
- *  client timezone is east/west of UTC because `toISOString()` returns UTC time.
- *
- *  When Drizzle passes a raw Date object (from a UTC database), its time is UTC
- *  midnight — but `getDate()` in a negative timezone reads it as the previous
- *  day. We normalize by extracting the ISO YYYY-MM-DD and building a fresh
- *  local-midnight Date so the calendar day is exact everywhere.
- */
-function parseCalendarDate(d: unknown): Date | null {
-  if (!d) return null
-  if (d instanceof Date) {
-    const iso = d.toISOString()
-    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/)
-    if (m) {
-      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-    }
-    return d
-  }
-  const str = d as string
-  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) {
-    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  }
-  const parsed = new Date(str)
   return isNaN(parsed.getTime()) ? null : parsed
 }
 
