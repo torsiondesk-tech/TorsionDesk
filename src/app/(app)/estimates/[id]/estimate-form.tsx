@@ -150,18 +150,26 @@ export function EstimateForm({
       postalCode: string | null
     }>
   >([])
+  const [contactsLoading, setContactsLoading] = React.useState(false)
+  const [locationsLoading, setLocationsLoading] = React.useState(false)
 
   React.useEffect(() => {
     if (!customerId) {
       setContacts([])
       setLocations([])
+      setContactsLoading(false)
+      setLocationsLoading(false)
       return
     }
+    setContactsLoading(true)
+    setLocationsLoading(true)
     getCustomerContacts(customerId).then((res) => {
       setContacts(res.contacts)
+      setContactsLoading(false)
     })
     getCustomerLocations(customerId).then((res) => {
       setLocations(res.locations)
+      setLocationsLoading(false)
     })
   }, [customerId])
 
@@ -423,7 +431,11 @@ export function EstimateForm({
         <div className="flex items-center gap-2 rounded-md border p-3">
           <Select value={selectedTemplateId} onValueChange={(v) => setSelectedTemplateId(v ?? '')}>
             <SelectTrigger className="w-64">
-              <SelectValue placeholder="Apply a template…" />
+              <SelectValue placeholder="Apply a template…">
+                {selectedTemplateId
+                  ? estimateTemplates.find((t) => t.id === selectedTemplateId)?.name ?? selectedTemplateId
+                  : null}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {estimateTemplates.map((t) => (
@@ -479,7 +491,16 @@ export function EstimateForm({
                 disabled={!customerId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select contact" />
+                  <SelectValue placeholder="Select contact">
+                    {contactId
+                      ? (() => {
+                          const c = contacts.find((x) => x.id === contactId)
+                          if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
+                          if (contactsLoading) return 'Loading…'
+                          return contactId
+                        })()
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No contact</SelectItem>
@@ -500,7 +521,16 @@ export function EstimateForm({
                 disabled={!customerId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
+                  <SelectValue placeholder="Select location">
+                    {serviceLocationId
+                      ? (() => {
+                          const l = locations.find((x) => x.id === serviceLocationId)
+                          if (l) return l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')
+                          if (locationsLoading) return 'Loading…'
+                          return serviceLocationId
+                        })()
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No location</SelectItem>
@@ -519,7 +549,11 @@ export function EstimateForm({
               <Label>Category</Label>
               <Select value={categoryId ?? ''} onValueChange={(v) => setCategoryId(v || null)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder="Select category">
+                    {categoryId
+                      ? referenceData.jobCategories.find((c) => c.id === categoryId)?.name ?? categoryId
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No category</SelectItem>
@@ -608,7 +642,7 @@ export function EstimateForm({
             <Label>Status</Label>
             <Select value={status} onValueChange={(v) => v && setStatus(v)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{estimateStatusLabel(status)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {ESTIMATE_STATUSES.map((s) => (
@@ -634,7 +668,11 @@ export function EstimateForm({
               onValueChange={(v) => setReferralSourceId(v || null)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select source" />
+                <SelectValue placeholder="Select source">
+                  {referralSourceId
+                    ? referenceData.jobSources.find((s) => s.id === referralSourceId)?.name ?? referralSourceId
+                    : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No source</SelectItem>
@@ -665,7 +703,11 @@ export function EstimateForm({
               onValueChange={(v) => setAssignedAgentId(v || null)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select rep" />
+                <SelectValue placeholder="Select rep">
+                  {assignedAgentId
+                    ? referenceData.orgMembers.find((m) => m.id === assignedAgentId)?.label ?? assignedAgentId
+                    : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Unassigned</SelectItem>

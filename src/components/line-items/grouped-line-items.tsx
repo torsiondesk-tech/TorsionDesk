@@ -751,7 +751,14 @@ function EditRow({
               onValueChange={(v) => setDraft((d) => ({ ...d, taxItemId: v || null }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="No Tax" />
+                <SelectValue placeholder="No Tax">
+                  {draft.taxItemId
+                    ? (() => {
+                        const t = referenceData.taxItems.find((x) => x.id === draft.taxItemId)
+                        return t ? `${t.name} (${t.rate}%)` : draft.taxItemId
+                      })()
+                    : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No Tax</SelectItem>
@@ -884,7 +891,14 @@ function AddRow({
             <div className="text-sm text-muted-foreground">{computeMargin(rate || '0', cost || '0') ?? '—'}</div>
             <Select value={taxItemId ?? ''} onValueChange={(v) => setTaxItemId(v || null)}>
               <SelectTrigger>
-                <SelectValue placeholder="No Tax" />
+                <SelectValue placeholder="No Tax">
+                  {taxItemId
+                    ? (() => {
+                        const t = referenceData.taxItems.find((x) => x.id === taxItemId)
+                        return t ? `${t.name} (${t.rate}%)` : taxItemId
+                      })()
+                    : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No Tax</SelectItem>
