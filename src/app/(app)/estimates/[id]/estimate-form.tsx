@@ -46,7 +46,7 @@ import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { toISODate, formatPhoneInput, normalizePhone } from '@/lib/utils'
 import { toast } from 'sonner'
-import { FileDown, Mail, Send, Plus, Loader2 } from 'lucide-react'
+import { FileDown, Mail, Send, Plus, Loader2, UserPlus } from 'lucide-react'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
 
@@ -127,7 +127,7 @@ export function EstimateForm({
   const [newLocationCity, setNewLocationCity] = React.useState('')
   const [newLocationState, setNewLocationState] = React.useState('')
   const [newLocationPostalCode, setNewLocationPostalCode] = React.useState('')
-  const autoSelectRef = React.useRef(false)
+  const prevCustomerIdRef = React.useRef<string | null>(initial?.estimate.customerId ?? null)
 
   // ── Core form state ──
   const [customerId, setCustomerId] = React.useState<string | null>(initial?.estimate.customerId ?? null)
@@ -173,37 +173,46 @@ export function EstimateForm({
       setLocations([])
       setContactsLoading(false)
       setLocationsLoading(false)
+      prevCustomerIdRef.current = customerId
       return
     }
+    const isNewCustomerSelection = prevCustomerIdRef.current !== customerId
     let cancelled = false
     setContactsLoading(true)
     setLocationsLoading(true)
     ;(async () => {
-      const [{ contacts: c, primaryContactId: pcId }, { locations: l, primaryLocationId: plId }] = await Promise.all([
-        getCustomerContacts(customerId),
-        getCustomerLocations(customerId),
-      ])
-      if (cancelled) return
-      setContacts(c)
-      setLocations(l)
-      setContactsLoading(false)
-      setLocationsLoading(false)
-      if (autoSelectRef.current) {
-        const autoContact = pcId ? c.find((x) => x.id === pcId) : c[0]
-        if (autoContact) setContactId(autoContact.id)
-        const autoLocation = plId ? l.find((x) => x.id === plId) : l[0]
-        if (autoLocation) setServiceLocationId(autoLocation.id)
-        autoSelectRef.current = false
+      try {
+        const [{ contacts: c, primaryContactId: pcId }, { locations: l, primaryLocationId: plId }] = await Promise.all([
+          getCustomerContacts(customerId),
+          getCustomerLocations(customerId),
+        ])
+        if (cancelled) return
+        setContacts(c)
+        setLocations(l)
+        if (isNewCustomerSelection && customerMode === 'existing') {
+          const autoContact = pcId ? c.find((x) => x.id === pcId) : c[0]
+          if (autoContact) setContactId(autoContact.id)
+          const autoLocation = plId ? l.find((x) => x.id === plId) : l[0]
+          if (autoLocation) setServiceLocationId(autoLocation.id)
+        }
+      } catch (err) {
+        if (cancelled) return
+        toast.error(err instanceof Error ? err.message : 'Could not load customer details.')
+      } finally {
+        if (!cancelled) {
+          setContactsLoading(false)
+          setLocationsLoading(false)
+        }
       }
     })()
+    prevCustomerIdRef.current = customerId
     return () => {
       cancelled = true
     }
-  }, [customerId])
+  }, [customerId, customerMode])
 
   const handleCustomerChange = React.useCallback((id: string | null) => {
     if (id) {
-      autoSelectRef.current = true
       setCustomerMode('existing')
       setCustomerId(id)
       setContactId(null)
@@ -581,19 +590,31 @@ export function EstimateForm({
                 />
               </div>
             ) : (
-              <CustomerSearch
-                defaultValue={customerId ?? undefined}
-                defaultLabel={customerName ?? undefined}
-                onChange={handleCustomerChange}
-                allowCreate={mode === 'create'}
-                onCreateNew={handleCreateNewCustomer}
-                onReplaceIntent={mode === 'edit' && !!customerId ? (char) => {
-                  setCustomerName(char)
-                  setCustomerId(null)
-                  setContactId(null)
-                  setServiceLocationId(null)
-                } : undefined}
-              />
+              <>
+                <CustomerSearch
+                  defaultValue={customerId ?? undefined}
+                  defaultLabel={customerName ?? undefined}
+                  onChange={handleCustomerChange}
+                  allowCreate={mode === 'create'}
+                  onCreateNew={handleCreateNewCustomer}
+                  onReplaceIntent={mode === 'edit' && !!customerId ? (char) => {
+                    setCustomerName(char)
+                    setCustomerId(null)
+                    setContactId(null)
+                    setServiceLocationId(null)
+                  } : undefined}
+                />
+                {mode === 'create' && (
+                  <button
+                    type="button"
+                    onClick={() => handleCreateNewCustomer('')}
+                    className="mt-1 flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                  >
+                    <UserPlus className="size-3.5" />
+                    Create a new customer instead
+                  </button>
+                )}
+              </>
             )}
           </div>
 
