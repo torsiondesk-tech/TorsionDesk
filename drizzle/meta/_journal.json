@@ -92,6 +92,13 @@
       "when": 1789756800000,
       "tag": "0012_job_signatures",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782109299582,
+      "tag": "0013_wakeful_dazzler",
+      "breakpoints": true
     }
   ]
 }

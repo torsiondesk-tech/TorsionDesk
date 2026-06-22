@@ -3,6 +3,7 @@ import { withTenant } from '@/db/with-tenant'
 import {
   jobs,
   jobLineItems,
+  lineItemGroups,
   jobTags,
   jobAssignees,
   jobSiteVisits,
@@ -305,6 +306,7 @@ export type JobDetail = typeof jobs.$inferSelect & {
     gated: boolean | null
   } | null
   lineItems: typeof jobLineItems.$inferSelect[]
+  lineItemGroups: typeof lineItemGroups.$inferSelect[]
   tags: typeof tags.$inferSelect[]
   assignees: typeof jobAssignees.$inferSelect[]
   siteVisits: typeof jobSiteVisits.$inferSelect[]
@@ -338,6 +340,7 @@ export async function getJob(
       contactEmailRows,
       locationRows,
       lineItems,
+      groupRows,
       tagRows,
       assignees,
       siteVisits,
@@ -380,6 +383,11 @@ export async function getJob(
         .select()
         .from(jobLineItems)
         .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, jobId))),
+      tx
+        .select()
+        .from(lineItemGroups)
+        .where(and(eq(lineItemGroups.tenantId, orgId), eq(lineItemGroups.jobId, jobId)))
+        .orderBy(lineItemGroups.sortOrder),
       tx
         .select({
           id: tags.id,
@@ -479,6 +487,7 @@ export async function getJob(
       contact,
       serviceLocation,
       lineItems,
+      lineItemGroups: groupRows,
       tags: tagRows,
       assignees,
       siteVisits,

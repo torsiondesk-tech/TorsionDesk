@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 06
-last_updated: "2026-06-21"
+last_updated: "2026-06-22T09:25:00.000Z"
 progress:
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 0
   total_plans: 36
-  completed_plans: 32
-  percent: 45
+  completed_plans: 27
+  percent: 0
 ---
 
 # TorsionDesk — Project State
@@ -25,10 +25,11 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Phase 6: Estimates**
 
-- Status: Not started
+- Status: In progress
 - Goal: Sales (and technicians in the field) can run estimates through their own dedicated pipeline and dashboard, build them with grouped catalog line items, email/text them as PDFs, and convert a won estimate into a job in one action from the office or the PWA.
 - Requirements: EST-01 through EST-09
 - Depends on: Phase 3 (completed)
+- Current plan: 06-05 — PDF API route + estimate PDF component + Settings estimate templates tab
 - Cross-phase note: `createEstimateAction`, `convertEstimateToJobAction`, and `sendEstimateAction` must be callable from the Phase 5 PWA. Implement canonical server actions here; the PWA offline-queued wrappers are already stubbed.
 
 ## Phase 4 Plans
@@ -42,7 +43,11 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 
 ## Phase 6 Plans
 
-- TBD — run `/gsd-plan-phase 6` to generate
+- [x] 06-01-PLAN.md — Wave 0: RED tests (7 files) + schema (11 tables) + helpers (nextEstimateNo, computeEstimateTotals, estimateStatusBadgeVariant) + @react-pdf/renderer install + [BLOCKING] pnpm db:push
+- [x] 06-02-PLAN.md — Wave 1: Canonical server actions (createEstimateAction, updateEstimateStatusAction, convertEstimateToJobAction, sendEstimateAction stub, task/reminder CRUD, template actions, pdf-data fetcher)
+- [x] 06-03-PLAN.md — Wave 2: GroupedLineItems + StarPicker components + job form retrofit (D-07) + enable Estimates nav item
+- [x] 06-04-PLAN.md — Wave 3: Estimates dashboard (sidebar with count badges + TanStack table) + two-panel estimate form + detail/edit page + task lists
+- [ ] 06-05-PLAN.md — Wave 4: PDF API route (@react-pdf/renderer, /api/estimates/[id]/pdf) + estimate PDF component + Settings estimate templates tab (automated implementation complete, awaiting human verification checkpoint)
 
 ## Progress
 
@@ -53,7 +58,7 @@ Phase 2  [██████████] Completed  ← 2026-06-14
 Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
 Phase 5  [██████████] Completed  ← 2026-06-21
-Phase 6  [          ] Not started  ← current
+Phase 6  [████      ] In progress  ← current
 Phase 7  [          ] Not started
 Phase 8  [          ] Not started
 Phase 9  [          ] Not started
@@ -190,12 +195,14 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 5 closed 2026-06-21 — all 6 plans complete, device checks passed (3 deferred: iOS install + Square sandbox credentials).
-**Next action:** Run `/gsd-plan-phase 6` to plan the Estimates module.
+**Last action:** Phase 6 planned 2026-06-22 — 5 plans written and verified (VERIFICATION PASSED, 1 blocker resolved in revision, 9/9 EST requirements covered).
+**Next action:** Run `/gsd-execute-phase 6` to execute the Estimates module.
 **Resume files:**
 
-- `.planning/phases/05-technician-pwa/05-CONTEXT.md` — locked decisions for Phase 5
-- `.planning/SESSION-2026-06-14-AUDIT.md` — cross-phase compatibility reference (estimates inline-creation pattern, shared server actions)
+- `.planning/phases/06-estimates/06-01-PLAN.md` through `06-05-PLAN.md` — 5 plans ready for execution
+- `.planning/phases/06-estimates/06-CONTEXT.md` — locked decisions for Phase 6
+- `.planning/phases/06-estimates/06-RESEARCH.md` — technical research (PDF workaround, schema design, PWA contract)
+- `.planning/phases/06-estimates/06-VALIDATION.md` — Wave 0 test requirements (7 test files to create in Wave 0)
 
 ---
 *State initialized: 2026-06-10*

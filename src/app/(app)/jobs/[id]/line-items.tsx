@@ -55,16 +55,16 @@ interface LineItemsProps {
   referenceData: ReferenceData
 }
 
-function toMoney(n: number): string {
+export function toMoney(n: number): string {
   return (n / 100).toFixed(2)
 }
 
-function parseMoney(s: string): number {
+export function parseMoney(s: string): number {
   return Math.round(parseFloat(s || '0') * 100) || 0
 }
 
 /** Compute margin % from unit rate and unit cost. */
-function computeMargin(rateStr: string, costStr: string): string | null {
+export function computeMargin(rateStr: string, costStr: string): string | null {
   const rate = parseFloat(rateStr || '0')
   const cost = parseFloat(costStr || '0')
   if (rate === 0) return null
@@ -74,7 +74,7 @@ function computeMargin(rateStr: string, costStr: string): string | null {
 
 type SearchResult = { id: string; name: string; unitPrice: string | null; unitCost: string | null; description: string | null }
 
-function useCatalogSearch() {
+export function useCatalogSearch() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -101,7 +101,7 @@ function useCatalogSearch() {
   return { query, results, loading, search, setQuery, setResults }
 }
 
-function SearchDropdown({
+export function SearchDropdown({
   query,
   results,
   loading,

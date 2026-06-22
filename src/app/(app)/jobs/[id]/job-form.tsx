@@ -48,6 +48,11 @@ import {
 } from '@/components/ui/dialog'
 import { StatusDropdown } from './status-dropdown'
 import { LineItems } from './line-items'
+import {
+  GroupedLineItems,
+  type LineItemGroup,
+  type LineItemRow,
+} from '@/components/line-items/grouped-line-items'
 import { Plus, X, Phone, Mail, Trash2, Star } from 'lucide-react'
 import { logger } from '@/lib/logger'
 
@@ -92,6 +97,7 @@ export interface JobFormData {
   tagIds?: string[]
   assigneeUserIds?: string[]
   lineItems?: JobFormLineItem[]
+  lineItemGroups?: LineItemGroup[]
   contact?: {
     id: string
     firstName: string
@@ -540,16 +546,26 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   }
 
   // Line items state (synced from initial or local)
-  const [lineItems, setLineItems] = useState<JobFormLineItem[]>(
-    initial?.lineItems ?? [],
+  const [lineItems, setLineItems] = useState<LineItemRow[]>(
+    (initial?.lineItems ?? []) as LineItemRow[],
+  )
+  const [lineItemGroups, setLineItemGroups] = useState<LineItemGroup[]>(
+    initial?.lineItemGroups ?? [],
   )
 
   // Sync line items from server props after router.refresh()
   useEffect(() => {
     if (initial?.lineItems) {
-      setLineItems(initial.lineItems)
+      setLineItems(initial.lineItems as LineItemRow[])
     }
   }, [initial?.lineItems])
+
+  // Sync line item groups from server props after router.refresh()
+  useEffect(() => {
+    if (initial?.lineItemGroups) {
+      setLineItemGroups(initial.lineItemGroups)
+    }
+  }, [initial?.lineItemGroups])
 
   // Sync arrival window state after router.refresh()
   useEffect(() => {
@@ -811,6 +827,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
           type="hidden"
           name="lineItems"
           value={JSON.stringify(lineItems)}
+        />
+        <input
+          type="hidden"
+          name="lineItemGroups"
+          value={JSON.stringify(lineItemGroups)}
         />
 
         <div className="grid gap-6 sm:grid-cols-2">
@@ -1986,12 +2007,43 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
         )}
 
         {/* ── LINE ITEMS (full-width below grid) ── */}
-        <LineItems
-          jobId={mode === 'edit' ? initial?.id : undefined}
-          items={lineItems}
-          onChange={setLineItems}
-          referenceData={referenceData}
-        />
+        {lineItemGroups.length > 0 ? (
+          <GroupedLineItems
+            groups={lineItemGroups}
+            lineItems={lineItems}
+            onChange={(groups, items) => {
+              setLineItemGroups(groups)
+              setLineItems(items)
+            }}
+            referenceData={referenceData}
+            jobId={mode === 'edit' ? initial?.id : undefined}
+          />
+        ) : (
+          <div className="space-y-2">
+            <LineItems
+              jobId={mode === 'edit' ? initial?.id : undefined}
+              items={lineItems as JobFormLineItem[]}
+              onChange={setLineItems}
+              referenceData={referenceData}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => {
+                const defaultGroup: LineItemGroup = {
+                  id: crypto.randomUUID(),
+                  name: 'Group 1',
+                  sortOrder: 0,
+                }
+                setLineItemGroups([defaultGroup])
+                setLineItems(lineItems.map((i) => ({ ...i, groupId: defaultGroup.id })))
+              }}
+            >
+              <Plus className="mr-1 size-4" /> Enable Line-Item Groups
+            </Button>
+          </div>
+        )}
 
         {/* ── FORM FOOTER ── */}
         <div className="flex items-center gap-3 pt-2">

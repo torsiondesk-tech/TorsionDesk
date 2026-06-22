@@ -115,6 +115,12 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
       rate: String(li.rate ?? '0'),
       cost: String(li.cost ?? '0'),
       taxItemId: li.taxItemId,
+      groupId: li.groupId ?? null,
+    })),
+    lineItemGroups: job.lineItemGroups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      sortOrder: g.sortOrder ?? 0,
     })),
     contact: job.contact
       ? {

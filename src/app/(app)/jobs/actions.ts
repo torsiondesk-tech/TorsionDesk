@@ -9,6 +9,7 @@ import { withTenant } from '@/db/with-tenant'
 import {
   jobs,
   jobLineItems,
+  lineItemGroups,
   jobTags,
   jobAssignees,
   customers,
@@ -149,6 +150,7 @@ const createJobSchema = z.object({
   tagIds: z.array(z.string()).default([]),
   assigneeUserIds: z.array(z.string()).default([]),
   lineItems: z.string().default('[]'),
+  lineItemGroups: z.string().default('[]'),
 })
 
 const phoneSchema = z.object({
@@ -211,6 +213,13 @@ const lineItemSchema = z.object({
   rate: z.string().default('0'),
   cost: z.string().default('0'),
   taxItemId: z.string().nullable().optional(),
+  groupId: z.string().nullable().optional(),
+})
+
+const lineItemGroupSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  sortOrder: z.number().default(0),
 })
 
 // ── Cross-tenant guard helpers ─────────────────────────────────────────────
@@ -329,6 +338,7 @@ export async function createJob(
     tagIds,
     assigneeUserIds,
     lineItems: formData.get('lineItems'),
+    lineItemGroups: formData.get('lineItemGroups'),
   })
 
   if (!parsed.success) {
@@ -355,6 +365,20 @@ export async function createJob(
     }
   } catch {
     // ignore malformed JSON, treat as empty
+  }
+
+  // Parse line item groups JSON
+  let parsedLineItemGroups: z.infer<typeof lineItemGroupSchema>[] = []
+  try {
+    const raw = JSON.parse(data.lineItemGroups)
+    if (Array.isArray(raw)) {
+      parsedLineItemGroups = raw
+        .map((g) => lineItemGroupSchema.safeParse(g))
+        .filter((r): r is z.ZodSafeParseSuccess<z.infer<typeof lineItemGroupSchema>> => r.success)
+        .map((r) => r.data)
+    }
+  } catch {
+    // ignore malformed JSON
   }
 
   let attempts = 0
@@ -504,6 +528,19 @@ export async function createJob(
 
         const jobId = row.id
 
+        // Persist line item groups first so line items can reference them.
+        if (parsedLineItemGroups.length > 0) {
+          await tx.insert(lineItemGroups).values(
+            parsedLineItemGroups.map((g) => ({
+              tenantId: orgId,
+              jobId,
+              id: g.id,
+              name: g.name,
+              sortOrder: g.sortOrder,
+            })),
+          )
+        }
+
         // Insert line items
         if (parsedLineItems.length > 0) {
           for (let i = 0; i < parsedLineItems.length; i++) {
@@ -523,6 +560,7 @@ export async function createJob(
               rate: item.rate,
               cost: item.cost,
               taxItemId: item.taxItemId ?? null,
+              groupId: item.groupId ?? null,
               sortOrder: i,
             })),
           )
@@ -637,6 +675,7 @@ export async function updateJob(
     tagIds,
     assigneeUserIds,
     lineItems: formData.get('lineItems'),
+    lineItemGroups: formData.get('lineItemGroups'),
     contactUpdate: formData.get('contactUpdate'),
   })
 
@@ -656,6 +695,20 @@ export async function updateJob(
       parsedLineItems = raw
         .map((item) => lineItemSchema.safeParse(item))
         .filter((r): r is z.ZodSafeParseSuccess<z.infer<typeof lineItemSchema>> => r.success)
+        .map((r) => r.data)
+    }
+  } catch {
+    // ignore malformed JSON
+  }
+
+  // Parse line item groups JSON
+  let parsedLineItemGroups: z.infer<typeof lineItemGroupSchema>[] = []
+  try {
+    const raw = JSON.parse(data.lineItemGroups)
+    if (Array.isArray(raw)) {
+      parsedLineItemGroups = raw
+        .map((g) => lineItemGroupSchema.safeParse(g))
+        .filter((r): r is z.ZodSafeParseSuccess<z.infer<typeof lineItemGroupSchema>> => r.success)
         .map((r) => r.data)
     }
   } catch {
@@ -794,10 +847,25 @@ export async function updateJob(
       })
       .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, data.id)))
 
-    // Replace line items
+    // Replace line item groups and their line items
     await tx
       .delete(jobLineItems)
       .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, data.id)))
+    await tx
+      .delete(lineItemGroups)
+      .where(and(eq(lineItemGroups.tenantId, orgId), eq(lineItemGroups.jobId, data.id)))
+
+    if (parsedLineItemGroups.length > 0) {
+      await tx.insert(lineItemGroups).values(
+        parsedLineItemGroups.map((g) => ({
+          tenantId: orgId,
+          jobId: data.id,
+          id: g.id,
+          name: g.name,
+          sortOrder: g.sortOrder,
+        })),
+      )
+    }
 
     if (parsedLineItems.length > 0) {
       for (const item of parsedLineItems) {
@@ -816,6 +884,7 @@ export async function updateJob(
           rate: item.rate,
           cost: item.cost,
           taxItemId: item.taxItemId ?? null,
+          groupId: item.groupId ?? null,
           sortOrder: i,
         })),
       )
