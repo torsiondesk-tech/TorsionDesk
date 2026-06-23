@@ -22,7 +22,7 @@ import { TagSelect, type TagOption } from '@/components/tag-select'
 import { TechSelect } from '@/components/tech-select'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
 import type { ParsedAddress } from '@/lib/places-actions'
-import { formatPhone } from '@/lib/utils'
+import { formatPhone, capitalizeWords } from '@/lib/utils'
 import {
   createJob,
   updateJob,
@@ -650,7 +650,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
   const handleCreateNewCustomer = useCallback((name: string) => {
     setCustomerMode('new')
-    setNewCustomerName(name)
+    setNewCustomerName(capitalizeWords(name))
     setCustomerId(undefined)
     setContactId(undefined)
     setLocationId(undefined)
@@ -857,7 +857,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                   <Input
                     name="newCustomerName"
                     value={newCustomerName}
-                    onChange={(e) => setNewCustomerName(e.target.value)}
+                    onChange={(e) => setNewCustomerName(capitalizeWords(e.target.value))}
                     placeholder="Customer name *"
                     required
                   />

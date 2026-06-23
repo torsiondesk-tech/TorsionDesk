@@ -54,7 +54,7 @@ import {
 import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
-import { toISODate, formatPhoneInput, formatPhone, normalizePhone } from '@/lib/utils'
+import { toISODate, formatPhoneInput, formatPhone, normalizePhone, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
 import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, MapPin, Phone, Trash2 } from 'lucide-react'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
@@ -467,7 +467,7 @@ export function EstimateForm({
 
   const handleCreateNewCustomer = React.useCallback((name: string) => {
     setCustomerMode('new')
-    setNewCustomerName(name)
+    setNewCustomerName(capitalizeWords(name))
     setCustomerId(null)
     setContactId(null)
     setServiceLocationId(null)
@@ -1063,7 +1063,7 @@ export function EstimateForm({
                 </div>
                 <Input
                   value={newCustomerName}
-                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  onChange={(e) => setNewCustomerName(capitalizeWords(e.target.value))}
                   placeholder="Customer name *"
                 />
               </div>

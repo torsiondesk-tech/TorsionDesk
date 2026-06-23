@@ -28,6 +28,13 @@ export function normalizePhone(value: string | null | undefined): string | null 
   return digits || null
 }
 
+/** Capitalize the first letter of every word, leaving the rest unchanged.
+ *  Useful for name inputs where each word should start with a capital letter.
+ */
+export function capitalizeWords(value: string): string {
+  return value.replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 /** Format a raw string into (XXX) XXX-XXXX as the user types. Strips non-digits
  *  and caps at 10 digits.
  */
