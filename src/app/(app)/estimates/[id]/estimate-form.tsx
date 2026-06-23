@@ -908,9 +908,18 @@ export function EstimateForm({
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {mode === 'create' ? 'New Estimate' : `Estimate #EST-${initial?.estimate.estimateNo ?? ''}`}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {customerName || 'Select a customer to begin'}
-          </p>
+          {customerId ? (
+            <Link
+              href={`/customers/${customerId}`}
+              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              {customerName}
+            </Link>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {customerName || 'Select a customer to begin'}
+            </p>
+          )}
           {mode === 'edit' && initial?.convertedJobs && initial.convertedJobs.length > 0 && (
             <p className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-muted-foreground">Converted to:</span>
