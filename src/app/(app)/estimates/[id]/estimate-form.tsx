@@ -1542,6 +1542,95 @@ export function EstimateForm({
                         </button>
                       </div>
                     )}
+
+                    {/* Always show selected contact details */}
+                    {contactEdit && contactId && contactMode === 'existing' && (
+                      <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 p-3">
+                        <input type="hidden" name="contactUpdate" value={JSON.stringify(contactEdit)} />
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-xs text-muted-foreground">First Name</span>
+                            <p className="font-medium">{contactEdit.firstName || '—'}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground">Last Name</span>
+                            <p className="font-medium">{contactEdit.lastName || '—'}</p>
+                          </div>
+                        </div>
+                        {contactEdit.jobTitle && (
+                          <div className="text-sm">
+                            <span className="text-xs text-muted-foreground">Job Title</span>
+                            <p className="font-medium">{contactEdit.jobTitle}</p>
+                          </div>
+                        )}
+
+                        {contactEdit.phones.length > 0 && contactEdit.phones.some((p) => p.number.trim()) && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Phone Numbers
+                            </div>
+                            <div className="space-y-1">
+                              {contactEdit.phones
+                                .filter((p) => p.number.trim())
+                                .map((phone, pi) => (
+                                  <div key={pi} className="flex items-center gap-2 text-sm">
+                                    <Phone className="size-4 text-muted-foreground" />
+                                    <span>{formatPhone(phone.number)}</span>
+                                    <span className="text-xs text-muted-foreground capitalize">({phone.type})</span>
+                                    {phone.isPrimary && (
+                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                        Primary
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {contactEdit.emails.length > 0 && contactEdit.emails.some((e) => e.address.trim()) && (
+                          <div className="space-y-1">
+                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Email Addresses
+                            </div>
+                            <div className="space-y-1">
+                              {contactEdit.emails
+                                .filter((e) => e.address.trim())
+                                .map((email, ei) => (
+                                  <div key={ei} className="flex items-center gap-2 text-sm">
+                                    <Mail className="size-4 text-muted-foreground" />
+                                    <span>{email.address}</span>
+                                    <span className="text-xs text-muted-foreground capitalize">({email.type})</span>
+                                    {email.isPrimary && (
+                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                        Primary
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          {contactEdit.billingContact && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              Billing Contact
+                            </Badge>
+                          )}
+                          {contactEdit.bookingContact && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              Booking Contact
+                            </Badge>
+                          )}
+                          {contactEdit.smsConsent && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              SMS Consent
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
