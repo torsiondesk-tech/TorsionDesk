@@ -1467,19 +1467,27 @@ export async function listOrgMembers(orgId: string): Promise<
   Array<{ id: string; label: string }>
 > {
   try {
+    const { teamProfiles } = await import('@/db/schema')
     const client = await clerkClient()
     const memberships = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
     })
-    return memberships.data.map((m) => ({
-      id: m.publicUserData?.userId ?? m.id,
-      label:
-        [m.publicUserData?.firstName, m.publicUserData?.lastName]
-          .filter(Boolean)
-          .join(' ') ||
+    const dbProfiles = await withTenant(orgId, async (tx) =>
+      tx.select().from(teamProfiles).where(eq(teamProfiles.tenantId, orgId)),
+    )
+    const profileMap = new Map(dbProfiles.map((p) => [p.userId, p]))
+    return memberships.data.map((m) => {
+      const userId = m.publicUserData?.userId ?? m.id
+      const profile = profileMap.get(userId)
+      const first = profile?.firstName ?? m.publicUserData?.firstName
+      const last = profile?.lastName ?? m.publicUserData?.lastName
+      const label =
+        [first, last].filter(Boolean).join(' ') ||
+        profile?.email ||
         m.publicUserData?.identifier ||
-        'Member',
-    }))
+        'Member'
+      return { id: userId, label }
+    })
   } catch {
     return []
   }
