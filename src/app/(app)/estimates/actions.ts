@@ -96,7 +96,37 @@ const lineItemGroupSchema = z.object({
   sortOrder: z.number().default(0),
 })
 
-// ── Guard helpers ─────────────────────────────────────────────────────────────
+const phoneSchema = z.object({
+  id: z.string().optional(),
+  number: z.string().min(1),
+  type: z.enum(['cell', 'home', 'work']).default('cell'),
+  isPrimary: z.boolean().default(false),
+})
+
+const emailSchema = z.object({
+  id: z.string().optional(),
+  address: z.string().min(1),
+  type: z.enum(['work', 'personal']).default('work'),
+  isPrimary: z.boolean().default(false),
+})
+
+const contactUpdateSchema = z.object({
+  id: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().default(''),
+  jobTitle: z.string().default(''),
+  phones: z.preprocess(
+    (arr) => (Array.isArray(arr) ? arr.filter((p) => (p as { number?: string })?.number?.trim()) : arr),
+    z.array(phoneSchema).default([]),
+  ),
+  emails: z.preprocess(
+    (arr) => (Array.isArray(arr) ? arr.filter((e) => (e as { address?: string })?.address?.trim()) : arr),
+    z.array(emailSchema).default([]),
+  ),
+  smsConsent: z.boolean().default(false),
+  billingContact: z.boolean().default(false),
+  bookingContact: z.boolean().default(false),
+})
 
 async function guardEstimateOwner(tx: Tx, orgId: string, estimateId: string) {
   const rows = await tx
@@ -565,6 +595,20 @@ const updateEstimateSchema = z.object({
   assigneeUserIds: z.array(z.string()).default([]),
   lineItems: z.string().default('[]'),
   groups: z.string().default('[]'),
+  contactUpdate: z.preprocess(
+    (val) => {
+      if (val === null || val === undefined || val === '') return undefined
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val)
+        } catch {
+          return undefined
+        }
+      }
+      return val
+    },
+    contactUpdateSchema.optional(),
+  ),
 }).refine((data) => data.customerId || data.newCustomerName, {
   message: 'Customer is required.',
   path: ['customerId'],
@@ -792,6 +836,56 @@ export async function updateEstimateAction(
         )
       }
 
+      // Update existing contact in-place when contactUpdate is provided
+      if (d.contactUpdate && d.contactId) {
+        const cu = d.contactUpdate
+        await tx
+          .update(contacts)
+          .set({
+            firstName: cu.firstName,
+            lastName: cu.lastName || null,
+            jobTitle: cu.jobTitle || null,
+            smsConsent: cu.smsConsent,
+            billingContact: cu.billingContact,
+            bookingContact: cu.bookingContact,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, d.contactId)))
+
+        await tx
+          .delete(contactPhones)
+          .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, d.contactId)))
+        const normPhones = cu.phones
+          .map((p) => ({ ...p, number: normalizePhone(p.number) }))
+          .filter((p) => p.number)
+        if (normPhones.length > 0) {
+          await tx.insert(contactPhones).values(
+            normPhones.map((p) => ({
+              tenantId: orgId,
+              contactId: d.contactId!,
+              number: p.number!,
+              type: p.type,
+              isPrimary: p.isPrimary,
+            })),
+          )
+        }
+
+        await tx
+          .delete(contactEmails)
+          .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, d.contactId)))
+        if (cu.emails.length > 0) {
+          await tx.insert(contactEmails).values(
+            cu.emails.map((e) => ({
+              tenantId: orgId,
+              contactId: d.contactId!,
+              address: e.address,
+              type: e.type,
+              isPrimary: e.isPrimary,
+            })),
+          )
+        }
+      }
+
       await tx
         .update(estimates)
         .set({
@@ -851,7 +945,19 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
 
     const estimate = rows[0]
 
-    const [lineItems, groups, tags, assignees, tasks, reminders, convertedJobs] = await Promise.all([
+    const [
+      lineItems,
+      groups,
+      tags,
+      assignees,
+      tasks,
+      reminders,
+      convertedJobs,
+      customerRows,
+      contactRows,
+      contactPhoneRows,
+      contactEmailRows,
+    ] = await Promise.all([
       tx
         .select()
         .from(estimateLineItems)
@@ -885,7 +991,78 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
         .from(jobs)
         .where(and(eq(jobs.tenantId, orgId), eq(jobs.estimateId, estimateId)))
         .orderBy(jobs.jobNo),
+      tx
+        .select({ primaryContactId: customers.primaryContactId })
+        .from(customers)
+        .where(and(eq(customers.tenantId, orgId), eq(customers.id, estimate.customerId)))
+        .limit(1),
+      estimate.contactId
+        ? tx
+            .select()
+            .from(contacts)
+            .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, estimate.contactId)))
+            .limit(1)
+        : Promise.resolve([]),
+      estimate.contactId
+        ? tx
+            .select()
+            .from(contactPhones)
+            .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, estimate.contactId)))
+        : Promise.resolve([]),
+      estimate.contactId
+        ? tx
+            .select()
+            .from(contactEmails)
+            .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, estimate.contactId)))
+        : Promise.resolve([]),
     ])
+
+    // Fallback to customer's primary contact when estimate has no explicit contactId
+    let resolvedContactRows = contactRows
+    let resolvedPhoneRows = contactPhoneRows
+    let resolvedEmailRows = contactEmailRows
+    const fallbackContactId = !estimate.contactId ? (customerRows[0]?.primaryContactId ?? null) : null
+    if (fallbackContactId) {
+      ;[resolvedContactRows, resolvedPhoneRows, resolvedEmailRows] = await Promise.all([
+        tx
+          .select()
+          .from(contacts)
+          .where(and(eq(contacts.tenantId, orgId), eq(contacts.id, fallbackContactId)))
+          .limit(1),
+        tx
+          .select()
+          .from(contactPhones)
+          .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, fallbackContactId))),
+        tx
+          .select()
+          .from(contactEmails)
+          .where(and(eq(contactEmails.tenantId, orgId), eq(contactEmails.contactId, fallbackContactId))),
+      ])
+    }
+
+    const contact = resolvedContactRows[0]
+      ? {
+          id: resolvedContactRows[0].id,
+          firstName: resolvedContactRows[0].firstName,
+          lastName: resolvedContactRows[0].lastName ?? '',
+          jobTitle: resolvedContactRows[0].jobTitle ?? '',
+          phones: resolvedPhoneRows.map((p) => ({
+            id: p.id,
+            number: p.number,
+            type: p.type,
+            isPrimary: p.isPrimary,
+          })),
+          emails: resolvedEmailRows.map((e) => ({
+            id: e.id,
+            address: e.address,
+            type: e.type,
+            isPrimary: e.isPrimary,
+          })),
+          smsConsent: resolvedContactRows[0].smsConsent ?? false,
+          billingContact: resolvedContactRows[0].billingContact ?? false,
+          bookingContact: resolvedContactRows[0].bookingContact ?? false,
+        }
+      : null
 
     const totals = computeEstimateTotals(
       lineItems.map((li) => ({
@@ -909,6 +1086,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
       reminders,
       totals,
       convertedJobs,
+      contact,
     }
   })
 }

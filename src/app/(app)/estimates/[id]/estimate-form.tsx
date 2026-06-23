@@ -54,9 +54,9 @@ import {
 import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
-import { toISODate, formatPhoneInput, normalizePhone } from '@/lib/utils'
+import { toISODate, formatPhoneInput, formatPhone, normalizePhone } from '@/lib/utils'
 import { toast } from 'sonner'
-import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, MapPin } from 'lucide-react'
+import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, MapPin, Phone, Trash2 } from 'lucide-react'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
 
@@ -183,7 +183,7 @@ export function EstimateForm({
   const [primaryLocationId, setPrimaryLocationId] = React.useState<string | null>(null)
 
   // ── Inline contact/location creation/editing ──
-  const [contactMode, setContactMode] = React.useState<'existing' | 'new'>('existing')
+  const [contactMode, setContactMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
   const [locationMode, setLocationMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
   interface LocationAddrState extends Partial<ParsedAddress> {
     addressLine2?: string
@@ -197,6 +197,175 @@ export function EstimateForm({
   const [locationError, setLocationError] = React.useState<string | null>(null)
   const [locationFormKey, setLocationFormKey] = React.useState(0)
   const autoSelectRef = React.useRef(false)
+
+  // Full contact editing state (matches job form)
+  interface ContactEditState {
+    id: string
+    firstName: string
+    lastName: string
+    jobTitle: string
+    phones: Array<{ id?: string; number: string; type: string; isPrimary: boolean }>
+    emails: Array<{ id?: string; address: string; type: string; isPrimary: boolean }>
+    smsConsent: boolean
+    billingContact: boolean
+    bookingContact: boolean
+  }
+
+  const emptyContactEdit = (): ContactEditState => ({
+    id: '',
+    firstName: '',
+    lastName: '',
+    jobTitle: '',
+    phones: [{ number: '', type: 'cell', isPrimary: true }],
+    emails: [{ address: '', type: 'work', isPrimary: true }],
+    smsConsent: false,
+    billingContact: false,
+    bookingContact: false,
+  })
+
+  const [contactEdit, setContactEdit] = React.useState<ContactEditState | null>(() => {
+    if (initial?.contact) {
+      const c = initial.contact
+      return {
+        id: c.id,
+        firstName: c.firstName,
+        lastName: c.lastName ?? '',
+        jobTitle: c.jobTitle ?? '',
+        phones:
+          c.phones.length > 0
+            ? c.phones.map((p) => ({
+                id: p.id,
+                number: p.number,
+                type: p.type,
+                isPrimary: p.isPrimary ?? false,
+              }))
+            : [{ number: '', type: 'cell', isPrimary: true }],
+        emails:
+          c.emails.length > 0
+            ? c.emails.map((e) => ({
+                id: e.id,
+                address: e.address,
+                type: e.type,
+                isPrimary: e.isPrimary ?? false,
+              }))
+            : [{ address: '', type: 'work', isPrimary: true }],
+        smsConsent: c.smsConsent ?? false,
+        billingContact: c.billingContact ?? false,
+        bookingContact: c.bookingContact ?? false,
+      }
+    }
+    return null
+  })
+
+  // Fetch full contact detail when an existing contact is selected
+  React.useEffect(() => {
+    if (!contactId || contactMode === 'new' || contactMode === 'edit') return
+    let cancelled = false
+    getCustomerContactDetail(contactId)
+      .then((detail) => {
+        if (!cancelled && detail) {
+          setContactEdit({
+            id: detail.id,
+            firstName: detail.firstName,
+            lastName: detail.lastName ?? '',
+            jobTitle: detail.jobTitle ?? '',
+            phones:
+              detail.phones.length > 0
+                ? detail.phones.map((p) => ({
+                    id: p.id,
+                    number: p.number,
+                    type: p.type,
+                    isPrimary: p.isPrimary ?? false,
+                  }))
+                : [{ number: '', type: 'cell', isPrimary: true }],
+            emails:
+              detail.emails.length > 0
+                ? detail.emails.map((e) => ({
+                    id: e.id,
+                    address: e.address,
+                    type: e.type,
+                    isPrimary: e.isPrimary ?? false,
+                  }))
+                : [{ address: '', type: 'work', isPrimary: true }],
+            smsConsent: detail.smsConsent ?? false,
+            billingContact: detail.billingContact ?? false,
+            bookingContact: detail.bookingContact ?? false,
+          })
+        }
+      })
+      .catch((err) => console.error('loadContactDetail', err))
+    return () => {
+      cancelled = true
+    }
+  }, [contactId, contactMode])
+
+  // Contact edit helpers
+  const updateContactField = (
+    field: keyof Omit<ContactEditState, 'phones' | 'emails'>,
+    value: unknown,
+  ) => {
+    setContactEdit((prev) => (prev ? { ...prev, [field]: value } : prev))
+  }
+
+  const updateContactPhone = (
+    pi: number,
+    field: 'number' | 'type' | 'isPrimary',
+    value: string | boolean,
+  ) => {
+    setContactEdit((prev) => {
+      if (!prev) return prev
+      const phones = [...prev.phones]
+      phones[pi] = { ...phones[pi], [field]: value }
+      return { ...prev, phones }
+    })
+  }
+
+  const addContactPhone = () => {
+    setContactEdit((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        phones: [...prev.phones, { number: '', type: 'cell', isPrimary: false }],
+      }
+    })
+  }
+
+  const removeContactPhone = (pi: number) => {
+    setContactEdit((prev) => {
+      if (!prev) return prev
+      return { ...prev, phones: prev.phones.filter((_, i) => i !== pi) }
+    })
+  }
+
+  const updateContactEmail = (
+    ei: number,
+    field: 'address' | 'type' | 'isPrimary',
+    value: string | boolean,
+  ) => {
+    setContactEdit((prev) => {
+      if (!prev) return prev
+      const emails = [...prev.emails]
+      emails[ei] = { ...emails[ei], [field]: value }
+      return { ...prev, emails }
+    })
+  }
+
+  const addContactEmail = () => {
+    setContactEdit((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        emails: [...prev.emails, { address: '', type: 'work', isPrimary: false }],
+      }
+    })
+  }
+
+  const removeContactEmail = (ei: number) => {
+    setContactEdit((prev) => {
+      if (!prev) return prev
+      return { ...prev, emails: prev.emails.filter((_, i) => i !== ei) }
+    })
+  }
 
   // Sync location edit form when an existing location is selected
   React.useEffect(() => {
@@ -278,6 +447,7 @@ export function EstimateForm({
       setNewLocationAddr({})
       setLocationError(null)
       setContactError(null)
+      setContactEdit(null)
     } else {
       setCustomerId(null)
       setContactId(null)
@@ -291,6 +461,7 @@ export function EstimateForm({
       setNewLocationAddr({})
       setLocationError(null)
       setContactError(null)
+      setContactEdit(null)
     }
   }, [])
 
@@ -318,6 +489,7 @@ export function EstimateForm({
     setNewLocationAddr({})
     setLocationError(null)
     setContactError(null)
+    setContactEdit(emptyContactEdit())
   }, [])
 
   const handleClearNewCustomer = React.useCallback(() => {
@@ -344,6 +516,7 @@ export function EstimateForm({
     setNewLocationAddr({})
     setLocationError(null)
     setContactError(null)
+    setContactEdit(null)
   }, [])
 
   const handleSaveNewContact = async () => {
@@ -377,6 +550,43 @@ export function EstimateForm({
       setNewContactLastName('')
       setNewContactPhone('')
       setNewContactEmail('')
+      setContactEdit(null)
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingContact(false)
+    }
+  }
+
+  const handleUpdateContact = async () => {
+    if (!customerId || !contactId || !contactEdit) {
+      setContactError('Select a customer and contact first.')
+      return
+    }
+    if (!contactEdit.firstName.trim() && !contactEdit.lastName.trim()) {
+      setContactError('First or last name is required.')
+      return
+    }
+    setSavingContact(true)
+    setContactError(null)
+    try {
+      const result = await createContactForJob(customerId, {
+        firstName: contactEdit.firstName.trim(),
+        lastName: contactEdit.lastName.trim() || null,
+        phone: contactEdit.phones.find((p) => p.isPrimary)?.number || contactEdit.phones[0]?.number || null,
+        email: contactEdit.emails.find((e) => e.isPrimary)?.address || contactEdit.emails[0]?.address || null,
+      })
+      if (result.error) {
+        setContactError(result.error)
+        return
+      }
+      // Re-fetch contact list and select the newly created contact
+      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
+      setContacts(refreshed)
+      setPrimaryContactId(refreshedPrimary)
+      setContactId(result.id)
+      setContactMode('existing')
+      setContactEdit(null)
     } catch (err) {
       setContactError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -576,6 +786,22 @@ export function EstimateForm({
     newContactLastName: customerMode === 'new' ? newContactLastName : '',
     newContactPhone: customerMode === 'new' ? normalizePhone(newContactPhone) : '',
     newContactEmail: customerMode === 'new' ? newContactEmail : '',
+    contactUpdate:
+      customerMode === 'existing' && contactId && contactMode === 'edit' && contactEdit
+        ? JSON.stringify({
+            id: contactEdit.id,
+            firstName: contactEdit.firstName,
+            lastName: contactEdit.lastName,
+            jobTitle: contactEdit.jobTitle,
+            phones: contactEdit.phones
+              .map((p) => ({ ...p, number: normalizePhone(p.number) }))
+              .filter((p) => p.number),
+            emails: contactEdit.emails.filter((e) => e.address.trim()),
+            smsConsent: contactEdit.smsConsent,
+            billingContact: contactEdit.billingContact,
+            bookingContact: contactEdit.bookingContact,
+          })
+        : '',
     newLocationAddress1: customerMode === 'new' ? newLocationAddress1 : '',
     newLocationAddress2: customerMode === 'new' ? newLocationAddress2 : '',
     newLocationCity: customerMode === 'new' ? newLocationCity : '',
@@ -1006,6 +1232,241 @@ export function EstimateForm({
                       <p className="text-xs text-destructive">{contactError}</p>
                     )}
                   </div>
+                ) : contactMode === 'edit' ? (
+                  <div className="space-y-3">
+                    {contactEdit ? (
+                      <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                        <input type="hidden" name="contactUpdate" value={JSON.stringify(contactEdit)} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">First Name</Label>
+                            <Input
+                              value={contactEdit.firstName}
+                              onChange={(e) => updateContactField('firstName', e.target.value)}
+                              placeholder="First name"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Last Name</Label>
+                            <Input
+                              value={contactEdit.lastName}
+                              onChange={(e) => updateContactField('lastName', e.target.value)}
+                              placeholder="Last name"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Job Title</Label>
+                          <Input
+                            value={contactEdit.jobTitle}
+                            onChange={(e) => updateContactField('jobTitle', e.target.value)}
+                            placeholder="e.g. Property Manager"
+                          />
+                        </div>
+
+                        {/* Phones */}
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Phone Numbers
+                          </div>
+                          {contactEdit.phones.map((phone, pi) => (
+                            <div key={pi} className="flex items-center gap-2">
+                              <Phone className="size-4 text-muted-foreground" />
+                              <Input
+                                placeholder="555-0100"
+                                value={formatPhone(phone.number)}
+                                onChange={(e) =>
+                                  updateContactPhone(pi, 'number', e.target.value.replace(/\D/g, ''))
+                                }
+                                className="max-w-[180px]"
+                              />
+                              <Select
+                                value={phone.type}
+                                onValueChange={(val) => updateContactPhone(pi, 'type', val ?? '')}
+                              >
+                                <SelectTrigger className="h-9 w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="cell">Cell</SelectItem>
+                                  <SelectItem value="home">Home</SelectItem>
+                                  <SelectItem value="work">Work</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id={`phone-primary-${pi}`}
+                                  checked={phone.isPrimary}
+                                  onCheckedChange={(c) =>
+                                    updateContactPhone(pi, 'isPrimary', c === true)
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`phone-primary-${pi}`}
+                                  className="cursor-pointer text-xs"
+                                >
+                                  Primary
+                                </Label>
+                              </div>
+                              {contactEdit.phones.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-destructive"
+                                  onClick={() => removeContactPhone(pi)}
+                                >
+                                  <Trash2 className="size-3" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={addContactPhone}
+                          >
+                            <Plus className="mr-1 size-3" />
+                            Add phone
+                          </Button>
+                        </div>
+
+                        {/* Emails */}
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Email Addresses
+                          </div>
+                          {contactEdit.emails.map((email, ei) => (
+                            <div key={ei} className="flex items-center gap-2">
+                              <Mail className="size-4 text-muted-foreground" />
+                              <Input
+                                type="email"
+                                placeholder="name@company.com"
+                                value={email.address}
+                                onChange={(e) =>
+                                  updateContactEmail(ei, 'address', e.target.value)
+                                }
+                                className="max-w-[240px]"
+                              />
+                              <Select
+                                value={email.type}
+                                onValueChange={(val) => updateContactEmail(ei, 'type', val ?? '')}
+                              >
+                                <SelectTrigger className="h-9 w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="work">Work</SelectItem>
+                                  <SelectItem value="personal">Personal</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id={`email-primary-${ei}`}
+                                  checked={email.isPrimary}
+                                  onCheckedChange={(c) =>
+                                    updateContactEmail(ei, 'isPrimary', c === true)
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`email-primary-${ei}`}
+                                  className="cursor-pointer text-xs"
+                                >
+                                  Primary
+                                </Label>
+                              </div>
+                              {contactEdit.emails.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-destructive"
+                                  onClick={() => removeContactEmail(ei)}
+                                >
+                                  <Trash2 className="size-3" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={addContactEmail}
+                          >
+                            <Plus className="mr-1 size-3" />
+                            Add email
+                          </Button>
+                        </div>
+
+                        {/* Flags */}
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="billing-contact"
+                              checked={contactEdit.billingContact}
+                              onCheckedChange={(c) =>
+                                updateContactField('billingContact', c === true)
+                              }
+                            />
+                            <Label htmlFor="billing-contact" className="cursor-pointer text-sm">
+                              Billing Contact
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="booking-contact"
+                              checked={contactEdit.bookingContact}
+                              onCheckedChange={(c) =>
+                                updateContactField('bookingContact', c === true)
+                              }
+                            />
+                            <Label htmlFor="booking-contact" className="cursor-pointer text-sm">
+                              Booking Contact
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="sms-consent"
+                              checked={contactEdit.smsConsent}
+                              onCheckedChange={(c) => updateContactField('smsConsent', c === true)}
+                            />
+                            <Label htmlFor="sms-consent" className="cursor-pointer text-sm">
+                              SMS Consent
+                            </Label>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setContactMode('existing')
+                              setContactError(null)
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            ← Cancel
+                          </button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={savingContact}
+                            onClick={handleUpdateContact}
+                          >
+                            {savingContact ? 'Saving…' : 'Save Contact'}
+                          </Button>
+                        </div>
+                        {contactError && (
+                          <p className="text-xs text-destructive">{contactError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Loading contact…</p>
+                    )}
+                  </div>
                 ) : (
                   <>
                     <Select
@@ -1015,8 +1476,10 @@ export function EstimateForm({
                         if (v === '__new__') {
                           setContactMode('new')
                           setContactId(null)
+                          setContactEdit(null)
                         } else if (v === '') {
                           setContactId(null)
+                          setContactEdit(null)
                         } else {
                           setContactId(v)
                         }
@@ -1029,6 +1492,7 @@ export function EstimateForm({
                             ? (() => {
                                 const c = contacts.find((c) => c.id === contactId)
                                 if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
+                                if (contactEdit) return `${contactEdit.firstName} ${contactEdit.lastName}`.trim()
                                 if (contactsLoading) return 'Loading…'
                                 return contactId
                               })()
@@ -1069,6 +1533,13 @@ export function EstimateForm({
                             Set as Primary
                           </Button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setContactMode('edit')}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Edit contact
+                        </button>
                       </div>
                     )}
                   </>
