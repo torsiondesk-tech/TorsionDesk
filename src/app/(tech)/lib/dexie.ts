@@ -138,6 +138,7 @@ export interface CachedLineItem {
 export interface CachedEstimate {
   id: string
   tenantId: string
+  estimateNo: number
   status: string
   customerId: string
   customerName: string | null

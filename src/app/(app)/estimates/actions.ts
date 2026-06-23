@@ -919,6 +919,7 @@ export async function listEstimatesAction(orgId: string): Promise<{ rows: Cached
       .select({
         id: estimates.id,
         tenantId: estimates.tenantId,
+        estimateNo: estimates.estimateNo,
         status: estimates.status,
         customerId: estimates.customerId,
         customerName: customers.name,

@@ -25,6 +25,7 @@ import { StarPicker } from '@/components/line-items/star-picker'
 export interface EstimateRow {
   id: string
   tenantId: string
+  estimateNo: number
   status: string
   customerId: string
   customerName: string | null
@@ -53,16 +54,21 @@ function formatMoney(value: number | null) {
 
 const columns: ColumnDef<EstimateRow>[] = [
   {
-    accessorKey: 'createdAt',
-    header: 'Requested On',
+    accessorKey: 'estimateNo',
+    header: 'Estimate #',
     cell: ({ row }) => (
       <Link
         href={`/estimates/${row.original.id}`}
         className="font-medium text-foreground hover:underline"
       >
-        {formatDate(row.original.createdAt)}
+        EST-{row.original.estimateNo}
       </Link>
     ),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Requested On',
+    cell: ({ row }) => formatDate(row.original.createdAt),
   },
   {
     accessorKey: 'customerName',

@@ -531,6 +531,7 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       const cachedEstimates: CachedEstimate[] = estimatesResult.rows.map((row) => ({
         id: row.id,
         tenantId: orgId,
+        estimateNo: row.estimateNo,
         status: row.status,
         customerId: row.customerId,
         customerName: row.customerName ?? null,
