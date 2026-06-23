@@ -304,7 +304,11 @@ export function EstimateForm({
     field: keyof Omit<ContactEditState, 'phones' | 'emails'>,
     value: unknown,
   ) => {
-    setContactEdit((prev) => (prev ? { ...prev, [field]: value } : prev))
+    let normalized = value
+    if ((field === 'firstName' || field === 'lastName') && typeof value === 'string') {
+      normalized = capitalizeWords(value)
+    }
+    setContactEdit((prev) => (prev ? { ...prev, [field]: normalized } : prev))
   }
 
   const updateContactPhone = (
@@ -1104,7 +1108,8 @@ export function EstimateForm({
                   <Label>Contact first name</Label>
                   <Input
                     value={newContactFirstName}
-                    onChange={(e) => setNewContactFirstName(e.target.value)}
+                    onChange={(e) => setNewContactFirstName(capitalizeWords(e.target.value))}
+                    autoCapitalize="words"
                     placeholder="First name (optional)"
                   />
                 </div>
@@ -1112,7 +1117,8 @@ export function EstimateForm({
                   <Label>Contact last name</Label>
                   <Input
                     value={newContactLastName}
-                    onChange={(e) => setNewContactLastName(e.target.value)}
+                    onChange={(e) => setNewContactLastName(capitalizeWords(e.target.value))}
+                    autoCapitalize="words"
                     placeholder="Last name (optional)"
                   />
                 </div>
@@ -1193,12 +1199,14 @@ export function EstimateForm({
                     <div className="grid grid-cols-2 gap-2">
                       <Input
                         value={newContactFirstName}
-                        onChange={(e) => setNewContactFirstName(e.target.value)}
+                        onChange={(e) => setNewContactFirstName(capitalizeWords(e.target.value))}
+                        autoCapitalize="words"
                         placeholder="First name (optional)"
                       />
                       <Input
                         value={newContactLastName}
-                        onChange={(e) => setNewContactLastName(e.target.value)}
+                        onChange={(e) => setNewContactLastName(capitalizeWords(e.target.value))}
+                        autoCapitalize="words"
                         placeholder="Last name (optional)"
                       />
                     </div>
@@ -1253,6 +1261,7 @@ export function EstimateForm({
                             <Input
                               value={contactEdit.firstName}
                               onChange={(e) => updateContactField('firstName', e.target.value)}
+                              autoCapitalize="words"
                               placeholder="First name"
                             />
                           </div>
@@ -1261,6 +1270,7 @@ export function EstimateForm({
                             <Input
                               value={contactEdit.lastName}
                               onChange={(e) => updateContactField('lastName', e.target.value)}
+                              autoCapitalize="words"
                               placeholder="Last name"
                             />
                           </div>

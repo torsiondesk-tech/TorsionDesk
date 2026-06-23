@@ -342,7 +342,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     field: keyof Omit<ContactEditState, 'phones' | 'emails'>,
     value: unknown,
   ) => {
-    setContactEdit((prev) => (prev ? { ...prev, [field]: value } : prev))
+    let normalized = value
+    if ((field === 'firstName' || field === 'lastName') && typeof value === 'string') {
+      normalized = capitalizeWords(value)
+    }
+    setContactEdit((prev) => (prev ? { ...prev, [field]: normalized } : prev))
   }
 
   const updateContactPhone = (
@@ -885,13 +889,15 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     <Input
                       name="newContactFirstName"
                       value={newContactFirstName}
-                      onChange={(e) => setNewContactFirstName(e.target.value)}
+                      onChange={(e) => setNewContactFirstName(capitalizeWords(e.target.value))}
+                      autoCapitalize="words"
                       placeholder="First name (optional)"
                     />
                     <Input
                       name="newContactLastName"
                       value={newContactLastName}
-                      onChange={(e) => setNewContactLastName(e.target.value)}
+                      onChange={(e) => setNewContactLastName(capitalizeWords(e.target.value))}
+                      autoCapitalize="words"
                       placeholder="Last name (optional)"
                     />
                   </div>
@@ -1030,6 +1036,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                             onChange={(e) =>
                               updateContactField('firstName', e.target.value)
                             }
+                            autoCapitalize="words"
                             placeholder="First name"
                           />
                         </div>
@@ -1040,6 +1047,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                             onChange={(e) =>
                               updateContactField('lastName', e.target.value)
                             }
+                            autoCapitalize="words"
                             placeholder="Last name"
                           />
                         </div>

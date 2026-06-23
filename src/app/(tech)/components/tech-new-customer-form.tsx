@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { createTechCustomerAction } from '@/app/(tech)/tech/customers/actions'
 import { createTechDb } from '@/app/(tech)/lib/dexie'
 import { searchPlacesAction, getPlaceDetailsAction, type PlaceSuggestion } from '@/lib/places-actions'
-import { formatPhoneInput } from '@/lib/utils'
+import { formatPhoneInput, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
 
 interface Props {
@@ -129,7 +129,8 @@ export function TechNewCustomerForm({ orgId }: Props) {
             <Input
               id="cust-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(capitalizeWords(e.target.value))}
+              autoCapitalize="words"
               placeholder="e.g. Smith Residence or Acme Corp"
               required
             />
@@ -141,7 +142,8 @@ export function TechNewCustomerForm({ orgId }: Props) {
               <Input
                 id="first-name"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => setFirstName(capitalizeWords(e.target.value))}
+                autoCapitalize="words"
                 placeholder="John"
               />
             </div>
@@ -150,7 +152,8 @@ export function TechNewCustomerForm({ orgId }: Props) {
               <Input
                 id="last-name"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => setLastName(capitalizeWords(e.target.value))}
+                autoCapitalize="words"
                 placeholder="Smith"
               />
             </div>
