@@ -859,6 +859,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     value={newCustomerName}
                     onChange={(e) => setNewCustomerName(capitalizeWords(e.target.value))}
                     placeholder="Customer name *"
+                    className="capitalize"
                     required
                   />
                 </div>

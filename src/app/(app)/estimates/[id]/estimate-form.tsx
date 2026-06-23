@@ -1065,6 +1065,7 @@ export function EstimateForm({
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(capitalizeWords(e.target.value))}
                   placeholder="Customer name *"
+                  className="capitalize"
                 />
               </div>
             ) : (
