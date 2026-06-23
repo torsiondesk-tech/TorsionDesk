@@ -1040,22 +1040,33 @@ export async function convertEstimateToJobAction(
         .where(and(eq(estimateLineItems.tenantId, orgId), eq(estimateLineItems.estimateId, estimateId)))
         .orderBy(estimateLineItems.sortOrder)
       if (lineItemRows.length > 0) {
-        await tx.insert(jobLineItems).values(
-          lineItemRows.map((li) => ({
-            tenantId: orgId,
-            jobId,
-            type: li.type,
-            refId: li.refId,
-            title: li.title,
-            description: li.description,
-            qty: li.qty,
-            rate: li.rate,
-            cost: li.cost,
-            taxItemId: li.taxItemId,
-            sortOrder: li.sortOrder,
-            groupId: li.groupId ? groupIdMap.get(li.groupId) ?? null : null,
-          })),
-        )
+        const jobLineItemValues = lineItemRows.map((li) => ({
+          tenantId: orgId,
+          jobId,
+          type: li.type,
+          refId: li.refId,
+          title: li.title,
+          description: li.description,
+          qty: li.qty,
+          rate: li.rate,
+          cost: li.cost,
+          taxItemId: li.taxItemId,
+          sortOrder: li.sortOrder,
+          groupId: li.groupId ? groupIdMap.get(li.groupId) ?? null : null,
+        }))
+        try {
+          await tx.insert(jobLineItems).values(jobLineItemValues)
+        } catch (insertErr) {
+          const msg = extractErrorMessage(insertErr)
+          // Graceful fallback if the DB hasn't received the group_id migration yet
+          if (typeof msg === 'string' && /column "group_id" of relation "job_line_items" does not exist/i.test(msg)) {
+            await tx.insert(jobLineItems).values(
+              jobLineItemValues.map(({ groupId: _, ...rest }) => rest),
+            )
+          } else {
+            throw insertErr
+          }
+        }
       }
 
       // Copy tags

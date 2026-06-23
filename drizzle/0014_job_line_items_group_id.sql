@@ -1,0 +1,3 @@
+ALTER TABLE "job_line_items" ADD COLUMN IF NOT EXISTS "group_id" text;--> statement-breakpoint
+ALTER TABLE "job_line_items" DROP CONSTRAINT IF EXISTS "job_line_items_tenant_id_group_id_line_item_groups_tenant_id_id_fk";--> statement-breakpoint
+ALTER TABLE "job_line_items" ADD CONSTRAINT "job_line_items_tenant_id_group_id_line_item_groups_tenant_id_id_fk" FOREIGN KEY ("tenant_id","group_id") REFERENCES "public"."line_item_groups"("tenant_id","id") ON DELETE set null ON UPDATE no action;
