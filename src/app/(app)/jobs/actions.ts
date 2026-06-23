@@ -1463,9 +1463,7 @@ export async function listTaxItems(orgId: string): Promise<Array<{ id: string; n
   })
 }
 
-export async function listOrgMembers(orgId: string): Promise<
-  Array<{ id: string; label: string }>
-> {
+export async function listOrgMembers(orgId: string): Promise<Array<{ id: string; label: string; role: string | null }>> {
   try {
     const { teamProfiles } = await import('@/db/schema')
     const client = await clerkClient()
@@ -1486,7 +1484,7 @@ export async function listOrgMembers(orgId: string): Promise<
         profile?.email ||
         m.publicUserData?.identifier ||
         'Member'
-      return { id: userId, label }
+      return { id: userId, label, role: m.role ?? null }
     })
   } catch {
     return []

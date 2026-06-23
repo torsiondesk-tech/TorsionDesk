@@ -117,7 +117,7 @@ interface ReferenceData {
   taxItems: Array<{ id: string; name: string; rate: string | null }>
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
-  orgMembers: Array<{ id: string; label: string }>
+  orgMembers: Array<{ id: string; label: string; role: string | null }>
 }
 
 interface JobFormProps {
@@ -1847,7 +1847,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label>Assigned Techs</Label>
               <TechSelect
-                members={referenceData.orgMembers}
+                members={referenceData.orgMembers.filter(
+                  (m) => m.role === 'org:technician' || m.role === 'org:admin',
+                )}
                 defaultSelected={initial?.assigneeUserIds ?? []}
               />
             </div>

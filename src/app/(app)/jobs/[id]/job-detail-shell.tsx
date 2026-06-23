@@ -16,14 +16,14 @@ interface ReferenceData {
   taxItems: Array<{ id: string; name: string; rate: string | null }>
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
-  orgMembers: Array<{ id: string; label: string }>
+  orgMembers: Array<{ id: string; label: string; role: string | null }>
 }
 
 interface JobDetailShellProps {
   job: JobDetail
   initial: JobFormData
   referenceData: ReferenceData
-  orgMembers: Array<{ id: string; label: string }>
+  orgMembers: Array<{ id: string; label: string; role: string | null }>
   categoryName?: string
   sourceName?: string
   initialEdit?: boolean

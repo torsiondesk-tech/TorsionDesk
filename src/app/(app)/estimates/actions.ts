@@ -1420,6 +1420,6 @@ export async function listTaxItems(orgId: string): Promise<Array<{ id: string; n
   return jobsListTaxItems(orgId)
 }
 
-export async function listOrgMembers(orgId: string): Promise<Array<{ id: string; label: string }>> {
+export async function listOrgMembers(orgId: string): Promise<Array<{ id: string; label: string; role: string | null }>> {
   return jobsListOrgMembers(orgId)
 }
