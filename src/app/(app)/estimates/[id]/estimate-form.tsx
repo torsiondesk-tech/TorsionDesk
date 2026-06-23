@@ -1499,43 +1499,6 @@ export function EstimateForm({
           jobId={estimateId}
         />
 
-        {/* Totals */}
-        <div className="rounded-lg border p-4">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Products</p>
-              <p className="font-medium">{formatMoney(parseFloat(totals.products) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Services</p>
-              <p className="font-medium">{formatMoney(parseFloat(totals.services) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Discount</p>
-              <p className="font-medium">{formatMoney(parseFloat(totals.discount) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Taxes</p>
-              <p className="font-medium">{formatMoney(parseFloat(totals.taxes) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="font-semibold">{formatMoney(parseFloat(totals.estimateTotal) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Cost</p>
-              <p className="font-medium">{formatMoney(parseFloat(totals.estimateCost) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Gross Profit</p>
-              <p className="font-medium">{formatMoney(parseFloat(totals.grossProfit) * 100)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Gross Profit %</p>
-              <p className="font-medium">{totals.grossProfitPct ?? '—'}</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )
