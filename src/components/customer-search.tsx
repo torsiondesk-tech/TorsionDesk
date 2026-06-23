@@ -12,6 +12,7 @@ import {
   ComboboxEmpty,
 } from '@/components/ui/combobox'
 import { searchCustomersAction } from '@/app/(app)/customers/actions'
+import { capitalizeWords } from '@/lib/utils'
 
 export interface CustomerSearchResult {
   id: string
@@ -75,7 +76,7 @@ export function CustomerSearch({
         return
       }
 
-      setQuery(v)
+      setQuery(capitalizeWords(v))
       if (value) {
         setValue(null)
         onChange?.(null)
@@ -91,7 +92,7 @@ export function CustomerSearch({
   const handleSelect = useCallback(
     (val: string | null) => {
       if (val === '__create__') {
-        onCreateNew?.(query.trim())
+        onCreateNew?.(capitalizeWords(query.trim()))
         setQuery('')
         setResults([])
         return
