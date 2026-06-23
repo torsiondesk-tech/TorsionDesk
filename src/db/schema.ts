@@ -677,6 +677,9 @@ export const jobs = pgTable(
       onDelete: 'set null',
     }),
     assignedAgentId: text('assigned_agent_id'),
+    estimateId: text('estimate_id').references(() => estimates.id, {
+      onDelete: 'set null',
+    }),
     priority: text('priority'),
     startDate: timestamp('start_date'),
     endDate: timestamp('end_date'),
@@ -698,6 +701,7 @@ export const jobs = pgTable(
     unique('jobs_tenant_id_unique').on(t.tenantId, t.id),
     index('jobs_status_idx').on(t.status),
     index('jobs_customer_id_idx').on(t.customerId),
+    index('jobs_estimate_id_idx').on(t.estimateId),
     foreignKey({
       columns: [t.tenantId, t.customerId],
       foreignColumns: [customers.tenantId, customers.id],

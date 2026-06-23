@@ -17,6 +17,7 @@ import {
   contactEmails,
   serviceLocations,
   jobCategories,
+  estimates,
 } from '@/db/schema'
 import { STATUS_GROUPS, type JobStatusValue } from './transitions'
 
@@ -288,6 +289,7 @@ export type JobDetail = typeof jobs.$inferSelect & {
   customerName: string
   primaryLocationId: string | null
   primaryContactId: string | null
+  estimateNo: number | null
   contact: {
     id: string
     firstName: string
@@ -347,6 +349,7 @@ export async function getJob(
       tasks,
       reminders,
       photos,
+      estimateRows,
     ] = await Promise.all([
       tx
         .select({ name: customers.name, primaryLocationId: customers.primaryLocationId, primaryContactId: customers.primaryContactId })
@@ -421,6 +424,13 @@ export async function getJob(
         .from(jobPhotos)
         .where(and(eq(jobPhotos.tenantId, orgId), eq(jobPhotos.jobId, jobId)))
         .orderBy(desc(jobPhotos.createdAt)),
+      job.estimateId
+        ? tx
+            .select({ estimateNo: estimates.estimateNo })
+            .from(estimates)
+            .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, job.estimateId)))
+            .limit(1)
+        : Promise.resolve([]),
     ])
 
     // If the job has no explicit contactId, fall back to the customer's primary contact
@@ -484,6 +494,7 @@ export async function getJob(
       customerName: customerRows[0]?.name ?? '',
       primaryLocationId: customerRows[0]?.primaryLocationId ?? null,
       primaryContactId: customerRows[0]?.primaryContactId ?? null,
+      estimateNo: estimateRows[0]?.estimateNo ?? null,
       contact,
       serviceLocation,
       lineItems,

@@ -23,6 +23,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
 import {
   statusBadgeVariant,
   statusLabel,
@@ -192,6 +193,17 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
         </Badge>
         <span className="text-sm text-muted-foreground">{job.customerName}</span>
       </div>
+      {job.estimateId && job.estimateNo != null && (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Converted from </span>
+          <Link
+            href={`/estimates/${job.estimateId}`}
+            className="font-medium underline hover:text-foreground"
+          >
+            Estimate #{`EST-${job.estimateNo}`}
+          </Link>
+        </p>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="summary">

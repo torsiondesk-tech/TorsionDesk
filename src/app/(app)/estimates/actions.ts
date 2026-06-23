@@ -837,7 +837,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
 
     const estimate = rows[0]
 
-    const [lineItems, groups, tags, assignees, tasks, reminders] = await Promise.all([
+    const [lineItems, groups, tags, assignees, tasks, reminders, convertedJobs] = await Promise.all([
       tx
         .select()
         .from(estimateLineItems)
@@ -866,6 +866,11 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
         .from(estimateReminders)
         .where(and(eq(estimateReminders.tenantId, orgId), eq(estimateReminders.estimateId, estimateId)))
         .orderBy(estimateReminders.remindAt),
+      tx
+        .select({ id: jobs.id, jobNo: jobs.jobNo })
+        .from(jobs)
+        .where(and(eq(jobs.tenantId, orgId), eq(jobs.estimateId, estimateId)))
+        .limit(1),
     ])
 
     const totals = computeEstimateTotals(
@@ -889,6 +894,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
       tasks,
       reminders,
       totals,
+      convertedJob: convertedJobs[0] ?? null,
     }
   })
 }
@@ -1008,6 +1014,7 @@ export async function convertEstimateToJobAction(
           poNumber: est.poNumber,
           notesForTechs: est.notesForTechs,
           status: 'unscheduled',
+          estimateId,
         })
         .returning({ id: jobs.id, jobNo: jobs.jobNo })
       const jobId = jobRow.id

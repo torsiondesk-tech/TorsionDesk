@@ -684,6 +684,17 @@ export function EstimateForm({
           <p className="text-sm text-muted-foreground">
             {customerName || 'Select a customer to begin'}
           </p>
+          {mode === 'edit' && initial?.convertedJob && (
+            <p className="text-sm">
+              <span className="text-muted-foreground">Converted to </span>
+              <Link
+                href={`/jobs/${initial.convertedJob.id}`}
+                className="font-medium underline hover:text-foreground"
+              >
+                Job #{`JOB-${initial.convertedJob.jobNo}`}
+              </Link>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
