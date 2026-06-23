@@ -45,7 +45,6 @@ import {
   getCustomerContacts as jobsGetCustomerContacts,
   getCustomerLocations as jobsGetCustomerLocations,
   listJobCategories as jobsListJobCategories,
-  listJobSources as jobsListJobSources,
   listTaxItems as jobsListTaxItems,
   listOrgMembers as jobsListOrgMembers,
 } from '@/app/(app)/jobs/actions'
@@ -1579,10 +1578,6 @@ export async function searchServicesAction(
   q: string,
 ): Promise<Array<{ id: string; name: string; unitPrice: string | null; unitCost: string | null; description: string | null }>> {
   return jobsSearchServicesAction(q)
-}
-
-export async function listJobSources(orgId: string): Promise<Array<{ id: string; name: string }>> {
-  return jobsListJobSources(orgId)
 }
 
 export async function getCustomerContacts(

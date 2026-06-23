@@ -1,11 +1,10 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { listTags } from '@/lib/tags'
+import { listTags, listReferralSources } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
 import { EstimateForm } from '../[id]/estimate-form'
 import {
   listJobCategories,
-  listJobSources,
   listTaxItems,
   listOrgMembers,
   listEstimateTemplatesAction,
@@ -18,7 +17,7 @@ export default async function NewEstimatePage() {
 
   const [
     jobCategories,
-    jobSources,
+    referralSources,
     taxItems,
     availableTags,
     productCategories,
@@ -27,7 +26,7 @@ export default async function NewEstimatePage() {
     templates,
   ] = await Promise.all([
     listJobCategories(orgId),
-    listJobSources(orgId),
+    listReferralSources(orgId),
     listTaxItems(orgId),
     listTags(orgId),
     listProductCategories(orgId),
@@ -50,7 +49,7 @@ export default async function NewEstimatePage() {
         role={orgRole}
         referenceData={{
           jobCategories,
-          jobSources,
+          referralSources,
           taxItems,
           availableTags,
           productCategories,

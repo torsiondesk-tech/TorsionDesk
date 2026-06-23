@@ -62,7 +62,7 @@ import type { getEstimateAction } from '../actions'
 
 interface ReferenceData {
   jobCategories: Array<{ id: string; name: string; parentId: string | null }>
-  jobSources: Array<{ id: string; name: string }>
+  referralSources: Array<{ id: string; name: string }>
   taxItems: Array<{ id: string; name: string; rate: string | null }>
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
@@ -2033,13 +2033,13 @@ export function EstimateForm({
               <SelectTrigger>
                 <SelectValue placeholder="Select source">
                   {referralSourceId
-                    ? referenceData.jobSources.find((s) => s.id === referralSourceId)?.name ?? referralSourceId
+                    ? referenceData.referralSources.find((s) => s.id === referralSourceId)?.name ?? referralSourceId
                     : null}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No source</SelectItem>
-                {referenceData.jobSources.map((s) => (
+                {referenceData.referralSources.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
                   </SelectItem>
