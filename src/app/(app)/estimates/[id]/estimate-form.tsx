@@ -728,17 +728,26 @@ export function EstimateForm({
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Convert to Job?</DialogTitle>
-                    <DialogDescription>
-                      This creates a new job from this estimate, copies the line items and groups, and marks the estimate as Won.
+                    <DialogDescription className="space-y-2">
+                      <p>
+                        This creates a new job from this estimate, copies the line items and groups, and marks the estimate as Won.
+                      </p>
+                      {initial?.convertedJob && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                          <strong>This estimate is already converted to Job #{`JOB-${initial.convertedJob.jobNo}`}.</strong>
+                          <br />
+                          Clicking Convert again will create a duplicate job. Use this only if you intentionally need a second job from the same estimate.
+                        </div>
+                      )}
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleConvert} disabled={converting}>
+                    <Button onClick={handleConvert} disabled={converting} variant={initial?.convertedJob ? 'destructive' : 'default'}>
                       {converting && <Loader2 className="mr-1 size-4 animate-spin" />}
-                      Convert
+                      {initial?.convertedJob ? 'Convert Anyway' : 'Convert'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
