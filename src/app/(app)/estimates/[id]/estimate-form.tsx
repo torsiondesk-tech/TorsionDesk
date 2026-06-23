@@ -1482,7 +1482,7 @@ export function EstimateForm({
       </div>
 
       {/* Line items */}
-      <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="rounded-xl border bg-card p-6 space-y-6">
         <h2 className="text-xl font-semibold">Line Items</h2>
         <GroupedLineItems
           groups={groups}
@@ -1499,6 +1499,15 @@ export function EstimateForm({
           jobId={estimateId}
         />
 
+        <div className="flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground">
+            Review line items, then save the estimate.
+          </div>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="mr-1 size-4 animate-spin" />}
+            Save Estimate
+          </Button>
+        </div>
       </div>
     </div>
   )
