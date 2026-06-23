@@ -684,15 +684,20 @@ export function EstimateForm({
           <p className="text-sm text-muted-foreground">
             {customerName || 'Select a customer to begin'}
           </p>
-          {mode === 'edit' && initial?.convertedJob && (
-            <p className="text-sm">
-              <span className="text-muted-foreground">Converted to </span>
-              <Link
-                href={`/jobs/${initial.convertedJob.id}`}
-                className="font-medium underline hover:text-foreground"
-              >
-                Job #{`JOB-${initial.convertedJob.jobNo}`}
-              </Link>
+          {mode === 'edit' && initial?.convertedJobs && initial.convertedJobs.length > 0 && (
+            <p className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-muted-foreground">Converted to:</span>
+              {initial.convertedJobs.map((job, i) => (
+                <span key={job.id} className="inline-flex items-center gap-1">
+                  {i > 0 && <span className="text-muted-foreground">,</span>}
+                  <Link
+                    href={`/jobs/${job.id}`}
+                    className="font-medium underline hover:text-foreground"
+                  >
+                    Job #{`JOB-${job.jobNo}`}
+                  </Link>
+                </span>
+              ))}
             </p>
           )}
         </div>
@@ -732,11 +737,15 @@ export function EstimateForm({
                       <p>
                         This creates a new job from this estimate, copies the line items and groups, and marks the estimate as Won.
                       </p>
-                      {initial?.convertedJob && (
+                      {initial?.convertedJobs && initial.convertedJobs.length > 0 && (
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                          <strong>This estimate is already converted to Job #{`JOB-${initial.convertedJob.jobNo}`}.</strong>
+                          <strong>
+                            This estimate is already converted to{' '}
+                            {initial.convertedJobs.map((j, i) => `${i > 0 ? ', ' : ''}Job #${`JOB-${j.jobNo}`}`).join('')}
+                            .
+                          </strong>
                           <br />
-                          Clicking Convert again will create a duplicate job. Use this only if you intentionally need a second job from the same estimate.
+                          Clicking Convert again will create another duplicate job. Use this only if you intentionally need another job from the same estimate.
                         </div>
                       )}
                     </DialogDescription>
@@ -745,9 +754,13 @@ export function EstimateForm({
                     <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleConvert} disabled={converting} variant={initial?.convertedJob ? 'destructive' : 'default'}>
+                    <Button
+                      onClick={handleConvert}
+                      disabled={converting}
+                      variant={initial?.convertedJobs && initial.convertedJobs.length > 0 ? 'destructive' : 'default'}
+                    >
                       {converting && <Loader2 className="mr-1 size-4 animate-spin" />}
-                      {initial?.convertedJob ? 'Convert Anyway' : 'Convert'}
+                      {initial?.convertedJobs && initial.convertedJobs.length > 0 ? 'Convert Anyway' : 'Convert'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>

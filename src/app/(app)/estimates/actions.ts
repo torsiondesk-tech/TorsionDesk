@@ -870,7 +870,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
         .select({ id: jobs.id, jobNo: jobs.jobNo })
         .from(jobs)
         .where(and(eq(jobs.tenantId, orgId), eq(jobs.estimateId, estimateId)))
-        .limit(1),
+        .orderBy(jobs.jobNo),
     ])
 
     const totals = computeEstimateTotals(
@@ -894,7 +894,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
       tasks,
       reminders,
       totals,
-      convertedJob: convertedJobs[0] ?? null,
+      convertedJobs,
     }
   })
 }
