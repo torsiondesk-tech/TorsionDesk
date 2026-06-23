@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -33,6 +34,8 @@ import {
   type LineItemRow,
 } from '@/components/line-items/grouped-line-items'
 import { StarPicker } from '@/components/line-items/star-picker'
+import { AddressAutocomplete } from '@/components/address-autocomplete'
+import type { ParsedAddress } from '@/lib/places-actions'
 import {
   createOfficeEstimateAction,
   updateEstimateAction,
@@ -42,11 +45,18 @@ import {
   getCustomerContacts,
   getCustomerLocations,
 } from '../actions'
+import {
+  getCustomerContactDetail,
+  createContactForJob,
+  createServiceLocation,
+  updateServiceLocation,
+} from '../../jobs/actions'
+import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { toISODate, formatPhoneInput, normalizePhone } from '@/lib/utils'
 import { toast } from 'sonner'
-import { FileDown, Mail, Send, Plus, Loader2, UserPlus } from 'lucide-react'
+import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, MapPin } from 'lucide-react'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
 
@@ -159,13 +169,50 @@ export function EstimateForm({
       id: string
       name: string | null
       addressLine1: string | null
+      addressLine2: string | null
       city: string | null
       state: string | null
       postalCode: string | null
+      gated: boolean | null
     }>
   >([])
   const [contactsLoading, setContactsLoading] = React.useState(false)
   const [locationsLoading, setLocationsLoading] = React.useState(false)
+  const [primaryContactId, setPrimaryContactId] = React.useState<string | null>(null)
+  const [primaryLocationId, setPrimaryLocationId] = React.useState<string | null>(null)
+
+  // ── Inline contact/location creation/editing ──
+  const [contactMode, setContactMode] = React.useState<'existing' | 'new'>('existing')
+  const [locationMode, setLocationMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
+  interface LocationAddrState extends Partial<ParsedAddress> {
+    addressLine2?: string
+  }
+  const [newLocationAddr, setNewLocationAddr] = React.useState<LocationAddrState>({})
+  const [locationEditName, setLocationEditName] = React.useState('')
+  const [locationGated, setLocationGated] = React.useState(false)
+  const [savingContact, setSavingContact] = React.useState(false)
+  const [savingLocation, setSavingLocation] = React.useState(false)
+  const [contactError, setContactError] = React.useState<string | null>(null)
+  const [locationError, setLocationError] = React.useState<string | null>(null)
+  const [locationFormKey, setLocationFormKey] = React.useState(0)
+  const autoSelectRef = React.useRef(false)
+
+  // Sync location edit form when an existing location is selected
+  React.useEffect(() => {
+    if (!serviceLocationId || locationMode === 'new' || !locations.length) return
+    const loc = locations.find((l) => l.id === serviceLocationId)
+    if (!loc) return
+    setNewLocationAddr({
+      addressLine1: loc.addressLine1 ?? undefined,
+      addressLine2: loc.addressLine2 ?? undefined,
+      city: loc.city ?? undefined,
+      state: loc.state ?? undefined,
+      postalCode: loc.postalCode ?? undefined,
+    })
+    setLocationEditName(loc.name ?? '')
+    setLocationGated(loc.gated ?? false)
+    setLocationFormKey((k) => k + 1)
+  }, [serviceLocationId, locations, locationMode])
 
   React.useEffect(() => {
     if (!customerId) {
@@ -173,10 +220,11 @@ export function EstimateForm({
       setLocations([])
       setContactsLoading(false)
       setLocationsLoading(false)
+      setPrimaryContactId(null)
+      setPrimaryLocationId(null)
       prevCustomerIdRef.current = customerId
       return
     }
-    const isNewCustomerSelection = prevCustomerIdRef.current !== customerId
     let cancelled = false
     setContactsLoading(true)
     setLocationsLoading(true)
@@ -189,11 +237,14 @@ export function EstimateForm({
         if (cancelled) return
         setContacts(c)
         setLocations(l)
-        if (isNewCustomerSelection && customerMode === 'existing') {
+        setPrimaryContactId(pcId)
+        setPrimaryLocationId(plId)
+        if (autoSelectRef.current) {
           const autoContact = pcId ? c.find((x) => x.id === pcId) : c[0]
           if (autoContact) setContactId(autoContact.id)
           const autoLocation = plId ? l.find((x) => x.id === plId) : l[0]
           if (autoLocation) setServiceLocationId(autoLocation.id)
+          autoSelectRef.current = false
         }
       } catch (err) {
         if (cancelled) return
@@ -209,21 +260,36 @@ export function EstimateForm({
     return () => {
       cancelled = true
     }
-  }, [customerId, customerMode])
+  }, [customerId])
 
   const handleCustomerChange = React.useCallback((id: string | null) => {
     if (id) {
+      autoSelectRef.current = true
       setCustomerMode('existing')
       setCustomerId(id)
       setContactId(null)
       setServiceLocationId(null)
+      setContactMode('existing')
+      setLocationMode('existing')
       setCustomerName('')
+      setLocationEditName('')
+      setLocationGated(false)
+      setNewLocationAddr({})
+      setLocationError(null)
+      setContactError(null)
     } else {
       setCustomerId(null)
       setContactId(null)
       setServiceLocationId(null)
       setContacts([])
       setLocations([])
+      setContactMode('existing')
+      setLocationMode('existing')
+      setLocationEditName('')
+      setLocationGated(false)
+      setNewLocationAddr({})
+      setLocationError(null)
+      setContactError(null)
     }
   }, [])
 
@@ -235,15 +301,22 @@ export function EstimateForm({
     setServiceLocationId(null)
     setContacts([])
     setLocations([])
+    setContactMode('new')
     setNewContactFirstName('')
     setNewContactLastName('')
     setNewContactPhone('')
     setNewContactEmail('')
+    setLocationMode('new')
     setNewLocationAddress1('')
     setNewLocationAddress2('')
     setNewLocationCity('')
     setNewLocationState('')
     setNewLocationPostalCode('')
+    setLocationEditName('')
+    setLocationGated(false)
+    setNewLocationAddr({})
+    setLocationError(null)
+    setContactError(null)
   }, [])
 
   const handleClearNewCustomer = React.useCallback(() => {
@@ -254,16 +327,152 @@ export function EstimateForm({
     setServiceLocationId(null)
     setContacts([])
     setLocations([])
+    setContactMode('existing')
     setNewContactFirstName('')
     setNewContactLastName('')
     setNewContactPhone('')
     setNewContactEmail('')
+    setLocationMode('existing')
     setNewLocationAddress1('')
     setNewLocationAddress2('')
     setNewLocationCity('')
     setNewLocationState('')
     setNewLocationPostalCode('')
+    setLocationEditName('')
+    setLocationGated(false)
+    setNewLocationAddr({})
+    setLocationError(null)
+    setContactError(null)
   }, [])
+
+  const handleSaveNewContact = async () => {
+    if (!customerId) {
+      setContactError('Select a customer first.')
+      return
+    }
+    if (!newContactFirstName.trim() && !newContactLastName.trim()) {
+      setContactError('First or last name is required.')
+      return
+    }
+    setSavingContact(true)
+    setContactError(null)
+    try {
+      const result = await createContactForJob(customerId, {
+        firstName: newContactFirstName.trim(),
+        lastName: newContactLastName.trim() || null,
+        phone: newContactPhone || null,
+        email: newContactEmail.trim() || null,
+      })
+      if (result.error) {
+        setContactError(result.error)
+        return
+      }
+      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
+      setContacts(refreshed)
+      setPrimaryContactId(refreshedPrimary)
+      setContactId(result.id)
+      setContactMode('existing')
+      setNewContactFirstName('')
+      setNewContactLastName('')
+      setNewContactPhone('')
+      setNewContactEmail('')
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingContact(false)
+    }
+  }
+
+  const handleSaveNewLocation = async () => {
+    if (!customerId || customerMode === 'new') {
+      setLocationError('Select an existing customer first.')
+      return
+    }
+    if (!newLocationAddr.addressLine1?.trim()) {
+      setLocationError('Street address is required.')
+      return
+    }
+    setSavingLocation(true)
+    setLocationError(null)
+    try {
+      const result = await createServiceLocation(customerId, {
+        name: locationEditName.trim() || null,
+        addressLine1: newLocationAddr.addressLine1,
+        addressLine2: newLocationAddr.addressLine2 ?? null,
+        city: newLocationAddr.city ?? null,
+        state: newLocationAddr.state ?? null,
+        postalCode: newLocationAddr.postalCode ?? null,
+        gated: locationGated,
+      })
+      if (result.error) {
+        setLocationError(result.error)
+        return
+      }
+      const { locations: refreshed, primaryLocationId: refreshedPrimary } = await getCustomerLocations(customerId)
+      setLocations(refreshed)
+      setPrimaryLocationId(refreshedPrimary)
+      setServiceLocationId(result.id)
+      setLocationMode('existing')
+      setNewLocationAddr({})
+      setLocationEditName('')
+      setLocationGated(false)
+    } catch (err) {
+      setLocationError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingLocation(false)
+    }
+  }
+
+  const handleUpdateLocation = async () => {
+    if (!serviceLocationId) {
+      setLocationError('Select a location first.')
+      return
+    }
+    if (!newLocationAddr.addressLine1?.trim()) {
+      setLocationError('Street address is required.')
+      return
+    }
+    setSavingLocation(true)
+    setLocationError(null)
+    try {
+      const result = await updateServiceLocation(serviceLocationId, {
+        name: locationEditName.trim() || null,
+        addressLine1: newLocationAddr.addressLine1,
+        addressLine2: newLocationAddr.addressLine2 ?? null,
+        city: newLocationAddr.city ?? null,
+        state: newLocationAddr.state ?? null,
+        postalCode: newLocationAddr.postalCode ?? null,
+        gated: locationGated,
+      })
+      if (result.error) {
+        setLocationError(result.error)
+        return
+      }
+      if (customerId) {
+        const { locations: refreshed, primaryLocationId: refreshedPrimary } = await getCustomerLocations(customerId)
+        setLocations(refreshed)
+        setPrimaryLocationId(refreshedPrimary)
+      }
+      setLocationMode('existing')
+    } catch (err) {
+      setLocationError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingLocation(false)
+    }
+  }
+
+  /** Detect auto-filled or redundant location names that equal the address. */
+  function isRedundantLocationName(
+    name: string | null,
+    addressLine1: string | null,
+    city: string | null,
+  ): boolean {
+    if (!name || !addressLine1) return true
+    const n = name.trim().toLowerCase().replace(/,\s*/g, ',')
+    const a1 = addressLine1.trim().toLowerCase()
+    const a1City = [addressLine1, city].filter(Boolean).join(', ').toLowerCase().replace(/,\s*/g, ',')
+    return n === a1 || n === a1City || n.startsWith(a1 + ',')
+  }
 
   // ── Line items & groups ──
   const initialGroups: LineItemGroup[] =
@@ -660,10 +869,15 @@ export function EstimateForm({
               </div>
               <div className="space-y-2">
                 <Label>Service location address</Label>
-                <Input
-                  value={newLocationAddress1}
-                  onChange={(e) => setNewLocationAddress1(e.target.value)}
-                  placeholder="Street address (optional)"
+                <AddressAutocomplete
+                  defaultValue={newLocationAddress1}
+                  placeholder="Start typing an address…"
+                  onAddressSelect={(result) => {
+                    setNewLocationAddress1(result.addressLine1 ?? '')
+                    setNewLocationCity(result.city ?? '')
+                    setNewLocationState(result.state ?? '')
+                    setNewLocationPostalCode(result.postalCode ?? '')
+                  }}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
@@ -694,65 +908,385 @@ export function EstimateForm({
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-5">
+              {/* ── Contact ── */}
               <div className="space-y-2">
                 <Label>Contact</Label>
-                <Select
-                  value={contactId ?? ''}
-                  onValueChange={(v) => setContactId(v || null)}
-                  disabled={!customerId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select contact">
-                      {contactId
-                        ? (() => {
-                            const c = contacts.find((x) => x.id === contactId)
-                            if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
-                            if (contactsLoading) return 'Loading…'
-                            return contactId
-                          })()
-                        : null}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No contact</SelectItem>
-                    {contacts.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.firstName} {c.lastName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!customerId ? (
+                  <Select disabled>
+                    <SelectTrigger className="w-full opacity-50">
+                      <SelectValue placeholder="Select a customer first…" />
+                    </SelectTrigger>
+                  </Select>
+                ) : contactMode === 'new' ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        value={newContactFirstName}
+                        onChange={(e) => setNewContactFirstName(e.target.value)}
+                        placeholder="First name (optional)"
+                      />
+                      <Input
+                        value={newContactLastName}
+                        onChange={(e) => setNewContactLastName(e.target.value)}
+                        placeholder="Last name (optional)"
+                      />
+                    </div>
+                    <Input
+                      type="tel"
+                      value={formatPhoneInput(newContactPhone)}
+                      onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="Phone number (optional)"
+                    />
+                    <Input
+                      type="email"
+                      value={newContactEmail}
+                      onChange={(e) => setNewContactEmail(e.target.value)}
+                      placeholder="Email (optional)"
+                    />
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setContactMode('existing')
+                          setNewContactFirstName('')
+                          setNewContactLastName('')
+                          setNewContactPhone('')
+                          setNewContactEmail('')
+                          setContactError(null)
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        ← Use existing contact
+                      </button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={savingContact}
+                        onClick={handleSaveNewContact}
+                      >
+                        {savingContact ? 'Saving…' : 'Save Contact'}
+                      </Button>
+                    </div>
+                    {contactError && (
+                      <p className="text-xs text-destructive">{contactError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      value={contactId ?? ''}
+                      onValueChange={(val) => {
+                        const v = val ?? ''
+                        if (v === '__new__') {
+                          setContactMode('new')
+                          setContactId(null)
+                        } else if (v === '') {
+                          setContactId(null)
+                        } else {
+                          setContactId(v)
+                        }
+                      }}
+                      disabled={!customerId}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select contact…">
+                          {contactId
+                            ? (() => {
+                                const c = contacts.find((c) => c.id === contactId)
+                                if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
+                                if (contactsLoading) return 'Loading…'
+                                return contactId
+                              })()
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Select contact…</SelectItem>
+                        {contacts.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.firstName} {c.lastName}
+                            {c.id === primaryContactId ? ' (Primary)' : ''}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">+ Create new contact…</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {contactId && customerId && (
+                      <div className="flex items-center gap-2 pt-0.5">
+                        {contactId === primaryContactId ? (
+                          <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+                            <Star className="size-3 fill-amber-500 text-amber-500" />
+                            Primary Contact
+                          </Badge>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 gap-1 text-xs"
+                            onClick={async () => {
+                              const result = await setPrimaryContactAction(customerId, contactId)
+                              if (result.success) setPrimaryContactId(contactId)
+                            }}
+                          >
+                            <Star className="size-3" />
+                            Set as Primary
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
+              {/* ── Service Location ── */}
               <div className="space-y-2">
                 <Label>Service Location</Label>
-                <Select
-                  value={serviceLocationId ?? ''}
-                  onValueChange={(v) => setServiceLocationId(v || null)}
-                  disabled={!customerId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select location">
-                      {serviceLocationId
-                        ? (() => {
-                            const l = locations.find((x) => x.id === serviceLocationId)
-                            if (l) return l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')
-                            if (locationsLoading) return 'Loading…'
-                            return serviceLocationId
-                          })()
-                        : null}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No location</SelectItem>
-                    {locations.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!customerId ? (
+                  <Select disabled>
+                    <SelectTrigger className="w-full opacity-50">
+                      <SelectValue placeholder="Select a customer first…" />
+                    </SelectTrigger>
+                  </Select>
+                ) : locationMode === 'existing' && serviceLocationId ? (
+                  <>
+                    {(() => {
+                      const loc = locations.find((l) => l.id === serviceLocationId)
+                      const cityStateZip = loc
+                        ? [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', ')
+                        : ''
+                      return (
+                        <div className="rounded-lg border border-input bg-muted/30 px-3 py-2 text-sm">
+                          <div className="space-y-0.5">
+                            {loc ? (
+                              <>
+                                {!isRedundantLocationName(loc.name, loc.addressLine1, loc.city) && (
+                                  <div className="font-medium">{loc.name}</div>
+                                )}
+                                {loc.addressLine1 && (
+                                  <div className="text-muted-foreground">{loc.addressLine1}</div>
+                                )}
+                                {loc.addressLine2 && (
+                                  <div className="text-muted-foreground">{loc.addressLine2}</div>
+                                )}
+                                {cityStateZip && (
+                                  <div className="text-muted-foreground">{cityStateZip}</div>
+                                )}
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {loc.id === primaryLocationId && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                      Primary
+                                    </Badge>
+                                  )}
+                                  {loc.gated && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                      Gated Property
+                                    </Badge>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">Loading…</span>
+                            )}
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-3">
+                            {serviceLocationId === primaryLocationId ? (
+                              <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                <Star className="size-3 fill-amber-500 text-amber-500" />
+                                Primary
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const result = await setPrimaryLocationAction(customerId, serviceLocationId)
+                                  if (result.success) setPrimaryLocationId(serviceLocationId)
+                                }}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                <Star className="size-3" />
+                                Set as Primary
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setLocationMode('edit')}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              Edit address
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setServiceLocationId(null)
+                                setLocationError(null)
+                              }}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              Change location
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLocationMode('new')
+                                setServiceLocationId(null)
+                                setNewLocationAddr({})
+                                setLocationEditName('')
+                                setLocationGated(false)
+                              }}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              + New address
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    {locationMode === 'existing' && (
+                      <Select
+                        value={serviceLocationId ?? ''}
+                        onValueChange={(val) => {
+                          const v = val ?? ''
+                          setLocationError(null)
+                          if (v === '__new__') {
+                            setLocationMode('new')
+                            setServiceLocationId(null)
+                            setNewLocationAddr({})
+                            setLocationEditName('')
+                            setLocationGated(false)
+                          } else if (v === '') {
+                            setServiceLocationId(null)
+                          } else {
+                            setLocationMode('existing')
+                            setServiceLocationId(v)
+                          }
+                        }}
+                        disabled={!customerId}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select location…">
+                            {serviceLocationId
+                              ? (() => {
+                                  const l = locations.find((x) => x.id === serviceLocationId)
+                                  if (l) return l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')
+                                  if (locationsLoading) return 'Loading…'
+                                  return serviceLocationId
+                                })()
+                              : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Select location…</SelectItem>
+                        {locations.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')}
+                            {l.id === primaryLocationId ? ' (Primary)' : ''}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">+ New address…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    )}
+
+                    {(locationMode === 'new' || locationMode === 'edit') && (
+                      <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Location name</Label>
+                          <Input
+                            value={locationEditName}
+                            onChange={(e) => setLocationEditName(e.target.value)}
+                            placeholder="e.g. Main residence"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Address</Label>
+                          <AddressAutocomplete
+                            key={locationFormKey}
+                            defaultValue={newLocationAddr.addressLine1 ?? ''}
+                            placeholder="Start typing an address…"
+                            onAddressSelect={(result) => {
+                              setNewLocationAddr((prev) => ({
+                                ...result,
+                                addressLine2: prev.addressLine2,
+                              }))
+                            }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={newLocationAddr.addressLine2 ?? ''}
+                            onChange={(e) =>
+                              setNewLocationAddr((prev) => ({ ...prev, addressLine2: e.target.value }))
+                            }
+                            placeholder="Apt / suite / unit"
+                          />
+                          <Input
+                            value={newLocationAddr.city ?? ''}
+                            onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, city: e.target.value }))}
+                            placeholder="City"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={newLocationAddr.state ?? ''}
+                            onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, state: e.target.value }))}
+                            placeholder="State"
+                          />
+                          <Input
+                            value={newLocationAddr.postalCode ?? ''}
+                            onChange={(e) =>
+                              setNewLocationAddr((prev) => ({ ...prev, postalCode: e.target.value }))
+                            }
+                            placeholder="ZIP"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="location-gated"
+                            checked={locationGated}
+                            onCheckedChange={(c) => setLocationGated(c === true)}
+                          />
+                          <Label htmlFor="location-gated" className="cursor-pointer text-sm">
+                            Gated Property
+                          </Label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLocationMode('existing')
+                              setLocationError(null)
+                              if (!serviceLocationId) setNewLocationAddr({})
+                            }}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            ← Cancel
+                          </button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={savingLocation}
+                            onClick={locationMode === 'edit' ? handleUpdateLocation : handleSaveNewLocation}
+                          >
+                            {savingLocation
+                              ? 'Saving…'
+                              : locationMode === 'edit'
+                                ? 'Update Location'
+                                : 'Save Location'}
+                          </Button>
+                        </div>
+                        {locationError && (
+                          <p className="text-xs text-destructive">{locationError}</p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
