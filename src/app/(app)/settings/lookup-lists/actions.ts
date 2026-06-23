@@ -10,6 +10,9 @@ import {
   createJobSource,
   updateJobSource,
   deleteJobSource,
+  createSalesRep,
+  updateSalesRep,
+  deleteSalesRep,
 } from '@/lib/settings'
 
 export type LookupActionState = {
@@ -178,6 +181,86 @@ export async function deleteJobSourceAction(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Could not delete job source.'
+    return { error: message }
+  }
+}
+
+// ── Sales Reps ────────────────────────────────────────────────────────────────
+
+export async function createSalesRepAction(
+  _prevState: LookupActionState,
+  formData: FormData,
+): Promise<LookupActionState> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  const parsed = lookupSchema.safeParse({
+    name: formData.get('name'),
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
+  }
+
+  try {
+    const result = await createSalesRep(orgId, parsed.data.name)
+    revalidatePath('/settings/lookup-lists')
+    return { success: true, id: result.id }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Could not create sales rep.'
+    return { error: message }
+  }
+}
+
+export async function updateSalesRepAction(
+  _prevState: LookupActionState,
+  formData: FormData,
+): Promise<LookupActionState> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  const parsed = z
+    .object({ id: z.string().min(1), name: z.string().trim().min(1).max(255) })
+    .safeParse({
+      id: formData.get('id'),
+      name: formData.get('name'),
+    })
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
+  }
+
+  try {
+    await updateSalesRep(orgId, parsed.data.id, parsed.data.name)
+    revalidatePath('/settings/lookup-lists')
+    return { success: true, id: parsed.data.id }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Could not update sales rep.'
+    return { error: message }
+  }
+}
+
+export async function deleteSalesRepAction(
+  id: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    await deleteSalesRep(orgId, id)
+    revalidatePath('/settings/lookup-lists')
+    return { success: true }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Could not delete sales rep.'
     return { error: message }
   }
 }

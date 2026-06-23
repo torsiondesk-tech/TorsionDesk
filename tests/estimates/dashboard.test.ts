@@ -76,7 +76,7 @@ import { countEstimatesByStatus } from '@/app/(app)/estimates/actions'
 
 describe('countEstimatesByStatus', () => {
   it('returns counts grouped by status', async () => {
-    const result = await countEstimatesByStatus(ORG_A, 'user_dash')
+    const result = await countEstimatesByStatus(ORG_A)
 
     expect(result).toBeDefined()
     expect(result.estimate_requested).toBe(2)
@@ -85,7 +85,7 @@ describe('countEstimatesByStatus', () => {
   })
 
   it('returns zero counts for statuses with no estimates (not missing keys)', async () => {
-    const result = await countEstimatesByStatus(ORG_A, 'user_dash')
+    const result = await countEstimatesByStatus(ORG_A)
 
     for (const status of ALL_STATUSES) {
       expect(result).toHaveProperty(status)

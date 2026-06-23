@@ -14,7 +14,6 @@ import { estimateStatusLabel } from '@/lib/estimates/status'
 
 interface EstimatesSidebarProps {
   statusCounts: {
-    my: Record<string, number>
     all: Record<string, number>
   }
 }
@@ -34,7 +33,7 @@ const STATUS_FOLDERS: Folder[] = [
 ]
 
 export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
-  const [{ status, mine }, setParams] = useQueryStates(
+  const [{ status }, setParams] = useQueryStates(
     {
       status: parseAsString.withDefault(''),
       mine: parseAsBoolean.withDefault(false),
@@ -42,28 +41,27 @@ export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
     { shallow: false },
   )
 
-  const selectFolder = (key: string, sectionMine: boolean) => {
-    if (status === key && mine === sectionMine) {
+  const selectFolder = (key: string) => {
+    if (status === key) {
       setParams({ status: null, mine: null })
     } else {
-      setParams({ status: key, mine: sectionMine })
+      setParams({ status: key, mine: null })
     }
   }
 
-  const renderSection = (title: string, sectionMine: boolean) => (
-    <div key={title} className="space-y-1">
+  return (
+    <div className="space-y-1">
       <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {title}
+        Estimates
       </div>
       {STATUS_FOLDERS.map((folder) => {
         const Icon = folder.icon
-        const counts = sectionMine ? statusCounts.my : statusCounts.all
-        const count = counts[folder.key] ?? 0
-        const isActive = status === folder.key && mine === sectionMine
+        const count = statusCounts.all[folder.key] ?? 0
+        const isActive = status === folder.key
         return (
           <button
             key={folder.key}
-            onClick={() => selectFolder(folder.key, sectionMine)}
+            onClick={() => selectFolder(folder.key)}
             className={cn(
               'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
               isActive
@@ -79,13 +77,6 @@ export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
           </button>
         )
       })}
-    </div>
-  )
-
-  return (
-    <div className="space-y-4">
-      {renderSection('My Estimates', true)}
-      {renderSection('All Estimates', false)}
     </div>
   )
 }

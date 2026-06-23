@@ -9,6 +9,7 @@ import {
   listTaxItems,
   listOrgMembers,
   listEstimateTemplatesAction,
+  listSalesRepsAction,
 } from '../actions'
 
 export default async function NewEstimatePage() {
@@ -22,6 +23,7 @@ export default async function NewEstimatePage() {
     availableTags,
     productCategories,
     orgMembers,
+    salesReps,
     templates,
   ] = await Promise.all([
     listJobCategories(orgId),
@@ -30,6 +32,7 @@ export default async function NewEstimatePage() {
     listTags(orgId),
     listProductCategories(orgId),
     listOrgMembers(orgId),
+    listSalesRepsAction(orgId),
     listEstimateTemplatesAction(orgId),
   ])
 
@@ -52,6 +55,7 @@ export default async function NewEstimatePage() {
           availableTags,
           productCategories,
           orgMembers,
+          salesReps,
         }}
         estimateTemplates={templates}
       />

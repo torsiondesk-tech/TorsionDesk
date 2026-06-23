@@ -17,6 +17,7 @@ interface ReferenceData {
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
   orgMembers: Array<{ id: string; label: string; role: string | null }>
+  salesReps: Array<{ id: string; name: string }>
 }
 
 interface JobDetailShellProps {
@@ -93,6 +94,7 @@ export function JobDetailShell({
           <JobSummary
             job={job}
             orgMembers={orgMembers}
+            salesReps={referenceData.salesReps}
             categoryName={categoryName}
             sourceName={sourceName}
             taxItems={referenceData.taxItems}

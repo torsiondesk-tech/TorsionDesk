@@ -29,7 +29,9 @@ import {
   estimateTemplates,
   estimateTemplateLineItems,
   estimateTemplateTasks,
+  salesReps,
 } from '@/db/schema'
+import { listSalesReps } from '@/lib/settings'
 import { nextEstimateNo } from '@/lib/estimates/estimate-number'
 import { nextAccountNo } from '@/lib/account-number'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
@@ -152,6 +154,16 @@ async function guardTaxItem(tx: Tx, orgId: string, taxItemId: string | null | un
     .where(and(eq(taxItems.tenantId, orgId), eq(taxItems.id, taxItemId)))
     .limit(1)
   if (rows.length === 0) throw new Error('Invalid tax item: cross-tenant access denied')
+}
+
+async function guardSalesRep(tx: Tx, orgId: string, salesRepId: string | null | undefined) {
+  if (!salesRepId) return
+  const rows = await tx
+    .select({ id: salesReps.id })
+    .from(salesReps)
+    .where(and(eq(salesReps.tenantId, orgId), eq(salesReps.id, salesRepId)))
+    .limit(1)
+  if (rows.length === 0) throw new Error('Invalid sales rep: cross-tenant access denied')
 }
 
 // ── Action State Types ─────────────────────────────────────────────────────────
@@ -394,6 +406,7 @@ export async function createOfficeEstimateAction(
         }
 
         await guardCategory(tx, orgId, d.categoryId)
+        await guardSalesRep(tx, orgId, d.assignedAgentId)
 
         const estimateNo = await nextEstimateNo(tx, orgId)
 
@@ -699,6 +712,7 @@ export async function updateEstimateAction(
       }
 
       await guardCategory(tx, orgId, d.categoryId)
+      await guardSalesRep(tx, orgId, d.assignedAgentId)
 
       // Replace groups
       await tx
@@ -1138,8 +1152,7 @@ export async function sendEstimateAction(
 
 export async function countEstimatesByStatus(
   orgId: string,
-  userId: string,
-): Promise<Record<string, number> & { my: Record<string, number>; all: Record<string, number> }> {
+): Promise<Record<string, number> & { all: Record<string, number> }> {
   const ALL_STATUSES = [
     'estimate_requested',
     'estimate_provided',
@@ -1152,7 +1165,6 @@ export async function countEstimatesByStatus(
   for (const s of ALL_STATUSES) base[s] = 0
 
   return withTenant(orgId, async (tx) => {
-    // All counts
     const allRows = await tx
       .select({ status: estimates.status, count: sql<number>`count(*)::int` })
       .from(estimates)
@@ -1164,19 +1176,7 @@ export async function countEstimatesByStatus(
       if (row.status) all[row.status] = row.count
     }
 
-    // My counts
-    const myRows = await tx
-      .select({ status: estimates.status, count: sql<number>`count(*)::int` })
-      .from(estimates)
-      .where(and(eq(estimates.tenantId, orgId), eq(estimates.assignedAgentId, userId)))
-      .groupBy(estimates.status)
-
-    const my: Record<string, number> = { ...base }
-    for (const row of myRows) {
-      if (row.status) my[row.status] = row.count
-    }
-
-    return { ...all, my, all } as { my: Record<string, number>; all: Record<string, number> } & Record<string, number>
+    return { ...all, all } as { all: Record<string, number> } & Record<string, number>
   })
 }
 
@@ -1440,4 +1440,8 @@ export async function listTaxItems(orgId: string): Promise<Array<{ id: string; n
 
 export async function listOrgMembers(orgId: string): Promise<Array<{ id: string; label: string; role: string | null }>> {
   return jobsListOrgMembers(orgId)
+}
+
+export async function listSalesRepsAction(orgId: string): Promise<Array<{ id: string; name: string }>> {
+  return listSalesReps(orgId)
 }

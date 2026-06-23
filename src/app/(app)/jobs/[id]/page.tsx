@@ -8,6 +8,7 @@ import {
   listJobSources,
   listTaxItems,
   listOrgMembers,
+  listSalesReps,
 } from '../actions'
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
@@ -166,6 +167,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     availableTags,
     productCategories,
     orgMembers,
+    salesReps,
     photoUrls,
     signatureUrls,
   ] = await Promise.all([
@@ -175,6 +177,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     listTags(orgId),
     listProductCategories(orgId),
     listOrgMembers(orgId),
+    listSalesReps(orgId),
     getJobPhotoSignedUrls(orgId, id),
     getJobSignatureSignedUrls(orgId, id),
   ])
@@ -227,6 +230,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
               availableTags,
               productCategories,
               orgMembers,
+              salesReps,
             }}
             orgMembers={orgMembers}
             categoryName={

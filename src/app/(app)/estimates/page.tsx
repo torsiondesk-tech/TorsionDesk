@@ -15,16 +15,16 @@ interface EstimatesPageProps {
   }>
 }
 
-async function EstimateList({ orgId, userId }: { orgId: string; userId: string }) {
+async function EstimateList({ orgId }: { orgId: string }) {
   const { rows } = await listEstimatesAction(orgId)
-  return <EstimatesTable rows={rows as import('./estimates-table').EstimateRow[]} userId={userId} />
+  return <EstimatesTable rows={rows as import('./estimates-table').EstimateRow[]} />
 }
 
 export default async function EstimatesPage({ searchParams }: EstimatesPageProps) {
   const { orgId, userId } = await auth()
   if (!orgId || !userId) redirect('/sign-in')
 
-  const statusCounts = await countEstimatesByStatus(orgId, userId)
+  const statusCounts = await countEstimatesByStatus(orgId)
 
   return (
     <div className="flex gap-6 animate-in fade-in-0 duration-300">
@@ -51,7 +51,7 @@ export default async function EstimatesPage({ searchParams }: EstimatesPageProps
             <div className="h-64 animate-pulse rounded-lg bg-muted">Loading estimates…</div>
           }
         >
-          <EstimateList orgId={orgId} userId={userId} />
+          <EstimateList orgId={orgId} />
         </Suspense>
       </div>
     </div>

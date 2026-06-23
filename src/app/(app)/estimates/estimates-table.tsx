@@ -34,13 +34,11 @@ export interface EstimateRow {
   expiryDate: string | null
   notes: string | null
   createdAt: string | null
-  assignedAgentId?: string | null
   opportunityRating?: number | null
 }
 
 interface EstimatesTableProps {
   rows: EstimateRow[]
-  userId?: string
 }
 
 function formatDate(value: string | null) {
@@ -104,9 +102,9 @@ const columns: ColumnDef<EstimateRow>[] = [
   },
 ]
 
-export function EstimatesTable({ rows, userId }: EstimatesTableProps) {
+export function EstimatesTable({ rows }: EstimatesTableProps) {
   const [isPending, startTransition] = useTransition()
-  const [{ status, mine }] = useQueryStates(
+  const [{ status }] = useQueryStates(
     {
       status: parseAsString.withDefault(''),
       mine: parseAsBoolean.withDefault(false),
@@ -116,11 +114,10 @@ export function EstimatesTable({ rows, userId }: EstimatesTableProps) {
 
   const filteredRows = rows.filter((row) => {
     if (status && row.status !== status) return false
-    if (mine && userId && row.assignedAgentId !== userId) return false
     return true
   })
 
-  const hasFilters = !!status || mine
+  const hasFilters = !!status
 
   const table = useReactTable({
     data: filteredRows,

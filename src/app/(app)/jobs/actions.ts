@@ -24,7 +24,9 @@ import {
   jobSiteVisits,
   jobTasks,
   jobReminders,
+  salesReps,
 } from '@/db/schema'
+import { listSalesReps as listSalesRepsFromSettings } from '@/lib/settings'
 import { nextJobNo } from '@/lib/jobs/job-number'
 import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
@@ -283,6 +285,16 @@ async function guardTaxItem(tx: Parameters<Parameters<typeof withTenant>[1]>[0],
   if (rows.length === 0) throw new Error('Invalid tax item: cross-tenant access denied')
 }
 
+async function guardSalesRep(tx: Parameters<Parameters<typeof withTenant>[1]>[0], orgId: string, salesRepId: string | null | undefined) {
+  if (!salesRepId) return
+  const rows = await tx
+    .select({ id: salesReps.id })
+    .from(salesReps)
+    .where(and(eq(salesReps.tenantId, orgId), eq(salesReps.id, salesRepId)))
+    .limit(1)
+  if (rows.length === 0) throw new Error('Invalid sales rep: cross-tenant access denied')
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 export async function createJob(
@@ -489,6 +501,7 @@ export async function createJob(
 
         await guardCategory(tx, orgId, data.categoryId)
         await guardJobSource(tx, orgId, data.jobSourceId)
+        await guardSalesRep(tx, orgId, data.assignedAgentId)
 
         const jobNo = await nextJobNo(tx, orgId)
 
@@ -721,6 +734,7 @@ export async function updateJob(
     await guardServiceLocation(tx, orgId, data.serviceLocationId)
     await guardCategory(tx, orgId, data.categoryId)
     await guardJobSource(tx, orgId, data.jobSourceId)
+    await guardSalesRep(tx, orgId, data.assignedAgentId)
 
     let resolvedLocationId = data.serviceLocationId
 
@@ -1461,6 +1475,10 @@ export async function listTaxItems(orgId: string): Promise<Array<{ id: string; n
       .where(eq(taxItems.tenantId, orgId))
       .orderBy(taxItems.name)
   })
+}
+
+export async function listSalesReps(orgId: string): Promise<Array<{ id: string; name: string }>> {
+  return listSalesRepsFromSettings(orgId)
 }
 
 export async function listOrgMembers(orgId: string): Promise<Array<{ id: string; label: string; role: string | null }>> {

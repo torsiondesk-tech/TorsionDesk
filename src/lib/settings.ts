@@ -7,6 +7,7 @@ import {
   jobSources,
   referralSources,
   statusColors,
+  salesReps,
 } from '@/db/schema'
 import type { JobStatusValue } from '@/lib/jobs/transitions'
 import {
@@ -346,5 +347,62 @@ export async function updateStatusColor(
       .update(statusColors)
       .set({ ...input, updatedAt: new Date() })
       .where(and(eq(statusColors.tenantId, orgId), eq(statusColors.id, id)))
+  })
+}
+
+// ── Sales Reps (lookup list for estimates/jobs Agent / Rep) ───────────────────
+
+export async function createSalesRep(
+  orgId: string,
+  name: string,
+): Promise<{ id: string; name: string }> {
+  return withTenant(orgId, async (tx) => {
+    const existing = await tx
+      .select({ id: salesReps.id, name: salesReps.name })
+      .from(salesReps)
+      .where(and(eq(salesReps.tenantId, orgId), eq(salesReps.name, name)))
+      .limit(1)
+
+    if (existing.length > 0) return existing[0]
+
+    const inserted = await tx
+      .insert(salesReps)
+      .values({ tenantId: orgId, name })
+      .returning({ id: salesReps.id, name: salesReps.name })
+
+    return inserted[0] ?? { id: '', name: '' }
+  })
+}
+
+export async function listSalesReps(
+  orgId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  return withTenant(orgId, async (tx) => {
+    return tx
+      .select({ id: salesReps.id, name: salesReps.name })
+      .from(salesReps)
+      .where(eq(salesReps.tenantId, orgId))
+      .orderBy(salesReps.name)
+  })
+}
+
+export async function updateSalesRep(
+  orgId: string,
+  id: string,
+  name: string,
+): Promise<void> {
+  return withTenant(orgId, async (tx) => {
+    await tx
+      .update(salesReps)
+      .set({ name, updatedAt: new Date() })
+      .where(and(eq(salesReps.tenantId, orgId), eq(salesReps.id, id)))
+  })
+}
+
+export async function deleteSalesRep(orgId: string, id: string): Promise<void> {
+  return withTenant(orgId, async (tx) => {
+    await tx
+      .delete(salesReps)
+      .where(and(eq(salesReps.tenantId, orgId), eq(salesReps.id, id)))
   })
 }

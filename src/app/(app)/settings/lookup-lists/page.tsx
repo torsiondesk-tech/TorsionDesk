@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { listReferralSources, listJobSources } from '@/lib/settings'
+import { listReferralSources, listJobSources, listSalesReps } from '@/lib/settings'
 import { LookupListsClient } from './lookup-lists-client'
 
 /**
@@ -15,9 +15,10 @@ export default async function LookupListsPage() {
     redirect('/sign-in')
   }
 
-  const [referralSources, jobSources] = await Promise.all([
+  const [referralSources, jobSources, salesReps] = await Promise.all([
     listReferralSources(orgId),
     listJobSources(orgId),
+    listSalesReps(orgId),
   ])
 
   return (
@@ -25,7 +26,7 @@ export default async function LookupListsPage() {
       <div>
         <h1 className="text-3xl font-semibold leading-tight">Lookup Lists</h1>
         <p className="text-sm text-muted-foreground">
-          Manage referral sources and job sources that appear in dropdowns across
+          Manage referral sources, job sources, and sales reps that appear in dropdowns across
           the app.
         </p>
       </div>
@@ -33,6 +34,7 @@ export default async function LookupListsPage() {
       <LookupListsClient
         initialReferrals={referralSources}
         initialJobSources={jobSources}
+        initialSalesReps={salesReps}
       />
     </div>
   )

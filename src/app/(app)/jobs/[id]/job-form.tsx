@@ -118,6 +118,7 @@ interface ReferenceData {
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
   orgMembers: Array<{ id: string; label: string; role: string | null }>
+  salesReps: Array<{ id: string; name: string }>
 }
 
 interface JobFormProps {
@@ -1693,12 +1694,19 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="assignedAgentId">Agent / Rep</Label>
-              <Input
-                id="assignedAgentId"
-                name="assignedAgentId"
-                defaultValue={initial?.assignedAgentId ?? ''}
-                placeholder="Assigned agent or rep"
-              />
+              <Select name="assignedAgentId" defaultValue={initial?.assignedAgentId ?? ''}>
+                <SelectTrigger id="assignedAgentId" className="w-full">
+                  <SelectValue placeholder="Select rep…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Select rep…</SelectItem>
+                  {referenceData.salesReps.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

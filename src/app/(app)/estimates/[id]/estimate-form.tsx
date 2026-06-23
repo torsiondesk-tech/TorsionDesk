@@ -67,6 +67,7 @@ interface ReferenceData {
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
   orgMembers: Array<{ id: string; label: string; role: string | null }>
+  salesReps: Array<{ id: string; name: string }>
 }
 
 interface EstimateFormProps {
@@ -1487,15 +1488,15 @@ export function EstimateForm({
               <SelectTrigger>
                 <SelectValue placeholder="Select rep">
                   {assignedAgentId
-                    ? referenceData.orgMembers.find((m) => m.id === assignedAgentId)?.label ?? assignedAgentId
+                    ? referenceData.salesReps.find((r) => r.id === assignedAgentId)?.name ?? assignedAgentId
                     : null}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Unassigned</SelectItem>
-                {referenceData.orgMembers.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.label}
+                {referenceData.salesReps.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
                   </SelectItem>
                 ))}
               </SelectContent>

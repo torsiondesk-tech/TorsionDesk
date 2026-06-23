@@ -532,6 +532,31 @@ export const jobSources = pgTable(
 export type JobSource = typeof jobSources.$inferSelect
 export type NewJobSource = typeof jobSources.$inferInsert
 
+export const salesReps = pgTable(
+  'sales_reps',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('sales_reps_tenant_name_unique').on(t.tenantId, t.name),
+    // Composite unique on (tenant_id, id) so composite FKs from jobs/estimates can reference it
+    unique('sales_reps_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('sales_reps_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type SalesRep = typeof salesReps.$inferSelect
+export type NewSalesRep = typeof salesReps.$inferInsert
+
 export const services = pgTable(
   'services',
   {
@@ -722,6 +747,10 @@ export const jobs = pgTable(
       columns: [t.tenantId, t.jobSourceId],
       foreignColumns: [jobSources.tenantId, jobSources.id],
     }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.assignedAgentId],
+      foreignColumns: [salesReps.tenantId, salesReps.id],
+    }).onDelete('set null'),
     pgPolicy('jobs_tenant_isolation', {
       for: 'all',
       to: 'authenticated',
@@ -794,6 +823,10 @@ export const estimates = pgTable(
     foreignKey({
       columns: [t.tenantId, t.referralSourceId],
       foreignColumns: [referralSources.tenantId, referralSources.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.assignedAgentId],
+      foreignColumns: [salesReps.tenantId, salesReps.id],
     }).onDelete('set null'),
     pgPolicy('estimates_tenant_isolation', {
       for: 'all',

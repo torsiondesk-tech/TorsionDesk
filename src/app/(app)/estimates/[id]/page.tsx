@@ -10,6 +10,7 @@ import {
   listTaxItems,
   listOrgMembers,
   listEstimateTemplatesAction,
+  listSalesRepsAction,
 } from '../actions'
 import { EstimateForm } from './estimate-form'
 import { EstimateTasks } from './estimate-tasks'
@@ -37,6 +38,7 @@ export default async function EstimateDetailPage({ params }: EstimateDetailPageP
     availableTags,
     productCategories,
     orgMembers,
+    salesReps,
     templates,
   ] = await Promise.all([
     listJobCategories(orgId),
@@ -45,6 +47,7 @@ export default async function EstimateDetailPage({ params }: EstimateDetailPageP
     listTags(orgId),
     listProductCategories(orgId),
     listOrgMembers(orgId),
+    listSalesRepsAction(orgId),
     listEstimateTemplatesAction(orgId),
   ])
 
@@ -67,6 +70,7 @@ export default async function EstimateDetailPage({ params }: EstimateDetailPageP
           availableTags,
           productCategories,
           orgMembers,
+          salesReps,
         }}
         estimateTemplates={templates}
       />

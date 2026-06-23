@@ -23,6 +23,7 @@ import type { JobDetail } from '@/lib/jobs/jobs'
 interface JobSummaryProps {
   job: JobDetail
   orgMembers: Array<{ id: string; label: string }>
+  salesReps: Array<{ id: string; name: string }>
   categoryName?: string
   sourceName?: string
   taxItems: Array<{ id: string; name: string; rate: string | null }>
@@ -31,6 +32,7 @@ interface JobSummaryProps {
 export function JobSummary({
   job,
   orgMembers,
+  salesReps,
   categoryName,
   sourceName,
   taxItems,
@@ -258,7 +260,7 @@ export function JobSummary({
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Agent / Rep
                 </div>
-                <div className="text-sm">{job.assignedAgentId}</div>
+                <div className="text-sm">{salesReps.find((r) => r.id === job.assignedAgentId)?.name ?? job.assignedAgentId}</div>
               </div>
             )}
 
