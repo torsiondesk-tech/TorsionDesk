@@ -72,7 +72,18 @@ const columns: ColumnDef<EstimateRow>[] = [
   {
     accessorKey: 'customerName',
     header: 'Customer',
-    cell: ({ row }) => row.original.customerName ?? '—',
+    cell: ({ row }) => {
+      const name = row.original.customerName
+      if (!name) return '—'
+      return (
+        <Link
+          href={`/customers/${row.original.customerId}`}
+          className="font-medium text-foreground hover:underline"
+        >
+          {name}
+        </Link>
+      )
+    },
   },
   {
     accessorKey: 'description',
