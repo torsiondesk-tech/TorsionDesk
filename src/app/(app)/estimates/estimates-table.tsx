@@ -33,6 +33,7 @@ export interface EstimateRow {
   expiryDate: string | null
   notes: string | null
   createdAt: string | null
+  requestedOn: string | null
   opportunityRating: number | null
 }
 
@@ -65,9 +66,9 @@ const columns: ColumnDef<EstimateRow>[] = [
     ),
   },
   {
-    accessorKey: 'createdAt',
+    accessorKey: 'requestedOn',
     header: 'Requested On',
-    cell: ({ row }) => formatDate(row.original.createdAt),
+    cell: ({ row }) => formatDate(row.original.requestedOn ?? row.original.createdAt),
   },
   {
     accessorKey: 'customerName',

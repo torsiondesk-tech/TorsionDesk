@@ -219,6 +219,7 @@ export interface CachedEstimate {
   arrivalWindowEnd: string | null
   notesForTechs: string | null
   internalNotes: string | null
+  requestedOn: string | null
 }
 
 export interface CachedInvoice {

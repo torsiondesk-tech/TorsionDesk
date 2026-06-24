@@ -796,6 +796,7 @@ export const estimates = pgTable(
     notes: text('notes'),
     internalNotes: text('internal_notes'),
     assignedAgentId: text('assigned_agent_id'),
+    requestedOn: date('requested_on'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },

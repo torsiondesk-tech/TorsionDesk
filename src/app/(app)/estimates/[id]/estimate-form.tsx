@@ -151,6 +151,13 @@ export function EstimateForm({
   const [opportunityRating, setOpportunityRating] = React.useState<number | null>(initial?.estimate.opportunityRating ?? null)
   const [status, setStatus] = React.useState(initial?.estimate.status ?? 'estimate_requested')
   const [referralSourceId, setReferralSourceId] = React.useState<string | null>(initial?.estimate.referralSourceId ?? null)
+  const [requestedOn, setRequestedOn] = React.useState(
+    initial?.estimate.requestedOn
+      ? toDateInputValue(initial.estimate.requestedOn)
+      : mode === 'create'
+        ? toISODate(new Date())
+        : toDateInputValue(initial?.estimate.createdAt),
+  )
   const [expiryDate, setExpiryDate] = React.useState(toDateInputValue(initial?.estimate.expiryDate))
   const [followUpDate, setFollowUpDate] = React.useState(toDateInputValue(initial?.estimate.followUpDate))
   const [onSiteDate, setOnSiteDate] = React.useState(toDateInputValue(initial?.estimate.onSiteDate))
@@ -828,6 +835,7 @@ export function EstimateForm({
     notes,
     internalNotes,
     assignedAgentId,
+    requestedOn,
     tagIds,
     assigneeUserIds,
     lineItems: JSON.stringify(lineItems),
@@ -2001,6 +2009,11 @@ export function EstimateForm({
         {/* Sales Data */}
         <div className="space-y-5 rounded-xl border bg-card p-6">
           <h2 className="text-xl font-semibold">Sales Data</h2>
+
+          <div className="space-y-2">
+            <Label>Requested On</Label>
+            <Input type="date" value={requestedOn} onChange={(e) => setRequestedOn(e.target.value)} />
+          </div>
 
           <div className="space-y-2">
             <Label>Status</Label>

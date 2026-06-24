@@ -374,6 +374,7 @@ export async function createOfficeEstimateAction(
             notes: d.notes,
             internalNotes: d.internalNotes,
             assignedAgentId: d.assignedAgentId,
+            requestedOn: d.requestedOn || null,
           })
           .returning({ id: estimates.id, customerId: estimates.customerId, estimateNo: estimates.estimateNo })
 
@@ -504,6 +505,7 @@ const updateEstimateSchema = z.object({
   notes: emptyToUndefined,
   internalNotes: emptyToUndefined,
   assignedAgentId: emptyToNull,
+  requestedOn: emptyToNull,
   tagIds: z.array(z.string()).default([]),
   assigneeUserIds: z.array(z.string()).default([]),
   lineItems: z.string().default('[]'),
@@ -820,6 +822,7 @@ export async function updateEstimateAction(
           notes: d.notes,
           internalNotes: d.internalNotes,
           assignedAgentId: d.assignedAgentId,
+          requestedOn: d.requestedOn || null,
           updatedAt: new Date(),
         })
         .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
@@ -1041,6 +1044,7 @@ export async function listEstimatesAction(
         arrivalWindowEnd: sql<string | null>`TO_CHAR(${estimates.arrivalWindowEnd}, 'HH24:MI')`,
         notesForTechs: estimates.notesForTechs,
         internalNotes: estimates.internalNotes,
+        requestedOn: sql<string | null>`TO_CHAR(${estimates.requestedOn}, 'YYYY-MM-DD')`,
       })
       .from(estimates)
       .leftJoin(customers, and(eq(customers.tenantId, estimates.tenantId), eq(customers.id, estimates.customerId)))
