@@ -22,7 +22,7 @@ import { TagSelect, type TagOption } from '@/components/tag-select'
 import { TechSelect } from '@/components/tech-select'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
 import type { ParsedAddress } from '@/lib/places-actions'
-import { formatPhone } from '@/lib/utils'
+import { formatPhone, capitalizeWords } from '@/lib/utils'
 import {
   createJob,
   updateJob,
@@ -48,6 +48,11 @@ import {
 } from '@/components/ui/dialog'
 import { StatusDropdown } from './status-dropdown'
 import { LineItems } from './line-items'
+import {
+  GroupedLineItems,
+  type LineItemGroup,
+  type LineItemRow,
+} from '@/components/line-items/grouped-line-items'
 import { Plus, X, Phone, Mail, Trash2, Star } from 'lucide-react'
 import { logger } from '@/lib/logger'
 
@@ -92,6 +97,7 @@ export interface JobFormData {
   tagIds?: string[]
   assigneeUserIds?: string[]
   lineItems?: JobFormLineItem[]
+  lineItemGroups?: LineItemGroup[]
   contact?: {
     id: string
     firstName: string
@@ -111,7 +117,8 @@ interface ReferenceData {
   taxItems: Array<{ id: string; name: string; rate: string | null }>
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
-  orgMembers: Array<{ id: string; label: string }>
+  orgMembers: Array<{ id: string; label: string; role: string | null }>
+  salesReps: Array<{ id: string; name: string }>
 }
 
 interface JobFormProps {
@@ -335,7 +342,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     field: keyof Omit<ContactEditState, 'phones' | 'emails'>,
     value: unknown,
   ) => {
-    setContactEdit((prev) => (prev ? { ...prev, [field]: value } : prev))
+    let normalized = value
+    if ((field === 'firstName' || field === 'lastName') && typeof value === 'string') {
+      normalized = capitalizeWords(value)
+    }
+    setContactEdit((prev) => (prev ? { ...prev, [field]: normalized } : prev))
   }
 
   const updateContactPhone = (
@@ -540,16 +551,26 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   }
 
   // Line items state (synced from initial or local)
-  const [lineItems, setLineItems] = useState<JobFormLineItem[]>(
-    initial?.lineItems ?? [],
+  const [lineItems, setLineItems] = useState<LineItemRow[]>(
+    (initial?.lineItems ?? []) as LineItemRow[],
+  )
+  const [lineItemGroups, setLineItemGroups] = useState<LineItemGroup[]>(
+    initial?.lineItemGroups ?? [],
   )
 
   // Sync line items from server props after router.refresh()
   useEffect(() => {
     if (initial?.lineItems) {
-      setLineItems(initial.lineItems)
+      setLineItems(initial.lineItems as LineItemRow[])
     }
   }, [initial?.lineItems])
+
+  // Sync line item groups from server props after router.refresh()
+  useEffect(() => {
+    if (initial?.lineItemGroups) {
+      setLineItemGroups(initial.lineItemGroups)
+    }
+  }, [initial?.lineItemGroups])
 
   // Sync arrival window state after router.refresh()
   useEffect(() => {
@@ -633,7 +654,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
   const handleCreateNewCustomer = useCallback((name: string) => {
     setCustomerMode('new')
-    setNewCustomerName(name)
+    setNewCustomerName(capitalizeWords(name))
     setCustomerId(undefined)
     setContactId(undefined)
     setLocationId(undefined)
@@ -812,6 +833,33 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
           name="lineItems"
           value={JSON.stringify(lineItems)}
         />
+        <input
+          type="hidden"
+          name="lineItemGroups"
+          value={JSON.stringify(lineItemGroups)}
+        />
+
+        {/* Top action bar — duplicated for easy access on long job forms (desktop only) */}
+        <div className="hidden md:flex items-center justify-end gap-3">
+          {state.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {state.error}
+            </p>
+          )}
+          {mode === 'edit' && onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" disabled={pending || !!arrivalTimeError}>
+            {pending ? 'Saving…' : cta}
+          </Button>
+        </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
           {/* ── LEFT PANEL: Details ── */}
@@ -835,8 +883,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                   <Input
                     name="newCustomerName"
                     value={newCustomerName}
-                    onChange={(e) => setNewCustomerName(e.target.value)}
+                    onChange={(e) => setNewCustomerName(capitalizeWords(e.target.value))}
                     placeholder="Customer name *"
+                    className="capitalize"
                     required
                   />
                 </div>
@@ -862,13 +911,15 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     <Input
                       name="newContactFirstName"
                       value={newContactFirstName}
-                      onChange={(e) => setNewContactFirstName(e.target.value)}
+                      onChange={(e) => setNewContactFirstName(capitalizeWords(e.target.value))}
+                      autoCapitalize="words"
                       placeholder="First name (optional)"
                     />
                     <Input
                       name="newContactLastName"
                       value={newContactLastName}
-                      onChange={(e) => setNewContactLastName(e.target.value)}
+                      onChange={(e) => setNewContactLastName(capitalizeWords(e.target.value))}
+                      autoCapitalize="words"
                       placeholder="Last name (optional)"
                     />
                   </div>
@@ -1007,6 +1058,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                             onChange={(e) =>
                               updateContactField('firstName', e.target.value)
                             }
+                            autoCapitalize="words"
                             placeholder="First name"
                           />
                         </div>
@@ -1017,6 +1069,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                             onChange={(e) =>
                               updateContactField('lastName', e.target.value)
                             }
+                            autoCapitalize="words"
                             placeholder="Last name"
                           />
                         </div>
@@ -1672,12 +1725,19 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="assignedAgentId">Agent / Rep</Label>
-              <Input
-                id="assignedAgentId"
-                name="assignedAgentId"
-                defaultValue={initial?.assignedAgentId ?? ''}
-                placeholder="Assigned agent or rep"
-              />
+              <Select name="assignedAgentId" defaultValue={initial?.assignedAgentId ?? ''}>
+                <SelectTrigger id="assignedAgentId" className="w-full">
+                  <SelectValue placeholder="Select rep…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Select rep…</SelectItem>
+                  {referenceData.salesReps.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1826,7 +1886,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label>Assigned Techs</Label>
               <TechSelect
-                members={referenceData.orgMembers}
+                members={referenceData.orgMembers.filter(
+                  (m) => m.role === 'org:technician' || m.role === 'org:admin',
+                )}
                 defaultSelected={initial?.assigneeUserIds ?? []}
               />
             </div>
@@ -1986,12 +2048,43 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
         )}
 
         {/* ── LINE ITEMS (full-width below grid) ── */}
-        <LineItems
-          jobId={mode === 'edit' ? initial?.id : undefined}
-          items={lineItems}
-          onChange={setLineItems}
-          referenceData={referenceData}
-        />
+        {lineItemGroups.length > 0 ? (
+          <GroupedLineItems
+            groups={lineItemGroups}
+            lineItems={lineItems}
+            onChange={(groups, items) => {
+              setLineItemGroups(groups)
+              setLineItems(items)
+            }}
+            referenceData={referenceData}
+            jobId={mode === 'edit' ? initial?.id : undefined}
+          />
+        ) : (
+          <div className="space-y-2">
+            <LineItems
+              jobId={mode === 'edit' ? initial?.id : undefined}
+              items={lineItems as JobFormLineItem[]}
+              onChange={setLineItems}
+              referenceData={referenceData}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => {
+                const defaultGroup: LineItemGroup = {
+                  id: crypto.randomUUID(),
+                  name: 'Group 1',
+                  sortOrder: 0,
+                }
+                setLineItemGroups([defaultGroup])
+                setLineItems(lineItems.map((i) => ({ ...i, groupId: defaultGroup.id })))
+              }}
+            >
+              <Plus className="mr-1 size-4" /> Enable Line-Item Groups
+            </Button>
+          </div>
+        )}
 
         {/* ── FORM FOOTER ── */}
         <div className="flex items-center gap-3 pt-2">

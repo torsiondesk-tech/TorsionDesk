@@ -16,14 +16,15 @@ interface ReferenceData {
   taxItems: Array<{ id: string; name: string; rate: string | null }>
   availableTags: TagOption[]
   productCategories: Array<{ id: string; name: string }>
-  orgMembers: Array<{ id: string; label: string }>
+  orgMembers: Array<{ id: string; label: string; role: string | null }>
+  salesReps: Array<{ id: string; name: string }>
 }
 
 interface JobDetailShellProps {
   job: JobDetail
   initial: JobFormData
   referenceData: ReferenceData
-  orgMembers: Array<{ id: string; label: string }>
+  orgMembers: Array<{ id: string; label: string; role: string | null }>
   categoryName?: string
   sourceName?: string
   initialEdit?: boolean
@@ -93,6 +94,7 @@ export function JobDetailShell({
           <JobSummary
             job={job}
             orgMembers={orgMembers}
+            salesReps={referenceData.salesReps}
             categoryName={categoryName}
             sourceName={sourceName}
             taxItems={referenceData.taxItems}

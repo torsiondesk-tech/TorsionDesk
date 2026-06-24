@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatPhoneInput } from '@/lib/utils'
+import { formatPhoneInput, capitalizeWords } from '@/lib/utils'
 import {
   removeMember,
   revokeInvitation,
@@ -222,7 +222,8 @@ export function MemberRow({
             <Input
               name="firstName"
               value={form.firstName}
-              onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, firstName: capitalizeWords(e.target.value) }))}
+              autoCapitalize="words"
               placeholder="First name"
               className="h-8 text-xs"
             />
@@ -232,7 +233,8 @@ export function MemberRow({
             <Input
               name="lastName"
               value={form.lastName}
-              onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, lastName: capitalizeWords(e.target.value) }))}
+              autoCapitalize="words"
               placeholder="Last name"
               className="h-8 text-xs"
             />

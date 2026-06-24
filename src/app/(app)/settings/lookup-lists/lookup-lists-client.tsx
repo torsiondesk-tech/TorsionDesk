@@ -21,6 +21,9 @@ import {
   createJobSourceAction,
   updateJobSourceAction,
   deleteJobSourceAction,
+  createSalesRepAction,
+  updateSalesRepAction,
+  deleteSalesRepAction,
   type LookupActionState,
 } from './actions'
 import { Pencil, Trash2, Plus } from 'lucide-react'
@@ -280,9 +283,11 @@ function LookupSection({
 export function LookupListsClient({
   initialReferrals,
   initialJobSources,
+  initialSalesReps,
 }: {
   initialReferrals: Array<{ id: string; name: string }>
   initialJobSources: Array<{ id: string; name: string }>
+  initialSalesReps: Array<{ id: string; name: string }>
 }) {
   return (
     <div className="space-y-10">
@@ -306,6 +311,17 @@ export function LookupListsClient({
         deleteAction={deleteJobSourceAction}
         addButtonLabel="Add Job Source"
         deleteConfirmLabel="Delete Job Source"
+      />
+
+      <LookupSection
+        title="Sales Reps"
+        emptyLabel="No sales reps yet."
+        initialRows={initialSalesReps}
+        createAction={createSalesRepAction}
+        updateAction={updateSalesRepAction}
+        deleteAction={deleteSalesRepAction}
+        addButtonLabel="Add Sales Rep"
+        deleteConfirmLabel="Delete Sales Rep"
       />
     </div>
   )

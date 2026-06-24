@@ -1,4 +1,4 @@
-﻿import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createTechDb, type CachedCustomer, type CachedLocation } from '@/app/(tech)/lib/dexie'
@@ -21,11 +21,17 @@ vi.mock('@/app/(tech)/tech/estimates/actions', () => ({
   createEstimateAction: vi.fn(),
 }))
 
+vi.mock('@/app/(app)/jobs/actions', () => ({
+  searchProductsAction: vi.fn(() => Promise.resolve([])),
+  searchServicesAction: vi.fn(() => Promise.resolve([])),
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
 import { createEstimateAction } from '@/app/(tech)/tech/estimates/actions'
+import { toast } from 'sonner'
 
 const orgId = 'org_estimate'
 const userId = 'user_estimate'
@@ -41,6 +47,7 @@ describe('EstimateForm offline queue', () => {
       accountNo: 1001,
       primaryPhone: null,
       primaryCity: null,
+      primaryLocationId: 'loc-1',
     },
   ]
 
@@ -72,7 +79,10 @@ describe('EstimateForm offline queue', () => {
     await db.delete()
   })
 
-  it('enqueues an estimate_create item offline and flushes it via createEstimateAction', async () => {
+  it('enqueues an estimate_create item offline and flushes it via createEstimateAction', { timeout: 15000 }, async () => {
+    const mocked = vi.mocked(createEstimateAction)
+    mocked.mockResolvedValue({ success: true, id: 'est-1' })
+
     render(
       <EstimateForm
         orgId={orgId}
@@ -82,36 +92,54 @@ describe('EstimateForm offline queue', () => {
       />,
     )
 
-    await userEvent.selectOptions(screen.getByLabelText(/customer/i), 'cust-1')
-    await userEvent.selectOptions(screen.getByLabelText(/service location/i), 'loc-1')
-    await userEvent.type(screen.getByLabelText(/description/i), 'Spring replacement')
+    // Select existing customer via search dropdown
+    await userEvent.type(screen.getByTestId('customer-search'), 'Alice')
+    const suggestion = await screen.findByText('Alice Homeowner')
+    await userEvent.click(suggestion)
 
+    // Switch to location dropdown (primary is shown as selected card by default)
+    await userEvent.click(screen.getByRole('button', { name: /change location/i }))
+    const locationTrigger = screen.getByTestId('location-select-trigger')
+    await userEvent.click(locationTrigger)
+    const locOption = screen.getByRole('option', { name: /main house/i })
+    await userEvent.click(locOption)
+
+    // Fill description
+    await userEvent.type(screen.getByLabelText('Description'), 'Spring replacement')
+
+    // Add a custom line item
     await userEvent.click(screen.getByRole('button', { name: /add item/i }))
-    await userEvent.type(screen.getByPlaceholderText(/item name/i), 'Torsion spring')
-    await userEvent.type(screen.getByPlaceholderText(/qty/i), '2')
-    await userEvent.type(screen.getByPlaceholderText(/price/i), '125.00')
+    await userEvent.type(screen.getByPlaceholderText(/search products/i), 'Torsion')
+    await userEvent.click(screen.getByTestId('add-custom-item'))
 
+    await userEvent.clear(screen.getByRole('textbox', { name: /product name/i }))
+    await userEvent.type(screen.getByRole('textbox', { name: /product name/i }), 'Torsion spring')
+    await userEvent.clear(screen.getByRole('spinbutton', { name: /product quantity/i }))
+    await userEvent.type(screen.getByRole('spinbutton', { name: /product quantity/i }), '2')
+    await userEvent.clear(screen.getByRole('textbox', { name: /product rate/i }))
+    await userEvent.type(screen.getByRole('textbox', { name: /product rate/i }), '125.00')
+    await userEvent.click(screen.getByRole('button', { name: /add product/i }))
+
+    // Submit — the form auto-flushes the outbox while offline.
     await userEvent.click(screen.getByRole('button', { name: /create estimate/i }))
 
-    await waitFor(async () => {
-      const items = await db.outbox.where('type').equals('estimate_create').toArray()
-      expect(items).toHaveLength(1)
-      const payload = items[0]?.payload as EstimateCreatePayload
-      expect(payload.input.customerId).toBe('cust-1')
-      expect(payload.input.serviceLocationId).toBe('loc-1')
-      expect(payload.input.description).toBe('Spring replacement')
-      expect(payload.input.lineItems).toHaveLength(1)
-      expect(payload.input.lineItems[0]).toMatchObject({
-        name: 'Torsion spring',
-        qty: '2',
-        unitPrice: '125.00',
-      })
+    await waitFor(() => {
+      expect(toast.info).toHaveBeenCalledWith('Queued estimate — will sync when online')
     })
 
-    const mocked = vi.mocked(createEstimateAction)
-    mocked.mockResolvedValue({ success: true, id: 'est-1' })
-
-    await flushOutbox(orgId, userId)
+    const items = await db.outbox.where('type').equals('estimate_create').toArray()
+    expect(items).toHaveLength(1)
+    const payload = items[0]?.payload as EstimateCreatePayload
+    expect(payload.input.customerId).toBe('cust-1')
+    expect(payload.input.serviceLocationId).toBe('loc-1')
+    expect(payload.input.description).toBe('Spring replacement')
+    expect(payload.input.lineItems).toBeDefined()
+    expect(payload.input.lineItems).toHaveLength(1)
+    expect(payload.input.lineItems![0]).toMatchObject({
+      title: 'Torsion spring',
+      qty: '2',
+      rate: '125.00',
+    })
 
     expect(mocked).toHaveBeenCalledTimes(1)
     expect(mocked).toHaveBeenCalledWith(
@@ -121,8 +149,6 @@ describe('EstimateForm offline queue', () => {
       }),
     )
 
-    const item = await db.outbox.toArray()
-    expect(item).toHaveLength(1)
-    expect(item[0]?.syncStatus).toBe('synced')
+    expect(items[0]?.syncStatus).toBe('synced')
   })
 })

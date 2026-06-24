@@ -280,8 +280,29 @@ Plans:
   4. The estimates dashboard shows the status-folder sidebar with counts (My / All Estimates) and tag filtering, plus the main list columns (Requested On, Customer, Description, Value, Status, Rating).
   5. A user or technician can email/text an estimate as a PDF to the customer, and convert a won estimate into a new job in one action carrying over all fields, line items, and contact info.
 
-**Plans:** TBD
+**Plans:** 5 plans across 5 waves
 **UI hint:** yes
+
+Plans:
+**Wave 0**
+
+- [ ] 06-01-PLAN.md — Wave 0: RED test scaffold (7 files) + schema additions (10 tables + job_line_items retrofit) + nextEstimateNo/totals/status helpers + pnpm add @react-pdf/renderer + [BLOCKING] pnpm db:push
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 06-02-PLAN.md — Wave 1: Canonical server actions (createEstimateAction, updateEstimateAction, deleteEstimateAction, listEstimatesAction, updateEstimateStatusAction, convertEstimateToJobAction, sendEstimateAction stub, countEstimatesByStatus) + template helpers + PDF data fetcher
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 06-03-PLAN.md — Wave 2: GroupedLineItems shared component + StarPicker + job form retrofit + Estimates sidebar nav enable
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 06-04-PLAN.md — Wave 3: Estimates dashboard (page + sidebar + table) + estimate form (new/detail pages + two-panel form + tasks)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 06-05-PLAN.md — Wave 4: PDF route (/api/estimates/[id]/pdf, Node.js runtime) + EstimatePdfDocument + Settings > Templates estimate templates tab
 
 ### Phase 7: Invoicing and Payments
 
@@ -360,7 +381,7 @@ Plans:
 | 3. Jobs Core and Status FSM | 6/6 | Completed | 2026-06-15 |
 | 4. Dispatch Board | 6/6 | Completed | 2026-06-15 |
 | 5. Technician Mobile PWA | 6/6 | Completed | 2026-06-21 |
-| 6. Estimates | 0/0 | Not started | - |
+| 6. Estimates | 0/5 | In progress | - |
 | 7. Invoicing and Payments | 0/0 | Not started | - |
 | 8. Communications and Notifications | 0/0 | Not started | - |
 | 9. Reports | 0/0 | Not started | - |

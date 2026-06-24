@@ -6,6 +6,7 @@ import {
   listJobSources,
   listTaxItems,
   listOrgMembers,
+  listSalesReps,
 } from '../actions'
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
@@ -32,6 +33,7 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
     availableTags,
     productCategories,
     orgMembers,
+    salesReps,
     prefilledCustomer,
   ] = await Promise.all([
     listJobCategories(orgId),
@@ -40,6 +42,7 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
     listTags(orgId),
     listProductCategories(orgId),
     listOrgMembers(orgId),
+    listSalesReps(orgId),
     params.customerId ? getCustomerById(orgId, params.customerId) : Promise.resolve(null),
   ])
 
@@ -56,6 +59,7 @@ export default async function NewJobPage({ searchParams }: NewJobPageProps) {
           availableTags,
           productCategories,
           orgMembers,
+          salesReps,
         }}
         defaults={{
           customerId: params.customerId,

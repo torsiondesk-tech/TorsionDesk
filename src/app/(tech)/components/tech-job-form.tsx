@@ -22,8 +22,9 @@ import { createTechJobAction } from '@/app/(tech)/tech/jobs/actions'
 import { createTechCustomerAction, createTechServiceLocationAction } from '@/app/(tech)/tech/customers/actions'
 import { searchPlacesAction, getPlaceDetailsAction, type PlaceSuggestion } from '@/lib/places-actions'
 import { getTechCustomerPrimaryContactAction } from '@/app/(tech)/tech/customers/actions'
-import { toISODate, formatPhoneInput } from '@/lib/utils'
+import { toISODate, formatPhoneInput, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
+import { TECH_DATA_UPDATED } from '@/app/(tech)/lib/sync'
 
 interface TechJobFormProps {
   orgId: string
@@ -362,6 +363,41 @@ export function TechJobForm({
         setSaving(false)
         return
       }
+
+      // Optimistically cache the new job in Dexie so the detail page renders
+      // instantly instead of flashing "Job not found" while we wait for Realtime
+      // to trigger a full hydration round-trip.
+      const selectedCustomer = allCustomers.find((c) => c.id === customerId)
+      const selectedLocation = locations.find((l) => l.id === serviceLocationId)
+      await db.open()
+      await db.jobs.put({
+        id: result.id,
+        tenantId: orgId,
+        jobNo: result.jobNo,
+        customerId,
+        contactId: result.contactId,
+        serviceLocationId: result.serviceLocationId,
+        status: 'unscheduled',
+        description: description.trim(),
+        startDate: startDate || null,
+        arrivalWindowStart: null,
+        arrivalWindowEnd: null,
+        notesForTechs: null,
+        completionNotes: null,
+        assigneeUserIds: [userId],
+        customerName: selectedCustomer?.name ?? null,
+        addressLine1: selectedLocation?.addressLine1 ?? null,
+        city: selectedLocation?.city ?? null,
+        state: selectedLocation?.state ?? null,
+        postalCode: selectedLocation?.postalCode ?? null,
+        contactPhone: contactPhone || null,
+        contactEmail: null,
+        contactFirstName: contactFirstName.trim() || null,
+        contactLastName: contactLastName.trim() || null,
+        lineItems: [],
+      })
+      window.dispatchEvent(new CustomEvent(TECH_DATA_UPDATED))
+
       toast.success('Job created')
       router.push(`/tech/jobs/${result.id}`)
     } else {
@@ -457,7 +493,7 @@ export function TechJobForm({
                     <Input
                       id="nc-contact-first"
                       value={newCustContactFirstName}
-                      onChange={(e) => setNewCustContactFirstName(e.target.value)}
+                      onChange={(e) => setNewCustContactFirstName(capitalizeWords(e.target.value))}
                       autoCapitalize="words"
                       placeholder="First"
                       className="text-base"
@@ -468,7 +504,7 @@ export function TechJobForm({
                     <Input
                       id="nc-contact-last"
                       value={newCustContactLastName}
-                      onChange={(e) => setNewCustContactLastName(e.target.value)}
+                      onChange={(e) => setNewCustContactLastName(capitalizeWords(e.target.value))}
                       autoCapitalize="words"
                       placeholder="Last"
                       className="text-base"
@@ -574,14 +610,14 @@ export function TechJobForm({
             <Input
               placeholder="First name"
               value={contactFirstName}
-              onChange={(e) => { setContactFirstName(e.target.value.replace(/\b\w/g, (c) => c.toUpperCase())); setContactId(null) }}
+              onChange={(e) => { setContactFirstName(capitalizeWords(e.target.value)); setContactId(null) }}
               autoCapitalize="words"
               className="text-base"
             />
             <Input
               placeholder="Last name"
               value={contactLastName}
-              onChange={(e) => { setContactLastName(e.target.value.replace(/\b\w/g, (c) => c.toUpperCase())); setContactId(null) }}
+              onChange={(e) => { setContactLastName(capitalizeWords(e.target.value)); setContactId(null) }}
               autoCapitalize="words"
               className="text-base"
             />

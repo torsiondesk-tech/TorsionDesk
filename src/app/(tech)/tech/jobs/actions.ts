@@ -22,7 +22,10 @@ export interface CreateTechJobInput {
 
 export async function createTechJobAction(
   input: CreateTechJobInput,
-): Promise<{ success: false; error: string } | { success: true; id: string }> {
+): Promise<
+  | { success: false; error: string }
+  | { success: true; id: string; jobNo: number; contactId: string | null; serviceLocationId: string | null }
+> {
   const { orgId, userId } = await auth()
   if (!orgId || !userId) {
     return { success: false, error: 'Not authenticated.' }
@@ -41,11 +44,11 @@ export async function createTechJobAction(
     const { nextJobNo } = await import('@/lib/jobs/job-number')
     const { normalizePhone } = await import('@/lib/utils')
 
-    const id = await withTenant(orgId, async (tx) => {
-      const jobNo = await nextJobNo(tx, orgId)
+    let jobNo: number | null = null
+    let resolvedContactId: string | null = input.contactId ?? null
 
-      // Resolve the contactId to link to the job
-      let resolvedContactId: string | null = input.contactId ?? null
+    const id = await withTenant(orgId, async (tx) => {
+      jobNo = await nextJobNo(tx, orgId)
 
       if (!resolvedContactId && input.newContactFirstName?.trim()) {
         // Create a new contact and link it
@@ -119,7 +122,13 @@ export async function createTechJobAction(
     revalidatePath('/tech/jobs')
     revalidatePath('/jobs')
     after(() => broadcastJobEvent(orgId, 'job-updated', { jobId: id }).catch(() => {}))
-    return { success: true, id }
+    return {
+      success: true,
+      id,
+      jobNo: jobNo!,
+      contactId: resolvedContactId,
+      serviceLocationId: input.serviceLocationId ?? null,
+    }
   } catch (err) {
     const message = extractErrorMessage(err)
     return { success: false, error: message || 'Could not create job. Please try again.' }

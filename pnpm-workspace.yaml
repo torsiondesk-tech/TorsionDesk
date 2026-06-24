@@ -5,5 +5,6 @@
 #   unrs-resolver — eslint module resolver native binding
 allowBuilds:
   esbuild: true
+  node-pty: false
   sharp: true
   unrs-resolver: true

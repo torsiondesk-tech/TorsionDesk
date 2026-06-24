@@ -15,24 +15,35 @@ interface TechSelectProps {
   name?: string
   members: Array<{ id: string; label: string }>
   defaultSelected?: string[]
+  onChange?: (selected: string[]) => void
 }
 
 export function TechSelect({
   name = 'assigneeUserIds',
   members,
   defaultSelected = [],
+  onChange,
 }: TechSelectProps) {
   const [selected, setSelected] = useState<string[]>(defaultSelected)
   const [query, setQuery] = useState('')
 
   const add = useCallback((id: string) => {
-    setSelected((prev) => (prev.includes(id) ? prev : [...prev, id]))
+    setSelected((prev) => {
+      if (prev.includes(id)) return prev
+      const next = [...prev, id]
+      onChange?.(next)
+      return next
+    })
     setQuery('')
-  }, [])
+  }, [onChange])
 
   const remove = useCallback((id: string) => {
-    setSelected((prev) => prev.filter((s) => s !== id))
-  }, [])
+    setSelected((prev) => {
+      const next = prev.filter((s) => s !== id)
+      onChange?.(next)
+      return next
+    })
+  }, [onChange])
 
   const filtered = members.filter(
     (m) =>

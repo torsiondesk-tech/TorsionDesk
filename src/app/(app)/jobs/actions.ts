@@ -9,6 +9,7 @@ import { withTenant } from '@/db/with-tenant'
 import {
   jobs,
   jobLineItems,
+  lineItemGroups,
   jobTags,
   jobAssignees,
   customers,
@@ -23,7 +24,9 @@ import {
   jobSiteVisits,
   jobTasks,
   jobReminders,
+  salesReps,
 } from '@/db/schema'
+import { listSalesReps as listSalesRepsFromSettings } from '@/lib/settings'
 import { nextJobNo } from '@/lib/jobs/job-number'
 import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
@@ -149,6 +152,7 @@ const createJobSchema = z.object({
   tagIds: z.array(z.string()).default([]),
   assigneeUserIds: z.array(z.string()).default([]),
   lineItems: z.string().default('[]'),
+  lineItemGroups: z.string().default('[]'),
 })
 
 const phoneSchema = z.object({
@@ -211,6 +215,13 @@ const lineItemSchema = z.object({
   rate: z.string().default('0'),
   cost: z.string().default('0'),
   taxItemId: z.string().nullable().optional(),
+  groupId: z.string().nullable().optional(),
+})
+
+const lineItemGroupSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  sortOrder: z.number().default(0),
 })
 
 // ── Cross-tenant guard helpers ─────────────────────────────────────────────
@@ -274,6 +285,16 @@ async function guardTaxItem(tx: Parameters<Parameters<typeof withTenant>[1]>[0],
   if (rows.length === 0) throw new Error('Invalid tax item: cross-tenant access denied')
 }
 
+async function guardSalesRep(tx: Parameters<Parameters<typeof withTenant>[1]>[0], orgId: string, salesRepId: string | null | undefined) {
+  if (!salesRepId) return
+  const rows = await tx
+    .select({ id: salesReps.id })
+    .from(salesReps)
+    .where(and(eq(salesReps.tenantId, orgId), eq(salesReps.id, salesRepId)))
+    .limit(1)
+  if (rows.length === 0) throw new Error('Invalid sales rep: cross-tenant access denied')
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 export async function createJob(
@@ -329,6 +350,7 @@ export async function createJob(
     tagIds,
     assigneeUserIds,
     lineItems: formData.get('lineItems'),
+    lineItemGroups: formData.get('lineItemGroups'),
   })
 
   if (!parsed.success) {
@@ -355,6 +377,20 @@ export async function createJob(
     }
   } catch {
     // ignore malformed JSON, treat as empty
+  }
+
+  // Parse line item groups JSON
+  let parsedLineItemGroups: z.infer<typeof lineItemGroupSchema>[] = []
+  try {
+    const raw = JSON.parse(data.lineItemGroups)
+    if (Array.isArray(raw)) {
+      parsedLineItemGroups = raw
+        .map((g) => lineItemGroupSchema.safeParse(g))
+        .filter((r): r is z.ZodSafeParseSuccess<z.infer<typeof lineItemGroupSchema>> => r.success)
+        .map((r) => r.data)
+    }
+  } catch {
+    // ignore malformed JSON
   }
 
   let attempts = 0
@@ -465,6 +501,7 @@ export async function createJob(
 
         await guardCategory(tx, orgId, data.categoryId)
         await guardJobSource(tx, orgId, data.jobSourceId)
+        await guardSalesRep(tx, orgId, data.assignedAgentId)
 
         const jobNo = await nextJobNo(tx, orgId)
 
@@ -504,6 +541,19 @@ export async function createJob(
 
         const jobId = row.id
 
+        // Persist line item groups first so line items can reference them.
+        if (parsedLineItemGroups.length > 0) {
+          await tx.insert(lineItemGroups).values(
+            parsedLineItemGroups.map((g) => ({
+              tenantId: orgId,
+              jobId,
+              id: g.id,
+              name: g.name,
+              sortOrder: g.sortOrder,
+            })),
+          )
+        }
+
         // Insert line items
         if (parsedLineItems.length > 0) {
           for (let i = 0; i < parsedLineItems.length; i++) {
@@ -523,6 +573,7 @@ export async function createJob(
               rate: item.rate,
               cost: item.cost,
               taxItemId: item.taxItemId ?? null,
+              groupId: item.groupId ?? null,
               sortOrder: i,
             })),
           )
@@ -637,6 +688,7 @@ export async function updateJob(
     tagIds,
     assigneeUserIds,
     lineItems: formData.get('lineItems'),
+    lineItemGroups: formData.get('lineItemGroups'),
     contactUpdate: formData.get('contactUpdate'),
   })
 
@@ -662,12 +714,27 @@ export async function updateJob(
     // ignore malformed JSON
   }
 
+  // Parse line item groups JSON
+  let parsedLineItemGroups: z.infer<typeof lineItemGroupSchema>[] = []
+  try {
+    const raw = JSON.parse(data.lineItemGroups)
+    if (Array.isArray(raw)) {
+      parsedLineItemGroups = raw
+        .map((g) => lineItemGroupSchema.safeParse(g))
+        .filter((r): r is z.ZodSafeParseSuccess<z.infer<typeof lineItemGroupSchema>> => r.success)
+        .map((r) => r.data)
+    }
+  } catch {
+    // ignore malformed JSON
+  }
+
   await withTenant(orgId, async (tx) => {
     await guardCustomer(tx, orgId, data.customerId)
     await guardContact(tx, orgId, data.contactId)
     await guardServiceLocation(tx, orgId, data.serviceLocationId)
     await guardCategory(tx, orgId, data.categoryId)
     await guardJobSource(tx, orgId, data.jobSourceId)
+    await guardSalesRep(tx, orgId, data.assignedAgentId)
 
     let resolvedLocationId = data.serviceLocationId
 
@@ -794,10 +861,25 @@ export async function updateJob(
       })
       .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, data.id)))
 
-    // Replace line items
+    // Replace line item groups and their line items
     await tx
       .delete(jobLineItems)
       .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, data.id)))
+    await tx
+      .delete(lineItemGroups)
+      .where(and(eq(lineItemGroups.tenantId, orgId), eq(lineItemGroups.jobId, data.id)))
+
+    if (parsedLineItemGroups.length > 0) {
+      await tx.insert(lineItemGroups).values(
+        parsedLineItemGroups.map((g) => ({
+          tenantId: orgId,
+          jobId: data.id,
+          id: g.id,
+          name: g.name,
+          sortOrder: g.sortOrder,
+        })),
+      )
+    }
 
     if (parsedLineItems.length > 0) {
       for (const item of parsedLineItems) {
@@ -816,6 +898,7 @@ export async function updateJob(
           rate: item.rate,
           cost: item.cost,
           taxItemId: item.taxItemId ?? null,
+          groupId: item.groupId ?? null,
           sortOrder: i,
         })),
       )
@@ -1394,23 +1477,33 @@ export async function listTaxItems(orgId: string): Promise<Array<{ id: string; n
   })
 }
 
-export async function listOrgMembers(orgId: string): Promise<
-  Array<{ id: string; label: string }>
-> {
+export async function listSalesReps(orgId: string): Promise<Array<{ id: string; name: string }>> {
+  return listSalesRepsFromSettings(orgId)
+}
+
+export async function listOrgMembers(orgId: string): Promise<Array<{ id: string; label: string; role: string | null }>> {
   try {
+    const { teamProfiles } = await import('@/db/schema')
     const client = await clerkClient()
     const memberships = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
     })
-    return memberships.data.map((m) => ({
-      id: m.publicUserData?.userId ?? m.id,
-      label:
-        [m.publicUserData?.firstName, m.publicUserData?.lastName]
-          .filter(Boolean)
-          .join(' ') ||
+    const dbProfiles = await withTenant(orgId, async (tx) =>
+      tx.select().from(teamProfiles).where(eq(teamProfiles.tenantId, orgId)),
+    )
+    const profileMap = new Map(dbProfiles.map((p) => [p.userId, p]))
+    return memberships.data.map((m) => {
+      const userId = m.publicUserData?.userId ?? m.id
+      const profile = profileMap.get(userId)
+      const first = profile?.firstName ?? m.publicUserData?.firstName
+      const last = profile?.lastName ?? m.publicUserData?.lastName
+      const label =
+        [first, last].filter(Boolean).join(' ') ||
+        profile?.email ||
         m.publicUserData?.identifier ||
-        'Member',
-    }))
+        'Member'
+      return { id: userId, label, role: m.role ?? null }
+    })
   } catch {
     return []
   }

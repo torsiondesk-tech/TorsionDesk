@@ -17,6 +17,8 @@
 # Serwist-generated service worker artifacts
 /public/sw.js
 /public/sw.js.map
+/public/tech/sw.js
+/public/tech/sw.js.map
 /public/swe-worker-*.js
 /public/swe-worker-*.js.map
 

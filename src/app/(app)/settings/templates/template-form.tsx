@@ -32,6 +32,17 @@ import {
   searchServicesAction,
   type TemplateActionState,
 } from './actions'
+import {
+  createEstimateTemplateAction,
+  deleteEstimateTemplateAction,
+} from '@/app/(app)/estimates/actions'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@/components/ui/tabs'
+import type { EstimateTemplate } from '@/lib/estimates/templates'
 import { Pencil, Trash2, Plus, X } from 'lucide-react'
 
 export type TemplateRow = {
@@ -61,10 +72,14 @@ const createInitial: TemplateActionState = {}
 const updateInitial: TemplateActionState = {}
 
 export function TemplatesPage({
+  orgId,
   initialTemplates,
+  initialEstimateTemplates,
   jobCategories,
 }: {
+  orgId: string
   initialTemplates: TemplateRow[]
+  initialEstimateTemplates: EstimateTemplate[]
   jobCategories: Array<{ id: string; name: string; parentId: string | null }>
 }) {
   const router = useRouter()
@@ -148,7 +163,13 @@ export function TemplatesPage({
   const isEmpty = templates.length === 0
 
   return (
-    <div className="space-y-4">
+    <Tabs defaultValue="jobs" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="jobs">Job Templates</TabsTrigger>
+        <TabsTrigger value="estimates">Estimate Templates</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="jobs" className="space-y-4">
       <div className="flex items-center justify-between">
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger
@@ -293,7 +314,12 @@ export function TemplatesPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </TabsContent>
+
+      <TabsContent value="estimates" className="space-y-4">
+        <EstimateTemplatesTab orgId={orgId} initialTemplates={initialEstimateTemplates} />
+      </TabsContent>
+    </Tabs>
   )
 }
 
@@ -303,6 +329,170 @@ type SearchResult = {
   unitPrice: string | null
   unitCost: string | null
   description: string | null
+}
+
+function EstimateTemplatesTab({
+  orgId,
+  initialTemplates,
+}: {
+  orgId: string
+  initialTemplates: EstimateTemplate[]
+}) {
+  const router = useRouter()
+  const [templates, setTemplates] = useState<EstimateTemplate[]>(initialTemplates)
+  const [isAdding, setIsAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<EstimateTemplate | null>(null)
+
+  useEffect(() => {
+    setTemplates(initialTemplates)
+  }, [initialTemplates])
+
+  const handleCreate = useCallback(async () => {
+    if (!name.trim()) return
+    setSaving(true)
+    const result = await createEstimateTemplateAction(orgId, {
+      name: name.trim(),
+      description: description.trim() || undefined,
+      lineItems: [],
+      tasks: [],
+    })
+    setSaving(false)
+    if (result.error) return
+    setName('')
+    setDescription('')
+    setIsAdding(false)
+    router.refresh()
+  }, [orgId, name, description, router])
+
+  const handleDelete = useCallback(async () => {
+    if (!deleting) return
+    const result = await deleteEstimateTemplateAction(orgId, deleting.id)
+    if (result.success) {
+      setDeleting(null)
+      router.refresh()
+    }
+  }, [orgId, deleting, router])
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Button onClick={() => setIsAdding(true)}>
+          <Plus className="mr-2 size-4" />
+          Add Estimate Template
+        </Button>
+      </div>
+
+      {templates.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
+          <p className="text-sm text-muted-foreground">No estimate templates yet.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Estimate templates pre-fill line items and tasks when creating estimates.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={() => setIsAdding(true)}>
+            <Plus className="mr-2 size-4" />
+            Add Estimate Template
+          </Button>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold">Name</th>
+                <th className="px-4 py-2 text-left font-semibold">Description</th>
+                <th className="px-4 py-2 text-right font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {templates.map((tmpl) => (
+                <tr key={tmpl.id} className="hover:bg-muted/50">
+                  <td className="px-4 py-2 font-medium">{tmpl.name}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{tmpl.description ?? '—'}</td>
+                  <td className="px-4 py-2 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Delete estimate template"
+                      onClick={() => setDeleting(tmpl)}
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Dialog open={isAdding} onOpenChange={setIsAdding}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Estimate Template</DialogTitle>
+            <DialogDescription>Create a reusable template for estimates.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="est-tmpl-name">Template Name</Label>
+              <Input
+                id="est-tmpl-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Spring Replacement Estimate"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="est-tmpl-desc">Description</Label>
+              <Textarea
+                id="est-tmpl-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={saving || !name.trim()}>
+              {saving ? 'Saving…' : 'Add Template'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete this template?</DialogTitle>
+            <DialogDescription>
+              {deleting ? (
+                <>
+                  &quot;{deleting.name}&quot; will be removed. This can&apos;t be undone.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
 
 function SearchDropdown({

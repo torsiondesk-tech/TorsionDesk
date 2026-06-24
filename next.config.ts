@@ -11,6 +11,7 @@ import withSerwistInit from '@serwist/next'
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['@react-pdf/renderer'],
   allowedDevOrigins: ['*.ngrok-free.dev', '*.ngrok.io', '*.ngrok.app'],
   webpack(config) {
     config.watchOptions = {

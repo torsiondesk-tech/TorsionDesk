@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { Toaster } from '@/components/ui/sonner'
 import { Sidebar } from '@/components/shell/sidebar'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { CreateNewButton } from '@/components/header/create-new-button'
@@ -35,6 +36,7 @@ export default async function AppLayout({
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <NuqsAdapter>{children}</NuqsAdapter>
         </main>
+        <Toaster />
       </div>
     </div>
   )

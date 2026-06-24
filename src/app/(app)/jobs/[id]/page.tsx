@@ -8,6 +8,7 @@ import {
   listJobSources,
   listTaxItems,
   listOrgMembers,
+  listSalesReps,
 } from '../actions'
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
@@ -23,6 +24,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
 import {
   statusBadgeVariant,
   statusLabel,
@@ -115,6 +117,12 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
       rate: String(li.rate ?? '0'),
       cost: String(li.cost ?? '0'),
       taxItemId: li.taxItemId,
+      groupId: li.groupId ?? null,
+    })),
+    lineItemGroups: job.lineItemGroups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      sortOrder: g.sortOrder ?? 0,
     })),
     contact: job.contact
       ? {
@@ -159,6 +167,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     availableTags,
     productCategories,
     orgMembers,
+    salesReps,
     photoUrls,
     signatureUrls,
   ] = await Promise.all([
@@ -168,6 +177,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     listTags(orgId),
     listProductCategories(orgId),
     listOrgMembers(orgId),
+    listSalesReps(orgId),
     getJobPhotoSignedUrls(orgId, id),
     getJobSignatureSignedUrls(orgId, id),
   ])
@@ -186,6 +196,17 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
         </Badge>
         <span className="text-sm text-muted-foreground">{job.customerName}</span>
       </div>
+      {job.estimateId && job.estimateNo != null && (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Converted from </span>
+          <Link
+            href={`/estimates/${job.estimateId}`}
+            className="font-medium underline hover:text-foreground"
+          >
+            Estimate #{`EST-${job.estimateNo}`}
+          </Link>
+        </p>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="summary">
@@ -209,6 +230,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
               availableTags,
               productCategories,
               orgMembers,
+              salesReps,
             }}
             orgMembers={orgMembers}
             categoryName={

@@ -104,6 +104,7 @@ export async function listCustomers(
         accountNo: customers.accountNo,
         active: customers.active,
         vip: customers.vip,
+        primaryLocationId: customers.primaryLocationId,
       })
       .from(customers)
       .where(and(...conditions))
@@ -199,6 +200,7 @@ export async function listCustomers(
         accountNo: row.accountNo,
         active: row.active,
         vip: row.vip,
+        primaryLocationId: row.primaryLocationId,
         primaryPhone: primary?.number ?? null,
         primaryEmail: primaryEmail?.address ?? null,
         primaryCity: firstCity,
