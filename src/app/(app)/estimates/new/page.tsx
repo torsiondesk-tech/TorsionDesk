@@ -37,11 +37,6 @@ export default async function NewEstimatePage() {
 
   return (
     <div className="animate-in fade-in-0 duration-300 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">New Estimate</h1>
-        <p className="text-sm text-muted-foreground">Create a new estimate for a customer.</p>
-      </div>
-
       <EstimateForm
         mode="create"
         orgId={orgId}
