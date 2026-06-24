@@ -25,7 +25,10 @@ interface Folder {
   icon: React.ElementType
 }
 
+const ALL_KEY = 'all'
+
 const STATUS_FOLDERS: Folder[] = [
+  { key: ALL_KEY, label: 'All', icon: FileText },
   { key: 'estimate_requested', label: 'Requested', icon: Clock },
   { key: 'estimate_provided', label: 'Provided', icon: Send },
   { key: 'estimate_accepted', label: 'Accepted', icon: ThumbsUp },
@@ -45,6 +48,10 @@ export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
 
   const selectFolder = (key: string) => {
     startTransition(() => {
+      if (key === ALL_KEY) {
+        setParams({ status: null, mine: null })
+        return
+      }
       if (status === key) {
         setParams({ status: null, mine: null })
       } else {
@@ -53,6 +60,8 @@ export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
     })
   }
 
+  const totalCount = Object.values(statusCounts.all).reduce((sum, c) => sum + (c ?? 0), 0)
+
   return (
     <div className="space-y-1">
       <div className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -60,8 +69,8 @@ export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
       </div>
       {STATUS_FOLDERS.map((folder) => {
         const Icon = folder.icon
-        const count = statusCounts.all[folder.key] ?? 0
-        const isActive = status === folder.key
+        const count = folder.key === ALL_KEY ? totalCount : (statusCounts.all[folder.key] ?? 0)
+        const isActive = folder.key === ALL_KEY ? !status : status === folder.key
         return (
           <button
             key={folder.key}
