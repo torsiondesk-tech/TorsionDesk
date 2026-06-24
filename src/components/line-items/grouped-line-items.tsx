@@ -777,7 +777,7 @@ function EditRow({
             type="number"
             inputMode="decimal"
             min="0"
-            step="0.01"
+            step="1"
             value={draft.qty}
             onChange={(e) => setDraft((d) => ({ ...d, qty: e.target.value }))}
             placeholder="Qty"
@@ -939,7 +939,7 @@ function AddRow({
             type="number"
             inputMode="decimal"
             min="0"
-            step="0.01"
+            step="1"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             placeholder="Qty"

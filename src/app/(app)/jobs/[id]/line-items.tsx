@@ -592,7 +592,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                   type="number"
                   inputMode="decimal"
                   min="0"
-                  step="0.01"
+                  step="1"
                   value={e.qty}
                   onChange={(ev) => setInlineEdit({ ...e, qty: ev.target.value })}
                   className="w-full md:w-20"
@@ -809,7 +809,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                 type="number"
                 inputMode="decimal"
                 min="0"
-                step="0.01"
+                step="1"
                 value={a.qty}
                 onChange={(e) => setInlineAdd({ ...a, qty: e.target.value })}
                 className="w-full md:w-20"
@@ -1070,7 +1070,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                       type="number"
                       inputMode="decimal"
                       min="0"
-                      step="0.01"
+                      step="1"
                       value={addQty}
                       onChange={(e) => setAddQty(e.target.value)}
                       placeholder="1"
