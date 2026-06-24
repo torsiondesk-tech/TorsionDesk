@@ -21,6 +21,7 @@ import { CustomerSearch } from '@/components/customer-search'
 import { TagSelect, type TagOption } from '@/components/tag-select'
 import { TechSelect } from '@/components/tech-select'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import type { ParsedAddress } from '@/lib/places-actions'
 import { formatPhone, capitalizeWords } from '@/lib/utils'
 import {
@@ -1811,34 +1812,17 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label>Arrival Time Window</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Start time</span>
-                  <Input
-                    id="arrivalWindowStart"
-                    name="arrivalWindowStart"
-                    type="time"
-                    value={arrivalStart}
-                    onChange={(e) => setArrivalStart(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">End time</span>
-                  <Input
-                    id="arrivalWindowEnd"
-                    name="arrivalWindowEnd"
-                    type="time"
-                    value={arrivalEnd}
-                    min={arrivalStart || undefined}
-                    onChange={(e) => setArrivalEnd(e.target.value)}
-                    aria-invalid={!!arrivalTimeError}
-                    className={arrivalTimeError ? 'border-destructive focus-visible:ring-destructive' : undefined}
-                  />
-                </div>
-              </div>
-              {arrivalTimeError && (
-                <p className="text-xs text-destructive">{arrivalTimeError}</p>
-              )}
+              <TimeWindowPicker
+                startValue={arrivalStart}
+                endValue={arrivalEnd}
+                onStartChange={setArrivalStart}
+                onEndChange={setArrivalEnd}
+                startName="arrivalWindowStart"
+                endName="arrivalWindowEnd"
+                startId="arrivalWindowStart"
+                endId="arrivalWindowEnd"
+                error={arrivalTimeError || undefined}
+              />
             </div>
 
             <div className="space-y-2">

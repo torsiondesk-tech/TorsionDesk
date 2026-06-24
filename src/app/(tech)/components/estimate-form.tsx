@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Search, X, Star, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
@@ -1444,21 +1445,12 @@ export function EstimateForm({
         </div>
         <div className="space-y-2">
           <Label>Arrival window</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="time"
-              value={arrivalWindowStart}
-              onChange={(e) => setArrivalWindowStart(e.target.value)}
-              className="text-base"
-            />
-            <span className="text-muted-foreground">→</span>
-            <Input
-              type="time"
-              value={arrivalWindowEnd}
-              onChange={(e) => setArrivalWindowEnd(e.target.value)}
-              className="text-base"
-            />
-          </div>
+          <TimeWindowPicker
+            startValue={arrivalWindowStart}
+            endValue={arrivalWindowEnd}
+            onStartChange={setArrivalWindowStart}
+            onEndChange={setArrivalWindowEnd}
+          />
         </div>
       </div>
 

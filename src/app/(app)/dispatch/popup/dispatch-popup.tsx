@@ -32,6 +32,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -1097,21 +1098,12 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                     <div className="text-xs text-muted-foreground">Arrival Time Window</div>
                     {editingWindow ? (
                       <div className="mt-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="time"
-                            value={draftWindowStart}
-                            onChange={(e) => setDraftWindowStart(e.target.value)}
-                            className="h-8 text-xs w-[100px]"
-                          />
-                          <span className="text-xs text-muted-foreground">to</span>
-                          <Input
-                            type="time"
-                            value={draftWindowEnd}
-                            onChange={(e) => setDraftWindowEnd(e.target.value)}
-                            className="h-8 text-xs w-[100px]"
-                          />
-                        </div>
+                        <TimeWindowPicker
+                          startValue={draftWindowStart}
+                          endValue={draftWindowEnd}
+                          onStartChange={setDraftWindowStart}
+                          onEndChange={setDraftWindowEnd}
+                        />
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"

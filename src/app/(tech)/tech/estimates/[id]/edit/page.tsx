@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import {
   Select,
   SelectContent,
@@ -297,21 +298,12 @@ export default function TechEstimateEditPage() {
         </div>
         <div className="space-y-2">
           <Label>Arrival window</Label>
-          <div className="flex items-center gap-1">
-            <Input
-              type="time"
-              value={cur.arrivalWindowStart}
-              onChange={(e) => setArrivalWindowStart(e.target.value)}
-              className="text-base"
-            />
-            <span className="text-muted-foreground text-xs shrink-0">→</span>
-            <Input
-              type="time"
-              value={cur.arrivalWindowEnd}
-              onChange={(e) => setArrivalWindowEnd(e.target.value)}
-              className="text-base"
-            />
-          </div>
+          <TimeWindowPicker
+            startValue={cur.arrivalWindowStart}
+            endValue={cur.arrivalWindowEnd}
+            onStartChange={setArrivalWindowStart}
+            onEndChange={setArrivalWindowEnd}
+          />
         </div>
       </div>
 

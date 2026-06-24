@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import {
   Dialog,
   DialogContent,
@@ -384,34 +385,17 @@ function VisitFormFields({
 
       <div className="space-y-2">
         <Label>Arrival Time Window</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Start time</span>
-            <Input
-              id={initial ? 'edit-arrivalWindowStart' : 'arrivalWindowStart'}
-              name="arrivalWindowStart"
-              type="time"
-              value={start}
-              onChange={(e) => onStartChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">End time</span>
-            <Input
-              id={initial ? 'edit-arrivalWindowEnd' : 'arrivalWindowEnd'}
-              name="arrivalWindowEnd"
-              type="time"
-              value={end}
-              min={start || undefined}
-              onChange={(e) => onEndChange(e.target.value)}
-              aria-invalid={!!timeError}
-              className={timeError ? 'border-destructive focus-visible:ring-destructive' : undefined}
-            />
-          </div>
-        </div>
-        {timeError && (
-          <p className="text-xs text-destructive">{timeError}</p>
-        )}
+        <TimeWindowPicker
+          startValue={start}
+          endValue={end}
+          onStartChange={onStartChange}
+          onEndChange={onEndChange}
+          startName="arrivalWindowStart"
+          endName="arrivalWindowEnd"
+          startId={initial ? 'edit-arrivalWindowStart' : 'arrivalWindowStart'}
+          endId={initial ? 'edit-arrivalWindowEnd' : 'arrivalWindowEnd'}
+          error={timeError}
+        />
       </div>
 
       <div className="space-y-2">

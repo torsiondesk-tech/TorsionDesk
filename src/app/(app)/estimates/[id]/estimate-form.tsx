@@ -35,6 +35,7 @@ import {
 } from '@/components/line-items/grouped-line-items'
 import { StarPicker } from '@/components/line-items/star-picker'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import type { ParsedAddress } from '@/lib/places-actions'
 import {
   createOfficeEstimateAction,
@@ -1799,19 +1800,12 @@ export function EstimateForm({
             </div>
             <div className="space-y-2">
               <Label>Arrival Window</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="time"
-                  value={arrivalWindowStart}
-                  onChange={(e) => setArrivalWindowStart(e.target.value)}
-                />
-                <span className="text-muted-foreground">→</span>
-                <Input
-                  type="time"
-                  value={arrivalWindowEnd}
-                  onChange={(e) => setArrivalWindowEnd(e.target.value)}
-                />
-              </div>
+              <TimeWindowPicker
+                startValue={arrivalWindowStart}
+                endValue={arrivalWindowEnd}
+                onStartChange={setArrivalWindowStart}
+                onEndChange={setArrivalWindowEnd}
+              />
             </div>
           </div>
 
