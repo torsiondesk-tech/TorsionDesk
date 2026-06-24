@@ -53,6 +53,7 @@ import {
 } from '../../jobs/actions'
 import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
+import { EstimateStatusDropdown } from './estimate-status-dropdown'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { toISODate, formatPhoneInput, formatPhone, normalizePhone, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -2017,20 +2018,28 @@ export function EstimateForm({
 
           <div className="space-y-2">
             <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => v && setStatus(v)}>
-              <SelectTrigger>
-                <SelectValue>{estimateStatusLabel(status)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {ESTIMATE_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={estimateStatusBadgeVariant(s)}>{estimateStatusLabel(s)}</Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {mode === 'edit' && estimateId ? (
+              <EstimateStatusDropdown
+                estimateId={estimateId}
+                currentStatus={status}
+                onStatusChange={(s) => setStatus(s as typeof status)}
+              />
+            ) : (
+              <Select value={status} onValueChange={(v) => v && setStatus(v)}>
+                <SelectTrigger>
+                  <SelectValue>{estimateStatusLabel(status)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTIMATE_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={estimateStatusBadgeVariant(s)}>{estimateStatusLabel(s)}</Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2">

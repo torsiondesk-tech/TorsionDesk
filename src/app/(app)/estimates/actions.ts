@@ -1094,6 +1094,15 @@ export async function updateEstimateStatusAction(
   }
 }
 
+export async function transitionEstimateStatusAction(
+  estimateId: string,
+  newStatus: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'No active organization.' }
+  return updateEstimateStatusAction(orgId, estimateId, newStatus)
+}
+
 export async function updateEstimateMetaAction(
   orgId: string,
   estimateId: string,
