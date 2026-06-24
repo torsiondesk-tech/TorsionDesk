@@ -774,11 +774,19 @@ function EditRow({
             />
           </div>
           <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
             value={draft.qty}
             onChange={(e) => setDraft((d) => ({ ...d, qty: e.target.value }))}
             placeholder="Qty"
           />
           <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
             value={draft.rate}
             onChange={(e) => setDraft((d) => ({ ...d, rate: e.target.value }))}
             placeholder="Rate"
@@ -928,12 +936,20 @@ function AddRow({
             />
           </div>
           <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             placeholder="Qty"
             disabled={type === 'discount'}
           />
           <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             placeholder="Rate"
