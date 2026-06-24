@@ -473,6 +473,7 @@ export async function createOfficeEstimateAction(
 
 // Office-only update schema: accepts full estimate fields + line items + groups.
 const updateEstimateSchema = z.object({
+  status: z.enum(['estimate_requested', 'estimate_provided', 'estimate_accepted', 'estimate_won', 'estimate_lost']).optional(),
   customerId: emptyToUndefined,
   newCustomerName: emptyToUndefined,
   newContactFirstName: emptyToUndefined,
@@ -801,6 +802,7 @@ export async function updateEstimateAction(
       await tx
         .update(estimates)
         .set({
+          ...(d.status !== undefined ? { status: d.status } : {}),
           customerId: resolvedCustomerId,
           contactId: resolvedContactId,
           serviceLocationId: resolvedLocationId,

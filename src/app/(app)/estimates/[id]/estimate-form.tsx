@@ -813,6 +813,7 @@ export function EstimateForm({
     newLocationPostalCode: customerMode === 'new' ? newLocationPostalCode : '',
     contactId: customerMode === 'new' ? null : contactId,
     serviceLocationId: customerMode === 'new' ? null : serviceLocationId,
+    status,
     categoryId,
     description,
     poNumber,
