@@ -672,18 +672,28 @@ function DisplayRow({
         <td className="px-2 py-2">${parseFloat(item.cost || '0').toFixed(2)}</td>
         <td className="px-2 py-2">{computeMargin(item.rate || '0', item.cost || '0') ?? '—'}</td>
         <td className="px-2 py-2">
-          <select
+          <Select
             value={item.taxItemId ?? ''}
-            onChange={(e) => onUpdate({ taxItemId: e.target.value || null })}
-            className="h-7 rounded-md border border-input bg-transparent px-1 text-xs"
+            onValueChange={(v) => onUpdate({ taxItemId: v || null })}
           >
-            <option value="">No Tax</option>
-            {referenceData.taxItems.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.rate}%)
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-7 px-1 text-xs w-auto">
+              <SelectValue placeholder="No Tax">
+                {(() => {
+                  if (!item.taxItemId) return 'No Tax'
+                  const t = referenceData.taxItems.find((x) => x.id === item.taxItemId)
+                  return t ? `${t.name} (${t.rate}%)` : item.taxItemId
+                })()}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No Tax</SelectItem>
+              {referenceData.taxItems.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name} ({t.rate}%)
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </td>
       </>}
       <td className="px-2 py-2">

@@ -654,22 +654,32 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
           {item.type === 'discount' ? (
             '—'
           ) : (
-            <select
+            <Select
               value={item.taxItemId ?? ''}
-              onChange={(e) =>
+              onValueChange={(v) =>
                 handleUpdate(item, {
-                  taxItemId: e.target.value || null,
+                  taxItemId: v || null,
                 })
               }
-              className="h-7 rounded-md border border-input bg-transparent px-1.5 text-xs"
             >
-              <option value="">No Tax</option>
-              {referenceData.taxItems.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.rate}%)
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-7 px-1.5 text-xs w-auto">
+                <SelectValue placeholder="No Tax">
+                  {(() => {
+                    if (!item.taxItemId) return 'No Tax'
+                    const t = referenceData.taxItems.find((x) => x.id === item.taxItemId)
+                    return t ? `${t.name} (${t.rate}%)` : item.taxItemId
+                  })()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No Tax</SelectItem>
+                {referenceData.taxItems.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name} ({t.rate}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </td>
         <td className="px-3 py-2 text-sm">
