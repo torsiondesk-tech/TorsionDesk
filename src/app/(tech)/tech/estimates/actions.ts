@@ -224,6 +224,50 @@ export async function updateTechEstimateStatusAction(
 }
 
 /**
+ * PWA wrapper for updating estimate header fields (status, description, notes, dates, rating).
+ * Does NOT touch line items — safe to call without fetching existing items first.
+ */
+export async function updateTechEstimateMetaAction(
+  estimateId: string,
+  data: {
+    status?: string
+    description?: string | null
+    notes?: string | null
+    followUpDate?: string | null
+    expiryDate?: string | null
+    opportunityRating?: number | null
+  },
+): Promise<{ success: false; error: string } | { success: true }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { success: false, error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    const mod = (await import('@/app/(app)/estimates/actions')) as {
+      updateEstimateMetaAction?: (
+        orgId: string,
+        estimateId: string,
+        data: Record<string, unknown>,
+      ) => Promise<{ success?: boolean; error?: string }>
+    }
+    if (typeof mod.updateEstimateMetaAction !== 'function') {
+      return { success: false, error: 'Estimates are not available yet.' }
+    }
+    const result = await mod.updateEstimateMetaAction(orgId, estimateId, data)
+    if (result.error) return { success: false, error: result.error }
+    return { success: true }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    if (isPhase6Missing(err)) {
+      return { success: false, error: 'Estimates are not available yet.' }
+    }
+    logger.error('updateTechEstimateMetaAction', err)
+    return { success: false, error: message }
+  }
+}
+
+/**
  * PWA wrapper for listing estimates. Delegates to Phase 6 when present.
  */
 export async function listTechEstimatesAction(

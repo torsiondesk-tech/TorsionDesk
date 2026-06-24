@@ -1078,6 +1078,50 @@ export async function updateEstimateStatusAction(
   }
 }
 
+export async function updateEstimateMetaAction(
+  orgId: string,
+  estimateId: string,
+  data: {
+    status?: string
+    description?: string | null
+    notes?: string | null
+    followUpDate?: string | null
+    expiryDate?: string | null
+    opportunityRating?: number | null
+  },
+): Promise<{ success?: boolean; error?: string }> {
+  try {
+    await withTenant(orgId, async (tx) => {
+      const rows = await tx
+        .select({ id: estimates.id })
+        .from(estimates)
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+        .limit(1)
+      if (!rows[0]) throw new Error('Estimate not found or access denied')
+
+      await tx
+        .update(estimates)
+        .set({
+          ...(data.status !== undefined ? { status: data.status as 'estimate_requested' | 'estimate_provided' | 'estimate_accepted' | 'estimate_won' | 'estimate_lost' } : {}),
+          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...(data.notes !== undefined ? { notes: data.notes } : {}),
+          ...(data.followUpDate !== undefined ? { followUpDate: data.followUpDate || null } : {}),
+          ...(data.expiryDate !== undefined ? { expiryDate: data.expiryDate || null } : {}),
+          ...(data.opportunityRating !== undefined ? { opportunityRating: data.opportunityRating } : {}),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+    })
+
+    revalidatePath('/estimates')
+    revalidatePath(`/estimates/${estimateId}`)
+    return { success: true }
+  } catch (err) {
+    logger.error('updateEstimateMetaAction', err)
+    return { error: extractErrorMessage(err) || 'Could not update estimate.' }
+  }
+}
+
 export async function convertEstimateToJobAction(
   orgId: string,
   estimateId: string,
