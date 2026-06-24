@@ -3,6 +3,7 @@ import { withTenant } from '@/db/with-tenant'
 import {
   customers,
   jobs,
+  estimates,
   contacts,
   contactPhones,
   contactEmails,
@@ -13,7 +14,7 @@ import { formatPhone } from '@/lib/utils'
 
 export type GlobalSearchResult = {
   id: string
-  type: 'job' | 'customer' | 'contact' | 'phone' | 'email' | 'location' | 'equipment'
+  type: 'job' | 'estimate' | 'customer' | 'contact' | 'phone' | 'email' | 'location' | 'equipment'
   title: string
   subtitle: string
   href: string
@@ -30,6 +31,7 @@ export async function performGlobalSearch(
   return withTenant(orgId, async (tx) => {
     const [
       jobRows,
+      estimateRows,
       customerRows,
       contactRows,
       phoneRows,
@@ -51,6 +53,24 @@ export async function performGlobalSearch(
           and(
             eq(jobs.tenantId, orgId),
             sql`${jobs.jobNo}::text ILIKE ${term} OR ${jobs.description} ILIKE ${term} OR ${jobs.poNumber} ILIKE ${term}`,
+          ),
+        )
+        .limit(5),
+
+      // Estimates
+      tx
+        .select({
+          id: estimates.id,
+          estimateNo: estimates.estimateNo,
+          description: estimates.description,
+          customerName: customers.name,
+        })
+        .from(estimates)
+        .innerJoin(customers, eq(estimates.customerId, customers.id))
+        .where(
+          and(
+            eq(estimates.tenantId, orgId),
+            sql`${estimates.estimateNo}::text ILIKE ${term} OR ${estimates.description} ILIKE ${term} OR ${estimates.poNumber} ILIKE ${term}`,
           ),
         )
         .limit(5),
@@ -190,6 +210,16 @@ export async function performGlobalSearch(
         title: `JOB-${row.jobNo}`,
         subtitle: [row.customerName, row.description].filter(Boolean).join(' — '),
         href: `/jobs/${row.id}`,
+      })
+    }
+
+    for (const row of estimateRows) {
+      results.push({
+        id: row.id,
+        type: 'estimate',
+        title: `EST-${row.estimateNo}`,
+        subtitle: [row.customerName, row.description].filter(Boolean).join(' — '),
+        href: `/estimates/${row.id}`,
       })
     }
 

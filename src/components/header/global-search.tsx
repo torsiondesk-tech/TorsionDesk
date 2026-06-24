@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Search,
   Briefcase,
+  ClipboardList,
   User,
   Phone,
   Mail,
@@ -23,6 +24,7 @@ type SearchResult = Awaited<ReturnType<typeof globalSearchAction>>[number]
 
 const TYPE_ICONS = {
   job: Briefcase,
+  estimate: ClipboardList,
   customer: User,
   contact: User,
   phone: Phone,
@@ -33,6 +35,7 @@ const TYPE_ICONS = {
 
 const TYPE_LABELS: Record<string, string> = {
   job: 'Jobs',
+  estimate: 'Estimates',
   customer: 'Customers',
   contact: 'Contacts',
   phone: 'Phone Numbers',
