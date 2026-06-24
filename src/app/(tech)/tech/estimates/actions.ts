@@ -188,6 +188,42 @@ export async function convertEstimateToJobAction(
 }
 
 /**
+ * PWA wrapper for updating estimate status. Delegates to Phase 6 canonical action.
+ */
+export async function updateTechEstimateStatusAction(
+  estimateId: string,
+  newStatus: string,
+): Promise<{ success: false; error: string } | { success: true }> {
+  const { orgId } = await auth()
+  if (!orgId) {
+    return { success: false, error: 'No active organization. Please sign in to your workspace.' }
+  }
+
+  try {
+    const mod = (await import('@/app/(app)/estimates/actions')) as {
+      updateEstimateStatusAction?: (
+        orgId: string,
+        estimateId: string,
+        newStatus: string,
+      ) => Promise<{ success?: boolean; error?: string }>
+    }
+    if (typeof mod.updateEstimateStatusAction !== 'function') {
+      return { success: false, error: 'Estimates are not available yet.' }
+    }
+    const result = await mod.updateEstimateStatusAction(orgId, estimateId, newStatus)
+    if (result.error) return { success: false, error: result.error }
+    return { success: true }
+  } catch (err) {
+    const message = extractErrorMessage(err)
+    if (isPhase6Missing(err)) {
+      return { success: false, error: 'Estimates are not available yet.' }
+    }
+    logger.error('updateTechEstimateStatusAction', err)
+    return { success: false, error: message }
+  }
+}
+
+/**
  * PWA wrapper for listing estimates. Delegates to Phase 6 when present.
  */
 export async function listTechEstimatesAction(

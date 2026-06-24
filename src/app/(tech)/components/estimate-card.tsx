@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import type { CachedEstimate } from '@/app/(tech)/lib/dexie'
 
 interface EstimateCardProps {
@@ -29,7 +30,7 @@ export function EstimateCard({ estimate }: EstimateCardProps) {
               </p>
               <p className="text-sm text-muted-foreground">{formatMoney(estimate.value)}</p>
             </div>
-            <Badge variant="secondary">{estimate.status}</Badge>
+            <Badge variant={estimateStatusBadgeVariant(estimate.status)}>{estimateStatusLabel(estimate.status)}</Badge>
           </div>
         </CardContent>
       </Card>

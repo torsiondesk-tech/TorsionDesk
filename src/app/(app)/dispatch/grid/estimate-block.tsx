@@ -3,7 +3,7 @@
 import { useRef, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { Badge } from '@/components/ui/badge'
-import { statusBadgeVariant, statusLabel } from '@/lib/jobs/transitions'
+import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { cn } from '@/lib/utils'
 import type { WeekEstimate } from '../actions'
 
@@ -74,8 +74,8 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
         <span className="font-semibold tabular-nums">
           #{`EST-${estimate.estimateNo}`}
         </span>
-        <Badge variant={statusBadgeVariant(estimate.status)} className="text-[10px] h-4 px-1">
-          {statusLabel(estimate.status)}
+        <Badge variant={estimateStatusBadgeVariant(estimate.status)} className="text-[10px] h-4 px-1">
+          {estimateStatusLabel(estimate.status)}
         </Badge>
       </div>
       <div className="truncate font-medium">{estimate.customerName}</div>

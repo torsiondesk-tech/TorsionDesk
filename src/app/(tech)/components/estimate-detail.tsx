@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ClipboardList } from 'lucide-react'
+import { ArrowLeft, ClipboardList, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { useOnline } from '@/app/(tech)/lib/use-online'
 import { useTechEstimate, usePendingEstimateConversion } from '@/app/(tech)/lib/use-tech-data'
 import { enqueueOutboxItem, flushOutbox } from '@/app/(tech)/lib/sync'
 import { convertEstimateToJobAction } from '@/app/(tech)/tech/estimates/actions'
+import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { toast } from 'sonner'
 
 interface EstimateDetailProps {
@@ -75,22 +76,32 @@ export function EstimateDetail({ orgId, userId, estimateId }: EstimateDetailProp
 
   return (
     <div className="h-full overflow-y-auto overscroll-y-contain flex flex-col gap-4 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
-      <Link
-        href="/tech/estimates"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        Back
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/tech/estimates"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back
+        </Link>
+        <Link href={`/tech/estimates/${estimateId}/edit`}>
+          <Button variant="outline" size="sm" type="button">
+            <Pencil className="size-3.5 mr-1" aria-hidden="true" />
+            Edit
+          </Button>
+        </Link>
+      </div>
 
       <Card className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">Estimate</p>
+            <p className="text-sm text-muted-foreground">EST-{estimate.estimateNo}</p>
             <h1 className="text-lg font-semibold truncate">
               {estimate.customerName || 'Unknown customer'}
             </h1>
-            <Badge variant="secondary" className="mt-1">{estimate.status}</Badge>
+            <Badge variant={estimateStatusBadgeVariant(estimate.status)} className="mt-1">
+              {estimateStatusLabel(estimate.status)}
+            </Badge>
           </div>
           {pending > 0 && (
             <Badge variant="default">Conversion pending</Badge>
@@ -110,6 +121,12 @@ export function EstimateDetail({ orgId, userId, estimateId }: EstimateDetailProp
           <p>
             <span className="text-muted-foreground">Value:</span> {formatMoney(estimate.value)}
           </p>
+          {estimate.opportunityRating != null && (
+            <p>
+              <span className="text-muted-foreground">Rating:</span>{' '}
+              {'★'.repeat(estimate.opportunityRating)}{'☆'.repeat(5 - estimate.opportunityRating)}
+            </p>
+          )}
           <p>
             <span className="text-muted-foreground">Follow-up:</span>{' '}
             {estimate.followUpDate || '—'}
@@ -120,6 +137,10 @@ export function EstimateDetail({ orgId, userId, estimateId }: EstimateDetailProp
           </p>
           <p>
             <span className="text-muted-foreground">Notes:</span> {estimate.notes || '—'}
+          </p>
+          <p>
+            <span className="text-muted-foreground">Created:</span>{' '}
+            {estimate.createdAt ? new Date(estimate.createdAt).toLocaleDateString() : '—'}
           </p>
         </CardContent>
       </Card>

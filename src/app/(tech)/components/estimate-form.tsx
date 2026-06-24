@@ -644,6 +644,7 @@ export function EstimateForm({
 
     setSaving(true)
 
+    try {
     const hasNewContact = !contactId && (contactFirstName.trim() || contactLastName.trim())
     const input: CreateEstimateInput = {
       customerId: isNewCustomer ? undefined : customerId,
@@ -692,7 +693,7 @@ export function EstimateForm({
         return
       }
       toast.success('Estimate created')
-      router.push('/tech/estimates')
+      router.push(`/tech/estimates/${result.id}`)
     } else {
       await enqueueOutboxItem(orgId, {
         type: 'estimate_create',
@@ -702,8 +703,11 @@ export function EstimateForm({
       toast.info('Queued estimate — will sync when online')
       router.push('/tech/estimates')
     }
-
-    setSaving(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create estimate')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const totalCents = computeTotalCents(lineItems)
