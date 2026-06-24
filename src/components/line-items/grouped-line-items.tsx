@@ -539,6 +539,22 @@ function GroupSection({
                         search.setResults([])
                       }}
                       onCreateNew={() => openCreateCatalog('product', search.query, 'add')}
+                      onAddCustom={(q) => {
+                        onAddItem({
+                          id: crypto.randomUUID(),
+                          type: 'product',
+                          refId: null,
+                          title: q,
+                          description: '',
+                          qty: '1',
+                          rate: '0',
+                          cost: '0',
+                          taxItemId: null,
+                          groupId: group.id === 'ungrouped' ? null : group.id,
+                        })
+                        search.setQuery('')
+                        search.setResults([])
+                      }}
                     />
                     <SearchDropdown
                       kind="service"
@@ -565,6 +581,22 @@ function GroupSection({
                         search.setResults([])
                       }}
                       onCreateNew={() => openCreateCatalog('service', search.query, 'add')}
+                      onAddCustom={(q) => {
+                        onAddItem({
+                          id: crypto.randomUUID(),
+                          type: 'service',
+                          refId: null,
+                          title: q,
+                          description: '',
+                          qty: '1',
+                          rate: '0',
+                          cost: '0',
+                          taxItemId: null,
+                          groupId: group.id === 'ungrouped' ? null : group.id,
+                        })
+                        search.setQuery('')
+                        search.setResults([])
+                      }}
                     />
                   </div>
                   <DialogFooter>
@@ -711,6 +743,11 @@ function EditRow({
                   search.setResults([])
                 }}
                 onCreateNew={() => onOpenCreateCatalog(draft.type as 'product' | 'service', draft.title ?? '', 'edit')}
+                onAddCustom={(q) => {
+                  setDraft((d) => ({ ...d, title: q, refId: null }))
+                  search.setQuery(q)
+                  search.setResults([])
+                }}
               />
             ) : (
               <Input
@@ -856,6 +893,14 @@ function AddRow({
                     search.setResults([])
                   }}
                   onCreateNew={() => onOpenCreateCatalog(type as 'product' | 'service', title, 'add')}
+                  onAddCustom={(q) => {
+                    setTitle(q)
+                    setDescription('')
+                    setRate('')
+                    setCost('')
+                    search.setQuery(q)
+                    search.setResults([])
+                  }}
                 />
               ) : (
                 <Input

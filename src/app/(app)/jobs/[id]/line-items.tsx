@@ -108,6 +108,7 @@ export function SearchDropdown({
   onQueryChange,
   onSelect,
   onCreateNew,
+  onAddCustom,
   kind,
 }: {
   query: string
@@ -116,6 +117,7 @@ export function SearchDropdown({
   onQueryChange: (q: string) => void
   onSelect: (r: SearchResult) => void
   onCreateNew: () => void
+  onAddCustom?: (q: string) => void
   kind: 'product' | 'service'
 }) {
   return (
@@ -157,6 +159,16 @@ export function SearchDropdown({
             <ComboboxEmpty>
               <div className="flex flex-col gap-2">
                 <span>No {kind}s found.</span>
+                {onAddCustom && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0"
+                    onClick={() => onAddCustom(query)}
+                  >
+                    + Add &ldquo;{query}&rdquo; as custom {kind}
+                  </Button>
+                )}
                 <Button
                   variant="link"
                   size="sm"
@@ -503,6 +515,11 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                       onCreateNew={() =>
                         openCreateCatalog(e.type as 'product' | 'service', 'inline-edit', e.title)
                       }
+                      onAddCustom={(q) => {
+                        setInlineEdit({ ...e, title: q, refId: null })
+                        inlineEditSearch.setQuery(q)
+                        inlineEditSearch.setResults([])
+                      }}
                     />
                   </div>
                 ) : (
@@ -710,6 +727,11 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                     onCreateNew={() =>
                       openCreateCatalog(a.type as 'product' | 'service', 'inline-add', a.title)
                     }
+                    onAddCustom={(q) => {
+                      setInlineAdd({ ...a, title: q, refId: null })
+                      inlineAddSearch.setQuery(q)
+                      inlineAddSearch.setResults([])
+                    }}
                   />
                 )}
               </div>
@@ -884,6 +906,15 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                       onCreateNew={() =>
                         openCreateCatalog('product', 'dialog', addTitle)
                       }
+                      onAddCustom={(q) => {
+                        setAddTitle(q)
+                        setAddDescription('')
+                        setAddRate('')
+                        setAddCost('')
+                        setSelectedRefId(null)
+                        dialogSearch.setQuery(q)
+                        dialogSearch.setResults([])
+                      }}
                     />
                   </div>
                 </TabsContent>
@@ -912,6 +943,15 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                       onCreateNew={() =>
                         openCreateCatalog('service', 'dialog', addTitle)
                       }
+                      onAddCustom={(q) => {
+                        setAddTitle(q)
+                        setAddDescription('')
+                        setAddRate('')
+                        setAddCost('')
+                        setSelectedRefId(null)
+                        dialogSearch.setQuery(q)
+                        dialogSearch.setResults([])
+                      }}
                     />
                   </div>
                 </TabsContent>
