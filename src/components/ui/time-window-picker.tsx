@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface TimeWindowPickerProps {
@@ -17,20 +16,14 @@ export interface TimeWindowPickerProps {
   className?: string
 }
 
-const PRESETS = [
-  { label: '8–10 AM', start: '08:00', end: '10:00' },
-  { label: '10–12 PM', start: '10:00', end: '12:00' },
-  { label: '12–2 PM', start: '12:00', end: '14:00' },
-  { label: '2–4 PM', start: '14:00', end: '16:00' },
-  { label: '4–6 PM', start: '16:00', end: '18:00' },
-]
-
-// 7 AM through 8 PM
+// 7 AM – 8 PM in 24h
 const HOURS_24 = Array.from({ length: 14 }, (_, i) => i + 7)
 const MINUTES = ['00', '15', '30', '45']
 
-function to12h(h: number) {
-  return { display: `${h === 0 ? 12 : h > 12 ? h - 12 : h} ${h >= 12 ? 'PM' : 'AM'}` }
+function hourLabel(h: number) {
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${h12} ${ampm}`
 }
 
 function parseHM(val: string): { h: number; m: string } {
@@ -39,15 +32,17 @@ function parseHM(val: string): { h: number; m: string } {
   const h = Math.max(7, Math.min(20, parseInt(hStr, 10) || 8))
   const mNum = parseInt(mStr, 10) || 0
   const mSnap = String(Math.round(mNum / 15) * 15 % 60).padStart(2, '0')
-  const m = MINUTES.includes(mSnap) ? mSnap : '00'
-  return { h, m }
+  return { h, m: MINUTES.includes(mSnap) ? mSnap : '00' }
 }
 
 function fmtHM(h: number, m: string) {
   return `${String(h).padStart(2, '0')}:${m}`
 }
 
-function TimeSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+const selectCls =
+  'rounded-md border border-input bg-background px-2 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+
+function TimeDropdowns({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   const { h, m } = parseHM(value)
   return (
     <div className="flex flex-col gap-1">
@@ -56,16 +51,16 @@ function TimeSelect({ value, onChange, label }: { value: string; onChange: (v: s
         <select
           value={h}
           onChange={(e) => onChange(fmtHM(parseInt(e.target.value), m))}
-          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className={selectCls}
         >
           {HOURS_24.map((hour) => (
-            <option key={hour} value={hour}>{to12h(hour).display}</option>
+            <option key={hour} value={hour}>{hourLabel(hour)}</option>
           ))}
         </select>
         <select
           value={m}
           onChange={(e) => onChange(fmtHM(h, e.target.value))}
-          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          className={selectCls}
         >
           {MINUTES.map((min) => (
             <option key={min} value={min}>:{min}</option>
@@ -88,72 +83,18 @@ export function TimeWindowPicker({
   error,
   className,
 }: TimeWindowPickerProps) {
-  const activePreset = PRESETS.find((p) => p.start === startValue && p.end === endValue) ?? null
-  const initialShowCustom = !activePreset && Boolean(startValue || endValue)
-  const [showCustom, setShowCustom] = useState(initialShowCustom)
-
-  function selectPreset(preset: (typeof PRESETS)[0]) {
-    onStartChange(preset.start)
-    onEndChange(preset.end)
-    setShowCustom(false)
-  }
-
-  function openCustom() {
-    if (!startValue) onStartChange('08:00')
-    if (!endValue) onEndChange('10:00')
-    setShowCustom(true)
-  }
-
-  const customActive = showCustom && !activePreset
-
   return (
     <div className={cn('space-y-2', className)}>
-      <div className="flex flex-wrap gap-1.5">
-        {PRESETS.map((preset) => (
-          <button
-            key={preset.label}
-            type="button"
-            onClick={() => selectPreset(preset)}
-            className={cn(
-              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-              activePreset?.label === preset.label
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground',
-            )}
-          >
-            {preset.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={openCustom}
-          className={cn(
-            'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-            customActive
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground',
-          )}
-        >
-          Custom
-        </button>
+      <div className="flex flex-wrap items-end gap-3">
+        <TimeDropdowns value={startValue} onChange={onStartChange} label="Start" />
+        <span className="mb-2 text-sm text-muted-foreground">→</span>
+        <TimeDropdowns value={endValue} onChange={onEndChange} label="End" />
       </div>
-
-      {(showCustom || initialShowCustom) && (
-        <div className="flex items-end gap-3">
-          <TimeSelect value={startValue} onChange={onStartChange} label="Start" />
-          <span className="mb-2 text-sm text-muted-foreground">→</span>
-          <TimeSelect value={endValue} onChange={onEndChange} label="End" />
-        </div>
-      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      {startName && (
-        <input type="hidden" id={startId} name={startName} value={startValue} />
-      )}
-      {endName && (
-        <input type="hidden" id={endId} name={endName} value={endValue} />
-      )}
+      {startName && <input type="hidden" id={startId} name={startName} value={startValue} />}
+      {endName && <input type="hidden" id={endId} name={endName} value={endValue} />}
     </div>
   )
 }
