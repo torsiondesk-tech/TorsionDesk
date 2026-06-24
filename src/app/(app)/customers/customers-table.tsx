@@ -101,7 +101,7 @@ export function CustomersTable({
   pageSize,
 }: CustomersTableProps) {
   const [q] = useQueryState('q')
-  const [, setPage] = useQueryState('page')
+  const [, setPage] = useQueryState('page', { shallow: false })
   const [isPending, startTransition] = useTransition()
 
   const table = useReactTable({
