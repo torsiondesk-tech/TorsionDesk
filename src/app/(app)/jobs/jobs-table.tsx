@@ -225,12 +225,28 @@ export function JobsTable({ rows, pageCount, page, pageSize, bucket }: JobsTable
                     <p className="text-muted-foreground">
                       {bucket === 'advanced_search'
                         ? 'No jobs match your filters.'
-                        : 'No open jobs'}
+                        : bucket === 'my_additional_visits'
+                          ? 'No additional visits found.'
+                          : bucket === 'my_jobs'
+                            ? 'No jobs assigned to you.'
+                            : bucket === 'completed_ready_to_close'
+                              ? 'No jobs ready to close.'
+                              : bucket === 'to_be_invoiced'
+                                ? 'No jobs pending invoicing.'
+                                : 'No open jobs'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {bucket === 'advanced_search'
                         ? 'Try adjusting or clearing your filters.'
-                        : 'Jobs you create will appear here. Create your first job to get started.'}
+                        : bucket === 'my_additional_visits'
+                          ? 'Additional visits assigned to you will appear here.'
+                          : bucket === 'my_jobs'
+                            ? 'Jobs assigned to you will appear here.'
+                            : bucket === 'completed_ready_to_close'
+                              ? 'Jobs marked complete will appear here when ready to close.'
+                              : bucket === 'to_be_invoiced'
+                                ? 'Completed jobs that need invoicing will appear here.'
+                                : 'Jobs you create will appear here. Create your first job to get started.'}
                     </p>
                     <Link href="/jobs/new">
                       <Button variant="outline" size="sm">Create Job</Button>
