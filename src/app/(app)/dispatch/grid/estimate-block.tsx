@@ -2,22 +2,27 @@
 
 import { useRef, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { Badge } from '@/components/ui/badge'
-import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
+import { estimateStatusLabel } from '@/lib/estimates/status'
 import { cn } from '@/lib/utils'
 import type { WeekEstimate } from '../actions'
 
-function blockColor(status: string): string {
-  if (status === 'cancelled') return 'bg-muted text-muted-foreground opacity-60 border-muted'
-  if (
-    ['delayed', 'on_the_way', 'on_site', 'started', 'paused', 'resumed', 'partially_completed', 'completed'].includes(
-      status,
-    )
-  )
-    return 'bg-blue-50 text-blue-800 border-blue-200 hover:border-blue-300'
-  if (['invoiced', 'paid_in_full', 'job_closed'].includes(status))
-    return 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:border-emerald-300'
-  return 'bg-slate-50 text-slate-800 border-slate-200 hover:border-slate-300'
+type BadgeStyle = { bg: string; text: string; border: string }
+
+function statusBadgeStyle(status: string): BadgeStyle {
+  switch (status) {
+    case 'estimate_requested':
+      return { bg: '#d1d5db', text: '#1f2937', border: '#9ca3af' } // gray
+    case 'estimate_provided':
+      return { bg: '#bfdbfe', text: '#1e3a8a', border: '#60a5fa' } // blue
+    case 'estimate_accepted':
+      return { bg: '#99f6e4', text: '#134e4a', border: '#2dd4bf' } // teal
+    case 'estimate_won':
+      return { bg: '#bbf7d0', text: '#14532d', border: '#4ade80' } // green
+    case 'estimate_lost':
+      return { bg: '#fecaca', text: '#7f1d1d', border: '#f87171' } // red
+    default:
+      return { bg: '#d1d5db', text: '#1f2937', border: '#9ca3af' }
+  }
 }
 
 function formatWindow(start: Date | string | null, end: Date | string | null): string {
@@ -57,6 +62,8 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
     onClick?.(estimate)
   }
 
+  const badge = statusBadgeStyle(estimate.status)
+
   return (
     <div
       ref={setNodeRef}
@@ -72,11 +79,14 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
     >
       <div className="flex items-center justify-between gap-1">
         <span className="font-semibold tabular-nums">
-          #{`EST-${estimate.estimateNo}`}
+          EST-{estimate.estimateNo}
         </span>
-        <Badge variant={estimateStatusBadgeVariant(estimate.status)} className="text-[10px] h-4 px-1">
+        <span
+          className="inline-flex h-4 shrink-0 items-center rounded-full border px-1.5 text-[10px] font-semibold whitespace-nowrap leading-none"
+          style={{ backgroundColor: badge.bg, color: badge.text, borderColor: badge.border }}
+        >
           {estimateStatusLabel(estimate.status)}
-        </Badge>
+        </span>
       </div>
       <div className="truncate font-medium">{estimate.customerName}</div>
       {estimate.address && (
