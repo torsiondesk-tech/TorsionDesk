@@ -1575,6 +1575,35 @@ export const statusColors = pgTable(
 export type StatusColor = typeof statusColors.$inferSelect
 export type NewStatusColor = typeof statusColors.$inferInsert
 
+// ── Estimate Status Colors (per-tenant estimate card customization) ───────────
+
+export const estimateStatusColors = pgTable(
+  'estimate_status_colors',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    status: estimateStatus('status').notNull(),
+    bgColor: text('bg_color').notNull().default('#f8fafc'),
+    textColor: text('text_color').notNull().default('#1e293b'),
+    borderColor: text('border_color').notNull().default('#e2e8f0'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('estimate_status_colors_tenant_status_unique').on(t.tenantId, t.status),
+    unique('estimate_status_colors_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('estimate_status_colors_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type EstimateStatusColor = typeof estimateStatusColors.$inferSelect
+export type NewEstimateStatusColor = typeof estimateStatusColors.$inferInsert
+
 // ── Team Profiles (per-tenant member name/contact overrides) ────────────────
 
 export const teamProfiles = pgTable(

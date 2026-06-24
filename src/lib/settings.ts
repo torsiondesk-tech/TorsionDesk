@@ -7,9 +7,11 @@ import {
   jobSources,
   referralSources,
   statusColors,
+  estimateStatusColors,
   salesReps,
 } from '@/db/schema'
 import type { JobStatusValue } from '@/lib/jobs/transitions'
+import type { EstimateStatusValue } from '@/lib/estimates/status'
 import {
   createReferralSource as _createReferralSource,
   listReferralSources as _listReferralSources,
@@ -347,6 +349,82 @@ export async function updateStatusColor(
       .update(statusColors)
       .set({ ...input, updatedAt: new Date() })
       .where(and(eq(statusColors.tenantId, orgId), eq(statusColors.id, id)))
+  })
+}
+
+// ── Estimate Status Colors (per-tenant estimate card customization) ───────────
+
+const DEFAULT_ESTIMATE_STATUS_COLORS: Record<
+  EstimateStatusValue,
+  { bgColor: string; textColor: string; borderColor: string }
+> = {
+  estimate_requested: { bgColor: '#d1d5db', textColor: '#1f2937', borderColor: '#9ca3af' },
+  estimate_provided:  { bgColor: '#bfdbfe', textColor: '#1e3a8a', borderColor: '#60a5fa' },
+  estimate_accepted:  { bgColor: '#99f6e4', textColor: '#134e4a', borderColor: '#2dd4bf' },
+  estimate_won:       { bgColor: '#bbf7d0', textColor: '#14532d', borderColor: '#4ade80' },
+  estimate_lost:      { bgColor: '#fecaca', textColor: '#7f1d1d', borderColor: '#f87171' },
+}
+
+export type EstimateStatusColorEntry = {
+  id: string
+  status: EstimateStatusValue
+  bgColor: string
+  textColor: string
+  borderColor: string
+}
+
+export async function listEstimateStatusColors(orgId: string): Promise<EstimateStatusColorEntry[]> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        id: estimateStatusColors.id,
+        status: estimateStatusColors.status,
+        bgColor: estimateStatusColors.bgColor,
+        textColor: estimateStatusColors.textColor,
+        borderColor: estimateStatusColors.borderColor,
+      })
+      .from(estimateStatusColors)
+      .where(eq(estimateStatusColors.tenantId, orgId))
+      .orderBy(estimateStatusColors.status)
+
+    if (rows.length === 0) {
+      const entries = Object.entries(DEFAULT_ESTIMATE_STATUS_COLORS).map(([status, colors]) => ({
+        tenantId: orgId,
+        status: status as EstimateStatusValue,
+        ...colors,
+      }))
+
+      await tx.insert(estimateStatusColors).values(entries)
+
+      const seeded = await tx
+        .select({
+          id: estimateStatusColors.id,
+          status: estimateStatusColors.status,
+          bgColor: estimateStatusColors.bgColor,
+          textColor: estimateStatusColors.textColor,
+          borderColor: estimateStatusColors.borderColor,
+        })
+        .from(estimateStatusColors)
+        .where(eq(estimateStatusColors.tenantId, orgId))
+        .orderBy(estimateStatusColors.status)
+
+      return seeded
+    }
+
+    return rows
+  })
+}
+
+export async function updateEstimateStatusColor(
+  orgId: string,
+  id: string,
+  input: { bgColor: string; textColor: string; borderColor: string },
+): Promise<void> {
+  return withTenant(orgId, async (tx) => {
+    await tx
+      .update(estimateStatusColors)
+      .set({ ...input, updatedAt: new Date() })
+      .where(and(eq(estimateStatusColors.tenantId, orgId), eq(estimateStatusColors.id, id)))
   })
 }
 

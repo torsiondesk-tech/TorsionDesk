@@ -29,6 +29,7 @@ import { EstimatePopup } from './popup/estimate-popup'
 import { MobileDispatch } from './mobile-view'
 import { useRealtimeSync } from './hooks/use-realtime-sync'
 import { StatusColorProvider, type StatusColorMap } from './contexts/status-color-context'
+import { EstimateStatusColorProvider, type EstimateStatusColorMap } from './contexts/estimate-status-color-context'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
 
@@ -91,6 +92,7 @@ interface DispatchBoardProps {
   weekStart: string
   weekEnd: string
   colorMap: StatusColorMap
+  estimateColorMap: EstimateStatusColorMap
 }
 
 export function DispatchBoard({
@@ -103,6 +105,7 @@ export function DispatchBoard({
   weekStart,
   weekEnd,
   colorMap,
+  estimateColorMap,
 }: DispatchBoardProps) {
   const [localJobs, setLocalJobs] = useState<WeekJob[]>(() => jobs.map(parseWeekJob))
   const [revertJobs, setRevertJobs] = useState<WeekJob[]>(() => jobs.map(parseWeekJob))
@@ -471,6 +474,7 @@ export function DispatchBoard({
 
   return (
     <>
+      <EstimateStatusColorProvider colors={estimateColorMap}>
       <StatusColorProvider colors={colorMap}>
 
         {/* ── Mobile layout (< lg): tap-friendly list, no drag-and-drop ── */}
@@ -537,6 +541,7 @@ export function DispatchBoard({
         </DndContext>
 
       </StatusColorProvider>
+      </EstimateStatusColorProvider>
       <DispatchPopup
         job={popupJob}
         techs={technicians}

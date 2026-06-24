@@ -1,3 +1,10 @@
+export type EstimateStatusValue =
+  | 'estimate_requested'
+  | 'estimate_provided'
+  | 'estimate_accepted'
+  | 'estimate_won'
+  | 'estimate_lost'
+
 export function estimateStatusBadgeVariant(status: string): 'outline' | 'default' | 'secondary' | 'destructive' {
   switch (status) {
     case 'estimate_requested':

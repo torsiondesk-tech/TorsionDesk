@@ -40,6 +40,7 @@ const TABS: SettingsTab[] = [
   { label: 'Tax Items', href: '/settings/tax-items' },
   { label: 'Lookup Lists', href: '/settings/lookup-lists' },
   { label: 'Status Colors', href: '/settings/status-colors' },
+  { label: 'Estimate Colors', href: '/settings/estimate-status-colors' },
 ]
 
 export function SettingsTabs() {

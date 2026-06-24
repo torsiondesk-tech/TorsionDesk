@@ -3,27 +3,9 @@
 import { useRef, useEffect } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { estimateStatusLabel } from '@/lib/estimates/status'
+import { useEstimateStatusColor } from '../contexts/estimate-status-color-context'
 import { cn } from '@/lib/utils'
 import type { WeekEstimate } from '../actions'
-
-type BadgeStyle = { bg: string; text: string; border: string }
-
-function statusBadgeStyle(status: string): BadgeStyle {
-  switch (status) {
-    case 'estimate_requested':
-      return { bg: '#d1d5db', text: '#1f2937', border: '#9ca3af' } // gray
-    case 'estimate_provided':
-      return { bg: '#bfdbfe', text: '#1e3a8a', border: '#60a5fa' } // blue
-    case 'estimate_accepted':
-      return { bg: '#99f6e4', text: '#134e4a', border: '#2dd4bf' } // teal
-    case 'estimate_won':
-      return { bg: '#bbf7d0', text: '#14532d', border: '#4ade80' } // green
-    case 'estimate_lost':
-      return { bg: '#fecaca', text: '#7f1d1d', border: '#f87171' } // red
-    default:
-      return { bg: '#d1d5db', text: '#1f2937', border: '#9ca3af' }
-  }
-}
 
 function formatWindow(start: Date | string | null, end: Date | string | null): string {
   if (!start && !end) return ''
@@ -49,6 +31,8 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
     data: { estimate, type: 'estimate' },
   })
 
+  const color = useEstimateStatusColor(estimate.status)
+
   const wasDragged = useRef(false)
   useEffect(() => {
     if (isDragging) wasDragged.current = true
@@ -62,8 +46,6 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
     onClick?.(estimate)
   }
 
-  const badge = statusBadgeStyle(estimate.status)
-
   return (
     <div
       ref={setNodeRef}
@@ -72,10 +54,14 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
       onClick={handleClick}
       className={cn(
         'min-h-[104px] cursor-grab rounded-md border p-2 text-xs shadow-sm active:cursor-grabbing transition-all',
-        'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-300',
         isDragging && !isOverlay && 'opacity-30',
         isOverlay && 'shadow-lg rotate-2 scale-105 cursor-grabbing',
       )}
+      style={{
+        backgroundColor: color.bgColor,
+        color: color.textColor,
+        borderColor: color.borderColor,
+      }}
     >
       <div className="flex items-center justify-between gap-1">
         <span className="font-semibold tabular-nums">
@@ -83,7 +69,7 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
         </span>
         <span
           className="inline-flex h-4 shrink-0 items-center rounded-full border px-1.5 text-[10px] font-semibold whitespace-nowrap leading-none"
-          style={{ backgroundColor: badge.bg, color: badge.text, borderColor: badge.border }}
+          style={{ backgroundColor: color.bgColor, color: color.textColor, borderColor: color.borderColor, filter: 'brightness(0.88)' }}
         >
           {estimateStatusLabel(estimate.status)}
         </span>
