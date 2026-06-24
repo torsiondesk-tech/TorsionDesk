@@ -877,6 +877,68 @@ export async function getJobPopupData(
   })
 }
 
+/** Fetch estimates that are unassigned (no tech) or unscheduled (no onSiteDate),
+ *  excluding terminal statuses (won / lost). */
+export async function getPoolEstimates(orgId: string): Promise<WeekEstimate[]> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        id: estimates.id,
+        estimateNo: estimates.estimateNo,
+        status: estimates.status,
+        onSiteDate: estimates.onSiteDate,
+        customerName: customers.name,
+        address: sql<string | null>`COALESCE(${serviceLocations.addressLine1}, '')`,
+        arrivalWindowStart: estimates.arrivalWindowStart,
+        arrivalWindowEnd: estimates.arrivalWindowEnd,
+        description: estimates.description,
+        techId: estimateAssignees.userId,
+      })
+      .from(estimates)
+      .leftJoin(customers, eq(customers.id, estimates.customerId))
+      .leftJoin(serviceLocations, eq(serviceLocations.id, estimates.serviceLocationId))
+      .leftJoin(estimateAssignees, eq(estimateAssignees.estimateId, estimates.id))
+      .where(
+        and(
+          eq(estimates.tenantId, orgId),
+          sql`${estimates.status} NOT IN ('estimate_won', 'estimate_lost')`,
+          or(
+            isNull(estimates.onSiteDate),
+            sql`NOT EXISTS (
+              SELECT 1 FROM ${estimateAssignees}
+              WHERE ${estimateAssignees.estimateId} = ${estimates.id}
+              AND ${estimateAssignees.tenantId} = ${orgId}
+            )`,
+          ),
+        ),
+      )
+      .orderBy(estimates.createdAt)
+
+    const map = new Map<string, WeekEstimate>()
+    for (const r of rows) {
+      const existing = map.get(r.id)
+      if (existing) {
+        if (r.techId) existing.techIds.push(r.techId)
+      } else {
+        map.set(r.id, {
+          id: r.id,
+          estimateNo: r.estimateNo,
+          status: r.status,
+          startDate: r.onSiteDate,
+          endDate: null,
+          customerName: r.customerName ?? '',
+          address: r.address,
+          arrivalWindowStart: r.arrivalWindowStart,
+          arrivalWindowEnd: r.arrivalWindowEnd,
+          description: r.description,
+          techIds: r.techId ? [r.techId] : [],
+        })
+      }
+    }
+    return Array.from(map.values())
+  })
+}
+
 export type PoolCounts = {
   unscheduled: number
   unassigned: number

@@ -20,6 +20,7 @@ import { WeekNavigator } from './components/week-navigator'
 import { WeekGrid } from './grid/week-grid'
 import { JobBlock } from './grid/job-block'
 import { JobPool } from './pool/job-pool'
+import { EstimatePool } from './pool/estimate-pool'
 import { PoolCardContent } from './pool/pool-card'
 import { DispatchPopup } from './popup/dispatch-popup'
 import { MobileDispatch } from './mobile-view'
@@ -81,6 +82,7 @@ interface DispatchBoardProps {
   technicians: Technician[]
   jobs: WeekJob[]
   estimates: WeekEstimate[]
+  poolEstimates: WeekEstimate[]
   poolJobs: WeekJob[]
   counts: PoolCounts
   weekStart: string
@@ -92,6 +94,7 @@ export function DispatchBoard({
   technicians,
   jobs,
   estimates,
+  poolEstimates,
   poolJobs,
   counts,
   weekStart,
@@ -101,6 +104,7 @@ export function DispatchBoard({
   const [localJobs, setLocalJobs] = useState<WeekJob[]>(() => jobs.map(parseWeekJob))
   const [revertJobs, setRevertJobs] = useState<WeekJob[]>(() => jobs.map(parseWeekJob))
   const [localEstimates, setLocalEstimates] = useState<WeekEstimate[]>(() => estimates.map(parseWeekEstimate))
+  const [localPoolEstimates, setLocalPoolEstimates] = useState<WeekEstimate[]>(() => poolEstimates.map(parseWeekEstimate))
   const [localPoolJobs, setLocalPoolJobs] = useState<WeekJob[]>(() => poolJobs.map(parseWeekJob))
   const [revertPoolJobs, setRevertPoolJobs] = useState<WeekJob[]>(() => poolJobs.map(parseWeekJob))
   const [activeJob, setActiveJob] = useState<WeekJob | null>(null)
@@ -175,9 +179,10 @@ export function DispatchBoard({
     setLocalJobs(jobs.map(parseWeekJob))
     setRevertJobs(jobs.map(parseWeekJob))
     setLocalEstimates(estimates.map(parseWeekEstimate))
+    setLocalPoolEstimates(poolEstimates.map(parseWeekEstimate))
     setLocalPoolJobs(poolJobs.map(parseWeekJob))
     setRevertPoolJobs(poolJobs.map(parseWeekJob))
-  }, [jobs, estimates, poolJobs])
+  }, [jobs, estimates, poolEstimates, poolJobs])
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -394,6 +399,9 @@ export function DispatchBoard({
             </div>
 
             <JobPool jobs={localPoolJobs} counts={counts} onJobClick={openPopup} />
+            {localPoolEstimates.length > 0 && (
+              <EstimatePool estimates={localPoolEstimates} />
+            )}
           </div>
 
           <DragOverlay>
