@@ -233,9 +233,20 @@ export async function updateTechEstimateMetaAction(
     status?: string
     description?: string | null
     notes?: string | null
+    internalNotes?: string | null
+    notesForTechs?: string | null
     followUpDate?: string | null
     expiryDate?: string | null
+    onSiteDate?: string | null
+    arrivalWindowStart?: string | null
+    arrivalWindowEnd?: string | null
     opportunityRating?: number | null
+    categoryId?: string | null
+    serviceLocationId?: string | null
+    contactId?: string | null
+    poNumber?: string | null
+    referralSourceId?: string | null
+    assignedAgentId?: string | null
   },
 ): Promise<{ success: false; error: string } | { success: true }> {
   const { orgId } = await auth()

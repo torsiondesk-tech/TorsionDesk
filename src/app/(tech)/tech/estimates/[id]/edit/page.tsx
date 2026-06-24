@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useTechContext } from '@/app/(tech)/components/sync-provider'
-import { useTechEstimate } from '@/app/(tech)/lib/use-tech-data'
+import { useTechEstimate, useTechReferenceData, useTechLocations } from '@/app/(tech)/lib/use-tech-data'
 import { createTechDb } from '@/app/(tech)/lib/dexie'
 import { updateTechEstimateMetaAction } from '@/app/(tech)/tech/estimates/actions'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
@@ -32,6 +32,14 @@ const ESTIMATE_STATUSES = [
   'estimate_lost',
 ] as const
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-base font-semibold tracking-tight border-b pb-2 mt-2">
+      {children}
+    </h2>
+  )
+}
+
 export default function TechEstimateEditPage() {
   const { orgId } = useTechContext()
   const params = useParams()
@@ -39,14 +47,28 @@ export default function TechEstimateEditPage() {
   const router = useRouter()
 
   const estimate = useTechEstimate(orgId, estimateId)
+  const referenceData = useTechReferenceData(orgId)
+  const liveLocations = useTechLocations(orgId, estimate?.customerId ?? '')
   const db = useMemo(() => createTechDb(orgId), [orgId])
 
-  const [status, setStatus] = useState<string | null>(null)
-  const [description, setDescription] = useState<string | null>(null)
-  const [notes, setNotes] = useState<string | null>(null)
-  const [followUpDate, setFollowUpDate] = useState<string | null>(null)
-  const [expiryDate, setExpiryDate] = useState<string | null>(null)
+  // All fields start undefined = use cached value; tech sets them to change
+  const [status, setStatus] = useState<string | undefined>(undefined)
+  const [description, setDescription] = useState<string | undefined>(undefined)
+  const [notesForTechs, setNotesForTechs] = useState<string | undefined>(undefined)
+  const [notes, setNotes] = useState<string | undefined>(undefined)
+  const [internalNotes, setInternalNotes] = useState<string | undefined>(undefined)
+  const [categoryId, setCategoryId] = useState<string | null | undefined>(undefined)
+  const [serviceLocationId, setServiceLocationId] = useState<string | null | undefined>(undefined)
+  const [contactId, setContactId] = useState<string | null | undefined>(undefined)
+  const [poNumber, setPoNumber] = useState<string | undefined>(undefined)
+  const [referralSourceId, setReferralSourceId] = useState<string | null | undefined>(undefined)
+  const [assignedAgentId, setAssignedAgentId] = useState<string | null | undefined>(undefined)
   const [opportunityRating, setOpportunityRating] = useState<number | null | undefined>(undefined)
+  const [followUpDate, setFollowUpDate] = useState<string | undefined>(undefined)
+  const [expiryDate, setExpiryDate] = useState<string | undefined>(undefined)
+  const [onSiteDate, setOnSiteDate] = useState<string | undefined>(undefined)
+  const [arrivalWindowStart, setArrivalWindowStart] = useState<string | undefined>(undefined)
+  const [arrivalWindowEnd, setArrivalWindowEnd] = useState<string | undefined>(undefined)
   const [saving, setSaving] = useState(false)
 
   if (estimate === undefined) {
@@ -68,59 +90,78 @@ export default function TechEstimateEditPage() {
     )
   }
 
-  const currentStatus = status ?? estimate.status
-  const currentDescription = description ?? estimate.description ?? ''
-  const currentNotes = notes ?? estimate.notes ?? ''
-  const currentFollowUpDate = followUpDate ?? estimate.followUpDate ?? ''
-  const currentExpiryDate = expiryDate ?? estimate.expiryDate ?? ''
-  const currentRating = opportunityRating === undefined ? estimate.opportunityRating : opportunityRating
+  // Resolve current values: local state takes priority, fall back to cached
+  const cur = {
+    status: status ?? estimate.status,
+    description: description ?? estimate.description ?? '',
+    notesForTechs: notesForTechs ?? estimate.notesForTechs ?? '',
+    notes: notes ?? estimate.notes ?? '',
+    internalNotes: internalNotes ?? estimate.internalNotes ?? '',
+    categoryId: categoryId === undefined ? estimate.categoryId : categoryId,
+    serviceLocationId: serviceLocationId === undefined ? estimate.serviceLocationId : serviceLocationId,
+    contactId: contactId === undefined ? estimate.contactId : contactId,
+    poNumber: poNumber ?? estimate.poNumber ?? '',
+    referralSourceId: referralSourceId === undefined ? estimate.referralSourceId : referralSourceId,
+    assignedAgentId: assignedAgentId === undefined ? estimate.assignedAgentId : assignedAgentId,
+    opportunityRating: opportunityRating === undefined ? estimate.opportunityRating : opportunityRating,
+    followUpDate: followUpDate ?? estimate.followUpDate ?? '',
+    expiryDate: expiryDate ?? estimate.expiryDate ?? '',
+    onSiteDate: onSiteDate ?? estimate.onSiteDate ?? '',
+    arrivalWindowStart: arrivalWindowStart ?? estimate.arrivalWindowStart ?? '',
+    arrivalWindowEnd: arrivalWindowEnd ?? estimate.arrivalWindowEnd ?? '',
+  }
+
+  const categories = referenceData?.jobCategories ?? []
+  const referralSources = referenceData?.referralSources ?? []
+  const salesReps = referenceData?.salesReps ?? []
+  const locations = liveLocations ?? []
 
   async function handleSave() {
-    if (!estimate) return
-
-    const nextStatus = status ?? estimate.status
-    const nextDescription = description ?? estimate.description ?? null
-    const nextNotes = notes ?? estimate.notes ?? null
-    const nextFollowUpDate = followUpDate ?? estimate.followUpDate ?? null
-    const nextExpiryDate = expiryDate ?? estimate.expiryDate ?? null
-    const nextRating = opportunityRating === undefined ? estimate.opportunityRating : opportunityRating
-
-    const unchanged =
-      nextStatus === estimate.status &&
-      nextDescription === (estimate.description ?? null) &&
-      nextNotes === (estimate.notes ?? null) &&
-      nextFollowUpDate === (estimate.followUpDate ?? null) &&
-      nextExpiryDate === (estimate.expiryDate ?? null) &&
-      nextRating === estimate.opportunityRating
-
-    if (unchanged) {
-      router.back()
-      return
-    }
-
     setSaving(true)
     try {
       const result = await updateTechEstimateMetaAction(estimateId, {
-        status: nextStatus,
-        description: nextDescription || null,
-        notes: nextNotes || null,
-        followUpDate: nextFollowUpDate || null,
-        expiryDate: nextExpiryDate || null,
-        opportunityRating: nextRating,
+        status: cur.status,
+        description: cur.description || null,
+        notesForTechs: cur.notesForTechs || null,
+        notes: cur.notes || null,
+        internalNotes: cur.internalNotes || null,
+        categoryId: cur.categoryId || null,
+        serviceLocationId: cur.serviceLocationId || null,
+        contactId: cur.contactId || null,
+        poNumber: cur.poNumber || null,
+        referralSourceId: cur.referralSourceId || null,
+        assignedAgentId: cur.assignedAgentId || null,
+        opportunityRating: cur.opportunityRating,
+        followUpDate: cur.followUpDate || null,
+        expiryDate: cur.expiryDate || null,
+        onSiteDate: cur.onSiteDate || null,
+        arrivalWindowStart: cur.arrivalWindowStart || null,
+        arrivalWindowEnd: cur.arrivalWindowEnd || null,
       })
       if (!result.success) {
         toast.error(result.error)
         return
       }
-      // Update Dexie cache so the detail page reflects changes immediately
+      // Update Dexie so detail page reflects changes without waiting for sync
       await db.open()
       await db.estimates.update(estimateId, {
-        status: nextStatus,
-        description: nextDescription || null,
-        notes: nextNotes || null,
-        followUpDate: nextFollowUpDate || null,
-        expiryDate: nextExpiryDate || null,
-        opportunityRating: nextRating,
+        status: cur.status,
+        description: cur.description || null,
+        notesForTechs: cur.notesForTechs || null,
+        notes: cur.notes || null,
+        internalNotes: cur.internalNotes || null,
+        categoryId: cur.categoryId || null,
+        serviceLocationId: cur.serviceLocationId || null,
+        contactId: cur.contactId || null,
+        poNumber: cur.poNumber || null,
+        referralSourceId: cur.referralSourceId || null,
+        assignedAgentId: cur.assignedAgentId || null,
+        opportunityRating: cur.opportunityRating,
+        followUpDate: cur.followUpDate || null,
+        expiryDate: cur.expiryDate || null,
+        onSiteDate: cur.onSiteDate || null,
+        arrivalWindowStart: cur.arrivalWindowStart || null,
+        arrivalWindowEnd: cur.arrivalWindowEnd || null,
       })
       toast.success('Estimate updated')
       router.push(`/tech/estimates/${estimateId}`)
@@ -148,13 +189,16 @@ export default function TechEstimateEditPage() {
         <h1 className="text-lg font-semibold">{estimate.customerName || 'Unknown customer'}</h1>
       </div>
 
+      {/* ── Status ── */}
+      <SectionTitle>Status</SectionTitle>
+
       <div className="space-y-2">
         <Label>Status</Label>
-        <Select value={currentStatus} onValueChange={setStatus}>
+        <Select value={cur.status} onValueChange={(v) => setStatus(v ?? undefined)}>
           <SelectTrigger>
             <SelectValue>
-              <Badge variant={estimateStatusBadgeVariant(currentStatus)}>
-                {estimateStatusLabel(currentStatus)}
+              <Badge variant={estimateStatusBadgeVariant(cur.status)}>
+                {estimateStatusLabel(cur.status)}
               </Badge>
             </SelectValue>
           </SelectTrigger>
@@ -170,17 +214,121 @@ export default function TechEstimateEditPage() {
         </Select>
       </div>
 
+      {/* ── Project Details ── */}
+      <SectionTitle>Project Details</SectionTitle>
+
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <Textarea
           id="description"
-          value={currentDescription}
+          value={cur.description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe the work or scope"
           className="text-base"
           rows={3}
         />
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+          <Select value={cur.categoryId ?? ''} onValueChange={(v) => setCategoryId(v || null)}>
+            <SelectTrigger className="text-base" id="category">
+              <SelectValue placeholder="No category">
+                {cur.categoryId ? categories.find((c) => c.id === cur.categoryId)?.name ?? cur.categoryId : null}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No category</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="po">PO Number</Label>
+          <Input
+            id="po"
+            value={cur.poNumber}
+            onChange={(e) => setPoNumber(e.target.value)}
+            placeholder="PO #"
+            className="text-base"
+          />
+        </div>
+      </div>
+
+      {locations.length > 0 && (
+        <div className="space-y-2">
+          <Label>Service location</Label>
+          <Select value={cur.serviceLocationId ?? ''} onValueChange={(v) => setServiceLocationId(v || null)}>
+            <SelectTrigger className="text-base">
+              <SelectValue placeholder="No location">
+                {cur.serviceLocationId
+                  ? (() => {
+                      const loc = locations.find((l) => l.id === cur.serviceLocationId)
+                      return loc ? [loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ') : cur.serviceLocationId
+                    })()
+                  : null}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No location</SelectItem>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {[loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ') || loc.id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="onSite">On-site date</Label>
+          <Input
+            id="onSite"
+            type="date"
+            value={cur.onSiteDate}
+            onChange={(e) => setOnSiteDate(e.target.value)}
+            className="text-base"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Arrival window</Label>
+          <div className="flex items-center gap-1">
+            <Input
+              type="time"
+              value={cur.arrivalWindowStart}
+              onChange={(e) => setArrivalWindowStart(e.target.value)}
+              className="text-base"
+            />
+            <span className="text-muted-foreground text-xs shrink-0">→</span>
+            <Input
+              type="time"
+              value={cur.arrivalWindowEnd}
+              onChange={(e) => setArrivalWindowEnd(e.target.value)}
+              className="text-base"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notesForTechs">Notes for techs</Label>
+        <Textarea
+          id="notesForTechs"
+          value={cur.notesForTechs}
+          onChange={(e) => setNotesForTechs(e.target.value)}
+          placeholder="Visible to technicians in the field"
+          className="text-base"
+          rows={2}
+        />
+      </div>
+
+      {/* ── Sales Data ── */}
+      <SectionTitle>Sales Data</SectionTitle>
 
       <div className="space-y-2">
         <Label>Opportunity rating</Label>
@@ -189,15 +337,13 @@ export default function TechEstimateEditPage() {
             <button
               key={star}
               type="button"
-              onClick={() =>
-                setOpportunityRating(currentRating === star ? null : star)
-              }
+              onClick={() => setOpportunityRating(cur.opportunityRating === star ? null : star)}
               className="p-1"
             >
               <Star
                 className={cn(
                   'size-6',
-                  currentRating && star <= currentRating
+                  cur.opportunityRating && star <= cur.opportunityRating
                     ? 'fill-amber-400 text-amber-400'
                     : 'text-muted-foreground',
                 )}
@@ -207,13 +353,47 @@ export default function TechEstimateEditPage() {
         </div>
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="referralSource">Referral source</Label>
+        <Select value={cur.referralSourceId ?? ''} onValueChange={(v) => setReferralSourceId(v || null)}>
+          <SelectTrigger className="text-base" id="referralSource">
+            <SelectValue placeholder="No source">
+              {cur.referralSourceId ? referralSources.find((s) => s.id === cur.referralSourceId)?.name ?? cur.referralSourceId : null}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">No source</SelectItem>
+            {referralSources.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="salesRep">Sales rep</Label>
+        <Select value={cur.assignedAgentId ?? ''} onValueChange={(v) => setAssignedAgentId(v || null)}>
+          <SelectTrigger className="text-base" id="salesRep">
+            <SelectValue placeholder="Unassigned">
+              {cur.assignedAgentId ? salesReps.find((r) => r.id === cur.assignedAgentId)?.name ?? cur.assignedAgentId : null}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Unassigned</SelectItem>
+            {salesReps.map((r) => (
+              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor="followUp">Follow-up date</Label>
           <Input
             id="followUp"
             type="date"
-            value={currentFollowUpDate}
+            value={cur.followUpDate}
             onChange={(e) => setFollowUpDate(e.target.value)}
             className="text-base"
           />
@@ -223,18 +403,21 @@ export default function TechEstimateEditPage() {
           <Input
             id="expiry"
             type="date"
-            value={currentExpiryDate}
+            value={cur.expiryDate}
             onChange={(e) => setExpiryDate(e.target.value)}
             className="text-base"
           />
         </div>
       </div>
 
+      {/* ── Notes ── */}
+      <SectionTitle>Notes</SectionTitle>
+
       <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
+        <Label htmlFor="notes">Customer-facing notes</Label>
         <Textarea
           id="notes"
-          value={currentNotes}
+          value={cur.notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Shown on the estimate"
           className="text-base"
@@ -242,7 +425,19 @@ export default function TechEstimateEditPage() {
         />
       </div>
 
-      <Button onClick={handleSave} disabled={saving} className="w-full">
+      <div className="space-y-2">
+        <Label htmlFor="internalNotes">Internal notes</Label>
+        <Textarea
+          id="internalNotes"
+          value={cur.internalNotes}
+          onChange={(e) => setInternalNotes(e.target.value)}
+          placeholder="Not shown to the customer"
+          className="text-base"
+          rows={3}
+        />
+      </div>
+
+      <Button onClick={handleSave} disabled={saving} className="w-full mt-2">
         {saving ? 'Saving…' : 'Save Changes'}
       </Button>
     </div>

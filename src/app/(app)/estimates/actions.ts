@@ -1029,12 +1029,22 @@ export async function listEstimatesAction(
         createdAt: sql<string>`TO_CHAR(${estimates.createdAt}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
         assignedAgentId: estimates.assignedAgentId,
         opportunityRating: estimates.opportunityRating,
+        contactId: estimates.contactId,
+        serviceLocationId: estimates.serviceLocationId,
+        categoryId: estimates.categoryId,
+        poNumber: estimates.poNumber,
+        referralSourceId: estimates.referralSourceId,
+        onSiteDate: sql<string | null>`TO_CHAR(${estimates.onSiteDate}, 'YYYY-MM-DD')`,
+        arrivalWindowStart: sql<string | null>`TO_CHAR(${estimates.arrivalWindowStart}, 'HH24:MI')`,
+        arrivalWindowEnd: sql<string | null>`TO_CHAR(${estimates.arrivalWindowEnd}, 'HH24:MI')`,
+        notesForTechs: estimates.notesForTechs,
+        internalNotes: estimates.internalNotes,
       })
       .from(estimates)
       .leftJoin(customers, and(eq(customers.tenantId, estimates.tenantId), eq(customers.id, estimates.customerId)))
       .leftJoin(estimateLineItems, and(eq(estimateLineItems.tenantId, estimates.tenantId), eq(estimateLineItems.estimateId, estimates.id)))
       .where(and(...conditions))
-      .groupBy(estimates.id, customers.name, estimates.opportunityRating)
+      .groupBy(estimates.id, customers.name)
       .orderBy(desc(estimates.createdAt))
 
     return { rows: rows as CachedEstimate[] }
@@ -1085,9 +1095,20 @@ export async function updateEstimateMetaAction(
     status?: string
     description?: string | null
     notes?: string | null
+    internalNotes?: string | null
+    notesForTechs?: string | null
     followUpDate?: string | null
     expiryDate?: string | null
+    onSiteDate?: string | null
+    arrivalWindowStart?: string | null
+    arrivalWindowEnd?: string | null
     opportunityRating?: number | null
+    categoryId?: string | null
+    serviceLocationId?: string | null
+    contactId?: string | null
+    poNumber?: string | null
+    referralSourceId?: string | null
+    assignedAgentId?: string | null
   },
 ): Promise<{ success?: boolean; error?: string }> {
   try {
@@ -1105,9 +1126,20 @@ export async function updateEstimateMetaAction(
           ...(data.status !== undefined ? { status: data.status as 'estimate_requested' | 'estimate_provided' | 'estimate_accepted' | 'estimate_won' | 'estimate_lost' } : {}),
           ...(data.description !== undefined ? { description: data.description } : {}),
           ...(data.notes !== undefined ? { notes: data.notes } : {}),
+          ...(data.internalNotes !== undefined ? { internalNotes: data.internalNotes } : {}),
+          ...(data.notesForTechs !== undefined ? { notesForTechs: data.notesForTechs } : {}),
           ...(data.followUpDate !== undefined ? { followUpDate: data.followUpDate || null } : {}),
           ...(data.expiryDate !== undefined ? { expiryDate: data.expiryDate || null } : {}),
+          ...(data.onSiteDate !== undefined ? { onSiteDate: data.onSiteDate ? new Date(data.onSiteDate) : null } : {}),
+          ...(data.arrivalWindowStart !== undefined ? { arrivalWindowStart: data.arrivalWindowStart ? new Date(`1970-01-01T${data.arrivalWindowStart}:00Z`) : null } : {}),
+          ...(data.arrivalWindowEnd !== undefined ? { arrivalWindowEnd: data.arrivalWindowEnd ? new Date(`1970-01-01T${data.arrivalWindowEnd}:00Z`) : null } : {}),
           ...(data.opportunityRating !== undefined ? { opportunityRating: data.opportunityRating } : {}),
+          ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
+          ...(data.serviceLocationId !== undefined ? { serviceLocationId: data.serviceLocationId } : {}),
+          ...(data.contactId !== undefined ? { contactId: data.contactId } : {}),
+          ...(data.poNumber !== undefined ? { poNumber: data.poNumber } : {}),
+          ...(data.referralSourceId !== undefined ? { referralSourceId: data.referralSourceId } : {}),
+          ...(data.assignedAgentId !== undefined ? { assignedAgentId: data.assignedAgentId } : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))

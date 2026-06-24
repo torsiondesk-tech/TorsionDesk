@@ -207,6 +207,18 @@ export interface CachedEstimate {
   notes: string | null
   createdAt: string | null
   opportunityRating: number | null
+  // Extended fields for edit form
+  contactId: string | null
+  serviceLocationId: string | null
+  categoryId: string | null
+  poNumber: string | null
+  referralSourceId: string | null
+  assignedAgentId: string | null
+  onSiteDate: string | null
+  arrivalWindowStart: string | null
+  arrivalWindowEnd: string | null
+  notesForTechs: string | null
+  internalNotes: string | null
 }
 
 export interface CachedInvoice {

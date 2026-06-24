@@ -672,6 +672,17 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
         notes: row.notes ?? null,
         createdAt: row.createdAt ?? null,
         opportunityRating: row.opportunityRating ?? null,
+        contactId: row.contactId ?? null,
+        serviceLocationId: row.serviceLocationId ?? null,
+        categoryId: row.categoryId ?? null,
+        poNumber: row.poNumber ?? null,
+        referralSourceId: row.referralSourceId ?? null,
+        assignedAgentId: row.assignedAgentId ?? null,
+        onSiteDate: row.onSiteDate ?? null,
+        arrivalWindowStart: row.arrivalWindowStart ?? null,
+        arrivalWindowEnd: row.arrivalWindowEnd ?? null,
+        notesForTechs: row.notesForTechs ?? null,
+        internalNotes: row.internalNotes ?? null,
       }))
       await db.transaction('rw', db.estimates, async () => {
         await db.estimates.clear()
