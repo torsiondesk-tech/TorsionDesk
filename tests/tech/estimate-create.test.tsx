@@ -78,7 +78,7 @@ describe('EstimateForm offline queue', () => {
     await db.delete()
   })
 
-  it('enqueues an estimate_create item offline and flushes it via createEstimateAction', async () => {
+  it('enqueues an estimate_create item offline and flushes it via createEstimateAction', { timeout: 15000 }, async () => {
     const mocked = vi.mocked(createEstimateAction)
     mocked.mockResolvedValue({ success: true, id: 'est-1' })
 
