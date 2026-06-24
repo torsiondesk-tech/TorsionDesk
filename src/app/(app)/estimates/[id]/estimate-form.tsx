@@ -57,7 +57,7 @@ import { EstimateStatusDropdown } from './estimate-status-dropdown'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { toISODate, formatPhoneInput, formatPhone, normalizePhone, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
-import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, MapPin, Phone, Trash2 } from 'lucide-react'
+import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, Phone, Trash2 } from 'lucide-react'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
 
@@ -191,7 +191,7 @@ export function EstimateForm({
   const [primaryLocationId, setPrimaryLocationId] = React.useState<string | null>(null)
 
   // ── Inline contact/location creation/editing ──
-  const [contactMode, setContactMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
+  const [contactMode, setContactMode] = React.useState<'existing' | 'new'>('existing')
   const [locationMode, setLocationMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
   interface LocationAddrState extends Partial<ParsedAddress> {
     addressLine2?: string
@@ -267,7 +267,7 @@ export function EstimateForm({
 
   // Fetch full contact detail when an existing contact is selected
   React.useEffect(() => {
-    if (!contactId || contactMode === 'new' || contactMode === 'edit') return
+    if (!contactId || contactMode === 'new') return
     let cancelled = false
     getCustomerContactDetail(contactId)
       .then((detail) => {
@@ -570,42 +570,6 @@ export function EstimateForm({
     }
   }
 
-  const handleUpdateContact = async () => {
-    if (!customerId || !contactId || !contactEdit) {
-      setContactError('Select a customer and contact first.')
-      return
-    }
-    if (!contactEdit.firstName.trim() && !contactEdit.lastName.trim()) {
-      setContactError('First or last name is required.')
-      return
-    }
-    setSavingContact(true)
-    setContactError(null)
-    try {
-      const result = await createContactForJob(customerId, {
-        firstName: contactEdit.firstName.trim(),
-        lastName: contactEdit.lastName.trim() || null,
-        phone: contactEdit.phones.find((p) => p.isPrimary)?.number || contactEdit.phones[0]?.number || null,
-        email: contactEdit.emails.find((e) => e.isPrimary)?.address || contactEdit.emails[0]?.address || null,
-      })
-      if (result.error) {
-        setContactError(result.error)
-        return
-      }
-      // Re-fetch contact list and select the newly created contact
-      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
-      setContacts(refreshed)
-      setPrimaryContactId(refreshedPrimary)
-      setContactId(result.id)
-      setContactMode('existing')
-      setContactEdit(null)
-    } catch (err) {
-      setContactError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSavingContact(false)
-    }
-  }
-
   const handleSaveNewLocation = async () => {
     if (!customerId || customerMode === 'new') {
       setLocationError('Select an existing customer first.')
@@ -799,7 +763,7 @@ export function EstimateForm({
     newContactPhone: customerMode === 'new' ? normalizePhone(newContactPhone) : '',
     newContactEmail: customerMode === 'new' ? newContactEmail : '',
     contactUpdate:
-      customerMode === 'existing' && contactId && contactMode === 'edit' && contactEdit
+      customerMode === 'existing' && contactId && contactEdit
         ? JSON.stringify({
             id: contactEdit.id,
             firstName: contactEdit.firstName,
@@ -1260,11 +1224,77 @@ export function EstimateForm({
                       <p className="text-xs text-destructive">{contactError}</p>
                     )}
                   </div>
-                ) : contactMode === 'edit' ? (
-                  <div className="space-y-3">
-                    {contactEdit ? (
-                      <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-                        <input type="hidden" name="contactUpdate" value={JSON.stringify(contactEdit)} />
+                ) : (
+                  <>
+                    <Select
+                      value={contactId ?? ''}
+                      onValueChange={(val) => {
+                        const v = val ?? ''
+                        if (v === '__new__') {
+                          setContactMode('new')
+                          setContactId(null)
+                          setContactEdit(null)
+                        } else if (v === '') {
+                          setContactId(null)
+                          setContactEdit(null)
+                        } else {
+                          setContactId(v)
+                        }
+                      }}
+                      disabled={!customerId}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select contact…">
+                          {contactId
+                            ? (() => {
+                                const c = contacts.find((c) => c.id === contactId)
+                                if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
+                                if (contactEdit) return `${contactEdit.firstName} ${contactEdit.lastName}`.trim()
+                                if (contactsLoading) return 'Loading…'
+                                return contactId
+                              })()
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Select contact…</SelectItem>
+                        {contacts.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.firstName} {c.lastName}
+                            {c.id === primaryContactId ? ' (Primary)' : ''}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">+ Create new contact…</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {contactId && customerId && (
+                      <div className="flex items-center gap-2 pt-0.5">
+                        {contactId === primaryContactId ? (
+                          <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+                            <Star className="size-3 fill-amber-500 text-amber-500" />
+                            Primary Contact
+                          </Badge>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 gap-1 text-xs"
+                            onClick={async () => {
+                              const result = await setPrimaryContactAction(customerId, contactId)
+                              if (result.success) setPrimaryContactId(contactId)
+                            }}
+                          >
+                            <Star className="size-3" />
+                            Set as Primary
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {contactEdit && contactId && (
+                      <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 p-3">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <Label className="text-xs">First Name</Label>
@@ -1467,197 +1497,6 @@ export function EstimateForm({
                               SMS Consent
                             </Label>
                           </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-3 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setContactMode('existing')
-                              setContactError(null)
-                            }}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            ← Cancel
-                          </button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={savingContact}
-                            onClick={handleUpdateContact}
-                          >
-                            {savingContact ? 'Saving…' : 'Save Contact'}
-                          </Button>
-                        </div>
-                        {contactError && (
-                          <p className="text-xs text-destructive">{contactError}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Loading contact…</p>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <Select
-                      value={contactId ?? ''}
-                      onValueChange={(val) => {
-                        const v = val ?? ''
-                        if (v === '__new__') {
-                          setContactMode('new')
-                          setContactId(null)
-                          setContactEdit(null)
-                        } else if (v === '') {
-                          setContactId(null)
-                          setContactEdit(null)
-                        } else {
-                          setContactId(v)
-                        }
-                      }}
-                      disabled={!customerId}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select contact…">
-                          {contactId
-                            ? (() => {
-                                const c = contacts.find((c) => c.id === contactId)
-                                if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
-                                if (contactEdit) return `${contactEdit.firstName} ${contactEdit.lastName}`.trim()
-                                if (contactsLoading) return 'Loading…'
-                                return contactId
-                              })()
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Select contact…</SelectItem>
-                        {contacts.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.firstName} {c.lastName}
-                            {c.id === primaryContactId ? ' (Primary)' : ''}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="__new__">+ Create new contact…</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {contactId && customerId && (
-                      <div className="flex items-center gap-2 pt-0.5">
-                        {contactId === primaryContactId ? (
-                          <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
-                            <Star className="size-3 fill-amber-500 text-amber-500" />
-                            Primary Contact
-                          </Badge>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 gap-1 text-xs"
-                            onClick={async () => {
-                              const result = await setPrimaryContactAction(customerId, contactId)
-                              if (result.success) setPrimaryContactId(contactId)
-                            }}
-                          >
-                            <Star className="size-3" />
-                            Set as Primary
-                          </Button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setContactMode('edit')}
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Edit contact
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Always show selected contact details */}
-                    {contactEdit && contactId && contactMode === 'existing' && (
-                      <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 p-3">
-                        <input type="hidden" name="contactUpdate" value={JSON.stringify(contactEdit)} />
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-xs text-muted-foreground">First Name</span>
-                            <p className="font-medium">{contactEdit.firstName || '—'}</p>
-                          </div>
-                          <div>
-                            <span className="text-xs text-muted-foreground">Last Name</span>
-                            <p className="font-medium">{contactEdit.lastName || '—'}</p>
-                          </div>
-                        </div>
-                        {contactEdit.jobTitle && (
-                          <div className="text-sm">
-                            <span className="text-xs text-muted-foreground">Job Title</span>
-                            <p className="font-medium">{contactEdit.jobTitle}</p>
-                          </div>
-                        )}
-
-                        {contactEdit.phones.length > 0 && contactEdit.phones.some((p) => p.number.trim()) && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Phone Numbers
-                            </div>
-                            <div className="space-y-1">
-                              {contactEdit.phones
-                                .filter((p) => p.number.trim())
-                                .map((phone, pi) => (
-                                  <div key={pi} className="flex items-center gap-2 text-sm">
-                                    <Phone className="size-4 text-muted-foreground" />
-                                    <span>{formatPhone(phone.number)}</span>
-                                    <span className="text-xs text-muted-foreground capitalize">({phone.type})</span>
-                                    {phone.isPrimary && (
-                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                        Primary
-                                      </Badge>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {contactEdit.emails.length > 0 && contactEdit.emails.some((e) => e.address.trim()) && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Email Addresses
-                            </div>
-                            <div className="space-y-1">
-                              {contactEdit.emails
-                                .filter((e) => e.address.trim())
-                                .map((email, ei) => (
-                                  <div key={ei} className="flex items-center gap-2 text-sm">
-                                    <Mail className="size-4 text-muted-foreground" />
-                                    <span>{email.address}</span>
-                                    <span className="text-xs text-muted-foreground capitalize">({email.type})</span>
-                                    {email.isPrimary && (
-                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                        Primary
-                                      </Badge>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-2">
-                          {contactEdit.billingContact && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                              Billing Contact
-                            </Badge>
-                          )}
-                          {contactEdit.bookingContact && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                              Booking Contact
-                            </Badge>
-                          )}
-                          {contactEdit.smsConsent && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                              SMS Consent
-                            </Badge>
-                          )}
                         </div>
                       </div>
                     )}
