@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -122,6 +122,31 @@ export function SearchDropdown({
   kind: 'product' | 'service'
 }) {
   const [open, setOpen] = useState(false)
+  const actionsRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const el = actionsRef.current
+    if (!el) return
+    function handleClick(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      const customBtn = target.closest('[data-search-action="custom"]') as HTMLElement | null
+      const createBtn = target.closest('[data-search-action="create"]') as HTMLElement | null
+      if (customBtn) {
+        e.preventDefault()
+        e.stopPropagation()
+        setOpen(false)
+        onAddCustom?.(query)
+      } else if (createBtn) {
+        e.preventDefault()
+        e.stopPropagation()
+        setOpen(false)
+        onCreateNew()
+      }
+    }
+    el.addEventListener('click', handleClick)
+    return () => el.removeEventListener('click', handleClick)
+  }, [query, onAddCustom, onCreateNew])
+
   return (
     <Combobox open={open} onOpenChange={setOpen}>
       <ComboboxInput
@@ -165,6 +190,7 @@ export function SearchDropdown({
         </ComboboxList>
         {!loading && query.trim() && (
           <div
+            ref={actionsRef}
             className={cn(
               'flex flex-col gap-1 border-t border-border px-1 py-1',
               results.length === 0 && 'border-border',
@@ -177,14 +203,7 @@ export function SearchDropdown({
             {onAddCustom && (
               <button
                 type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }}
-                onClick={() => {
-                  setOpen(false)
-                  onAddCustom(query)
-                }}
+                data-search-action="custom"
                 className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
               >
                 <span className="text-sm font-medium">
@@ -197,14 +216,7 @@ export function SearchDropdown({
             )}
             <button
               type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
-              onClick={() => {
-                setOpen(false)
-                onCreateNew()
-              }}
+              data-search-action="create"
               className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
             >
               <span className="text-sm font-medium">+ Create new {kind}</span>
