@@ -64,6 +64,7 @@ import {
   type PlaceSuggestion,
 } from '@/lib/places-actions'
 import { searchProductsAction, searchServicesAction } from '@/app/(app)/jobs/actions'
+import { estimateStatusLabel } from '@/lib/estimates/status'
 import { toISODate, formatPhoneInput, capitalizeWords, normalizePhone, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -941,7 +942,14 @@ export function EstimateForm({
               }}
             >
               <SelectTrigger className="w-full text-base">
-                <SelectValue placeholder="Select contact…" />
+                <SelectValue placeholder="Select contact…">
+                  {contactMode === 'new'
+                    ? '+ New contact…'
+                    : (() => {
+                        const c = customerContacts.find((x) => x.id === contactId)
+                        return c ? `${c.firstName} ${c.lastName ?? ''}`.trim() : contactId ?? 'Select contact…'
+                      })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {customerContacts.map((c) => (
@@ -1012,7 +1020,14 @@ export function EstimateForm({
             disabled={!customerId}
           >
             <SelectTrigger className="w-full text-base" id="location">
-              <SelectValue placeholder={customerId ? 'Select location (optional)' : 'Select a customer first'} />
+              <SelectValue placeholder={customerId ? 'Select location (optional)' : 'Select a customer first'}>
+                {(() => {
+                  if (!serviceLocationId) return null
+                  const loc = customerLocations.find((x) => x.id === serviceLocationId)
+                  if (!loc) return serviceLocationId
+                  return [loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ') || serviceLocationId
+                })()}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">No location</SelectItem>
@@ -1123,7 +1138,9 @@ export function EstimateForm({
           <Label htmlFor="category">Category</Label>
           <Select value={categoryId ?? ''} onValueChange={(v) => setCategoryId(v || null)}>
             <SelectTrigger className="text-base" id="category">
-              <SelectValue placeholder="No category" />
+              <SelectValue placeholder="No category">
+                {categoryId ? categories.find((c) => c.id === categoryId)?.name ?? categoryId : null}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">No category</SelectItem>
@@ -1260,7 +1277,7 @@ export function EstimateForm({
         <Label htmlFor="status">Status</Label>
         <Select value={status} onValueChange={(v) => v && setStatus(v)}>
           <SelectTrigger className="text-base" id="status">
-            <SelectValue />
+            <SelectValue>{estimateStatusLabel(status)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="estimate_requested">Requested</SelectItem>
@@ -1301,7 +1318,9 @@ export function EstimateForm({
         <Label htmlFor="referralSource">Referral source</Label>
         <Select value={referralSourceId ?? ''} onValueChange={(v) => setReferralSourceId(v || null)}>
           <SelectTrigger className="text-base" id="referralSource">
-            <SelectValue placeholder="No source" />
+            <SelectValue placeholder="No source">
+              {referralSourceId ? referralSources.find((s) => s.id === referralSourceId)?.name ?? referralSourceId : null}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">No source</SelectItem>
@@ -1343,7 +1362,9 @@ export function EstimateForm({
         <Label htmlFor="salesRep">Sales rep</Label>
         <Select value={assignedAgentId ?? ''} onValueChange={(v) => setAssignedAgentId(v || null)}>
           <SelectTrigger className="text-base" id="salesRep">
-            <SelectValue placeholder="Unassigned" />
+            <SelectValue placeholder="Unassigned">
+              {assignedAgentId ? salesReps.find((r) => r.id === assignedAgentId)?.name ?? assignedAgentId : null}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Unassigned</SelectItem>
@@ -1621,7 +1642,9 @@ export function EstimateForm({
                                 onValueChange={(v) => setAddTaxItemId(v || null)}
                               >
                                 <SelectTrigger className="mt-1 text-base" id={`${kind}-tax`}>
-                                  <SelectValue placeholder="No tax" />
+                                  <SelectValue placeholder="No tax">
+                                    {addTaxItemId ? taxItems.find((t) => t.id === addTaxItemId)?.name ?? addTaxItemId : null}
+                                  </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="">No tax</SelectItem>
