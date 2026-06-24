@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -157,28 +158,34 @@ export function SearchDropdown({
             ))}
           {!loading && !results.length && query.trim() && (
             <ComboboxEmpty>
-              <div className="flex flex-col gap-2">
-                <span>No {kind}s found.</span>
-                {onAddCustom && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0"
-                    onClick={() => onAddCustom(query)}
-                  >
-                    + Add &ldquo;{query}&rdquo; as custom {kind}
-                  </Button>
-                )}
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0"
-                  onClick={onCreateNew}
-                >
-                  + Create new {kind}
-                </Button>
-              </div>
+              <span>No {kind}s found.</span>
             </ComboboxEmpty>
+          )}
+          {!loading && query.trim() && (
+            <div className={cn('flex flex-col gap-1 px-1 py-1', results.length > 0 && 'border-t mt-1')}>
+              {onAddCustom && (
+                <button
+                  type="button"
+                  onClick={() => onAddCustom(query)}
+                  className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+                >
+                  <span className="text-sm font-medium">
+                    Add &ldquo;{query}&rdquo; as custom {kind}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Not in catalog — enter name and price manually
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onCreateNew}
+                className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="text-sm font-medium">+ Create new {kind}</span>
+                <span className="text-xs text-muted-foreground">Add to catalog and this job</span>
+              </button>
+            </div>
           )}
         </ComboboxList>
       </ComboboxContent>
