@@ -121,8 +121,9 @@ export function SearchDropdown({
   onAddCustom?: (q: string) => void
   kind: 'product' | 'service'
 }) {
+  const [open, setOpen] = useState(false)
   return (
-    <Combobox>
+    <Combobox open={open} onOpenChange={setOpen}>
       <ComboboxInput
         className="w-full"
         placeholder={`Search ${kind}s...`}
@@ -161,33 +162,56 @@ export function SearchDropdown({
               <span>No {kind}s found.</span>
             </ComboboxEmpty>
           )}
-          {!loading && query.trim() && (
-            <div className={cn('flex flex-col gap-1 px-1 py-1', results.length > 0 && 'border-t mt-1')}>
-              {onAddCustom && (
-                <button
-                  type="button"
-                  onClick={() => onAddCustom(query)}
-                  className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
-                >
-                  <span className="text-sm font-medium">
-                    Add &ldquo;{query}&rdquo; as custom {kind}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Not in catalog — enter name and price manually
-                  </span>
-                </button>
-              )}
+        </ComboboxList>
+        {!loading && query.trim() && (
+          <div
+            className={cn(
+              'flex flex-col gap-1 border-t border-border px-1 py-1',
+              results.length === 0 && 'border-border',
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
+          >
+            {onAddCustom && (
               <button
                 type="button"
-                onClick={onCreateNew}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+                onClick={() => {
+                  setOpen(false)
+                  onAddCustom(query)
+                }}
                 className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
               >
-                <span className="text-sm font-medium">+ Create new {kind}</span>
-                <span className="text-xs text-muted-foreground">Add to catalog and this job</span>
+                <span className="text-sm font-medium">
+                  Add &ldquo;{query}&rdquo; as custom {kind}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Not in catalog — enter name and price manually
+                </span>
               </button>
-            </div>
-          )}
-        </ComboboxList>
+            )}
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onClick={() => {
+                setOpen(false)
+                onCreateNew()
+              }}
+              className="flex w-full flex-col rounded-md px-1.5 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+            >
+              <span className="text-sm font-medium">+ Create new {kind}</span>
+              <span className="text-xs text-muted-foreground">Add to catalog and this job</span>
+            </button>
+          </div>
+        )}
       </ComboboxContent>
     </Combobox>
   )
