@@ -839,6 +839,18 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
           value={JSON.stringify(lineItemGroups)}
         />
 
+        {/* Top save action — duplicated for easy access on long job forms (desktop only) */}
+        <div className="hidden md:flex items-center justify-end gap-3">
+          {state.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {state.error}
+            </p>
+          )}
+          <Button type="submit" disabled={pending || !!arrivalTimeError}>
+            {pending ? 'Saving…' : cta}
+          </Button>
+        </div>
+
         <div className="grid gap-6 sm:grid-cols-2">
           {/* ── LEFT PANEL: Details ── */}
           <div className="space-y-5 rounded-xl border bg-card p-6">
