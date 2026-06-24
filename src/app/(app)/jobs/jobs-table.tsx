@@ -65,6 +65,14 @@ const columns: ColumnDef<JobRow>[] = [
   {
     accessorKey: 'customerName',
     header: 'Customer',
+    cell: ({ row }) => (
+      <Link
+        href={`/customers/${row.original.customerId}`}
+        className="font-medium hover:underline"
+      >
+        {row.original.customerName}
+      </Link>
+    ),
   },
   {
     id: 'contact',
