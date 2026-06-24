@@ -150,6 +150,57 @@ export function useTechEquipmentByLocation(orgId: string, serviceLocationId: str
   )
 }
 
+export function useTechContacts(orgId: string, customerId?: string | null) {
+  const tick = useTechDataTick()
+  return useLiveQuery(
+    async () => {
+      const db = createTechDb(orgId)
+      await db.open()
+      const all = await db.contacts.toArray()
+      if (!customerId) return all
+      return all.filter((c) => c.customerId === customerId)
+    },
+    [orgId, customerId, tick],
+  )
+}
+
+export function useTechReferenceData(orgId: string) {
+  const tick = useTechDataTick()
+  return useLiveQuery(
+    async () => {
+      const db = createTechDb(orgId)
+      await db.open()
+      const [
+        jobCategories,
+        referralSources,
+        taxItems,
+        tags,
+        orgMembers,
+        salesReps,
+        productCategories,
+      ] = await Promise.all([
+        db.jobCategories.toArray(),
+        db.referralSources.toArray(),
+        db.taxItems.toArray(),
+        db.tags.toArray(),
+        db.orgMembers.toArray(),
+        db.salesReps.toArray(),
+        db.productCategories.toArray(),
+      ])
+      return {
+        jobCategories,
+        referralSources,
+        taxItems,
+        tags,
+        orgMembers,
+        salesReps,
+        productCategories,
+      }
+    },
+    [orgId, tick],
+  )
+}
+
 export function usePendingEstimateConversion(orgId: string, estimateId: string): number {
   const tick = useTechDataTick()
   return (

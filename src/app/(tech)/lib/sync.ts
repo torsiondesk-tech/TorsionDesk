@@ -1,6 +1,23 @@
 ﻿'use client'
 
-import { createTechDb, type OutboxItem, type CachedJob, type CachedEquipment, type CachedCustomer, type CachedLocation, type CachedEstimate, type CachedInvoice } from './dexie'
+import {
+  createTechDb,
+  type OutboxItem,
+  type CachedJob,
+  type CachedEquipment,
+  type CachedCustomer,
+  type CachedLocation,
+  type CachedEstimate,
+  type CachedInvoice,
+  type CachedContact,
+  type CachedJobCategory,
+  type CachedReferralSource,
+  type CachedTaxItem,
+  type CachedTag,
+  type CachedOrgMember,
+  type CachedSalesRep,
+  type CachedProductCategory,
+} from './dexie'
 import {
   transitionJobStatusAction,
   listTechJobsAction,
@@ -31,6 +48,16 @@ import {
   listTechCustomersAction,
   listTechServiceLocationsAction,
 } from '@/app/(tech)/tech/customers/actions'
+import {
+  listTechContactsAction,
+  listTechJobCategoriesAction,
+  listTechReferralSourcesAction,
+  listTechTaxItemsAction,
+  listTechTagsAction,
+  listTechOrgMembersAction,
+  listTechSalesRepsAction,
+  listTechProductCategoriesAction,
+} from '@/app/(tech)/tech/reference/actions'
 import { createBrowserClient } from '@/lib/supabase/browser'
 import { toISODate } from '@/lib/utils'
 
@@ -74,18 +101,7 @@ export interface JobCreatePayload {
 }
 
 export interface EstimateCreatePayload {
-  input: {
-    customerId: string
-    serviceLocationId: string | null
-    contactName: string | null
-    contactPhone: string | null
-    description: string
-    lineItems: Array<{ name: string; qty: string; unitPrice: string }>
-    followUpDate: string | null
-    expiryDate: string | null
-    notes: string | null
-    internalNotes: string | null
-  }
+  input: import('@/app/(tech)/tech/estimates/actions').CreateEstimateInput
 }
 
 export interface EstimateConversionPayload {
@@ -420,6 +436,14 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
   let jobRows: Awaited<ReturnType<typeof listTechJobsAction>>['rows'] = []
   let customerRows: Awaited<ReturnType<typeof listTechCustomersAction>>['rows'] = []
   let locationRows: Awaited<ReturnType<typeof listTechServiceLocationsAction>>['rows'] = []
+  let contactRows: Awaited<ReturnType<typeof listTechContactsAction>>['rows'] = []
+  let categoryRows: Awaited<ReturnType<typeof listTechJobCategoriesAction>>['rows'] = []
+  let referralSourceRows: Awaited<ReturnType<typeof listTechReferralSourcesAction>>['rows'] = []
+  let taxItemRows: Awaited<ReturnType<typeof listTechTaxItemsAction>>['rows'] = []
+  let tagRows: Awaited<ReturnType<typeof listTechTagsAction>>['rows'] = []
+  let orgMemberRows: Awaited<ReturnType<typeof listTechOrgMembersAction>>['rows'] = []
+  let salesRepRows: Awaited<ReturnType<typeof listTechSalesRepsAction>>['rows'] = []
+  let productCategoryRows: Awaited<ReturnType<typeof listTechProductCategoriesAction>>['rows'] = []
   let estimatesResult: Awaited<ReturnType<typeof listTechEstimatesAction>>
   let invoicesResult: Awaited<ReturnType<typeof listTechInvoicesAction>>
 
@@ -428,12 +452,28 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       { rows: jobRows },
       { rows: customerRows },
       { rows: locationRows },
+      { rows: contactRows },
+      { rows: categoryRows },
+      { rows: referralSourceRows },
+      { rows: taxItemRows },
+      { rows: tagRows },
+      { rows: orgMemberRows },
+      { rows: salesRepRows },
+      { rows: productCategoryRows },
       estimatesResult,
       invoicesResult,
     ] = await Promise.all([
       listTechJobsAction(orgId, userId),
       listTechCustomersAction(orgId, userId),
       listTechServiceLocationsAction(orgId, userId),
+      listTechContactsAction(orgId),
+      listTechJobCategoriesAction(orgId),
+      listTechReferralSourcesAction(orgId),
+      listTechTaxItemsAction(orgId),
+      listTechTagsAction(orgId),
+      listTechOrgMembersAction(orgId),
+      listTechSalesRepsAction(orgId),
+      listTechProductCategoriesAction(orgId),
       listTechEstimatesAction(orgId, userId),
       listTechInvoicesAction(orgId, userId),
     ])
@@ -527,6 +567,95 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       await db.serviceLocations.bulkPut(cachedLocations)
     })
 
+    const cachedContacts: CachedContact[] = contactRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      customerId: row.customerId,
+      firstName: row.firstName,
+      lastName: row.lastName ?? null,
+      jobTitle: row.jobTitle ?? null,
+      primaryPhone: row.primaryPhone ?? null,
+      primaryEmail: row.primaryEmail ?? null,
+    }))
+    await db.transaction('rw', db.contacts, async () => {
+      await db.contacts.clear()
+      await db.contacts.bulkPut(cachedContacts)
+    })
+
+    const cachedCategories: CachedJobCategory[] = categoryRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      name: row.name,
+      parentId: row.parentId ?? null,
+    }))
+    await db.transaction('rw', db.jobCategories, async () => {
+      await db.jobCategories.clear()
+      await db.jobCategories.bulkPut(cachedCategories)
+    })
+
+    const cachedReferralSources: CachedReferralSource[] = referralSourceRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      name: row.name,
+    }))
+    await db.transaction('rw', db.referralSources, async () => {
+      await db.referralSources.clear()
+      await db.referralSources.bulkPut(cachedReferralSources)
+    })
+
+    const cachedTaxItems: CachedTaxItem[] = taxItemRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      name: row.name,
+      rate: row.rate ?? null,
+    }))
+    await db.transaction('rw', db.taxItems, async () => {
+      await db.taxItems.clear()
+      await db.taxItems.bulkPut(cachedTaxItems)
+    })
+
+    const cachedTags: CachedTag[] = tagRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      name: row.name,
+      color: (row as { color?: string | null }).color ?? null,
+    }))
+    await db.transaction('rw', db.tags, async () => {
+      await db.tags.clear()
+      await db.tags.bulkPut(cachedTags)
+    })
+
+    const cachedOrgMembers: CachedOrgMember[] = orgMemberRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      label: row.label,
+      role: row.role ?? null,
+    }))
+    await db.transaction('rw', db.orgMembers, async () => {
+      await db.orgMembers.clear()
+      await db.orgMembers.bulkPut(cachedOrgMembers)
+    })
+
+    const cachedSalesReps: CachedSalesRep[] = salesRepRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      name: row.name,
+    }))
+    await db.transaction('rw', db.salesReps, async () => {
+      await db.salesReps.clear()
+      await db.salesReps.bulkPut(cachedSalesReps)
+    })
+
+    const cachedProductCategories: CachedProductCategory[] = productCategoryRows.map((row) => ({
+      id: row.id,
+      tenantId: orgId,
+      name: row.name,
+    }))
+    await db.transaction('rw', db.productCategories, async () => {
+      await db.productCategories.clear()
+      await db.productCategories.bulkPut(cachedProductCategories)
+    })
+
     if (!estimatesResult.error) {
       const cachedEstimates: CachedEstimate[] = estimatesResult.rows.map((row) => ({
         id: row.id,
@@ -612,6 +741,14 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       jobs: cachedJobs.length,
       customers: cachedCustomers.length,
       locations: cachedLocations.length,
+      contacts: cachedContacts.length,
+      categories: cachedCategories.length,
+      referralSources: cachedReferralSources.length,
+      taxItems: cachedTaxItems.length,
+      tags: cachedTags.length,
+      orgMembers: cachedOrgMembers.length,
+      salesReps: cachedSalesReps.length,
+      productCategories: cachedProductCategories.length,
       estimates: estimatesResult.error ? 0 : estimatesResult.rows.length,
       invoices: invoicesResult.error ? 0 : invoicesResult.rows.length,
     })

@@ -94,6 +94,63 @@ export interface CachedLocation {
   gated: boolean
 }
 
+export interface CachedContact {
+  id: string
+  tenantId: string
+  customerId: string
+  firstName: string
+  lastName: string | null
+  jobTitle: string | null
+  primaryPhone: string | null
+  primaryEmail: string | null
+}
+
+export interface CachedJobCategory {
+  id: string
+  tenantId: string
+  name: string
+  parentId: string | null
+}
+
+export interface CachedReferralSource {
+  id: string
+  tenantId: string
+  name: string
+}
+
+export interface CachedTaxItem {
+  id: string
+  tenantId: string
+  name: string
+  rate: string | null
+}
+
+export interface CachedTag {
+  id: string
+  tenantId: string
+  name: string
+  color: string | null
+}
+
+export interface CachedOrgMember {
+  id: string
+  tenantId: string
+  label: string
+  role: string | null
+}
+
+export interface CachedSalesRep {
+  id: string
+  tenantId: string
+  name: string
+}
+
+export interface CachedProductCategory {
+  id: string
+  tenantId: string
+  name: string
+}
+
 export interface CachedEquipment {
   id: string
   tenantId: string
@@ -179,6 +236,14 @@ export class TechSyncDb extends Dexie {
   customers!: EntityTable<CachedCustomer, 'id'>
   jobs!: EntityTable<CachedJob, 'id'>
   serviceLocations!: EntityTable<CachedLocation, 'id'>
+  contacts!: EntityTable<CachedContact, 'id'>
+  jobCategories!: EntityTable<CachedJobCategory, 'id'>
+  referralSources!: EntityTable<CachedReferralSource, 'id'>
+  taxItems!: EntityTable<CachedTaxItem, 'id'>
+  tags!: EntityTable<CachedTag, 'id'>
+  orgMembers!: EntityTable<CachedOrgMember, 'id'>
+  salesReps!: EntityTable<CachedSalesRep, 'id'>
+  productCategories!: EntityTable<CachedProductCategory, 'id'>
   equipment!: EntityTable<CachedEquipment, 'id'>
   estimates!: EntityTable<CachedEstimate, 'id'>
   invoices!: EntityTable<CachedInvoice, 'id'>
@@ -252,6 +317,25 @@ export class TechSyncDb extends Dexie {
     this.version(8).stores({
       jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
       serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
+      customers: 'id, tenantId, [tenantId+id]',
+      estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',
+      invoices: 'id, tenantId, status, jobId, [tenantId+status]',
+      signatureMeta: 'id, jobId, [jobId+signatureType]',
+      outbox: 'id, type, syncStatus, createdAt, seq',
+    })
+    // v9: cache reference data needed for the full estimate form
+    this.version(9).stores({
+      jobs: 'id, tenantId, status, startDate, [tenantId+assigneeUserIds]',
+      serviceLocations: 'id, tenantId, customerId, [tenantId+id]',
+      contacts: 'id, tenantId, customerId, [tenantId+customerId]',
+      jobCategories: 'id, tenantId, [tenantId+id]',
+      referralSources: 'id, tenantId, [tenantId+id]',
+      taxItems: 'id, tenantId, [tenantId+id]',
+      tags: 'id, tenantId, [tenantId+id]',
+      orgMembers: 'id, tenantId, [tenantId+id]',
+      salesReps: 'id, tenantId, [tenantId+id]',
+      productCategories: 'id, tenantId, [tenantId+id]',
       equipment: 'id, tenantId, serviceLocationId, [tenantId+serviceLocationId]',
       customers: 'id, tenantId, [tenantId+id]',
       estimates: 'id, tenantId, status, customerId, createdAt, [tenantId+status]',

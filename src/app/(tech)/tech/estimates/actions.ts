@@ -4,17 +4,63 @@ import { auth } from '@clerk/nextjs/server'
 import { logger } from '@/lib/logger'
 import type { CachedEstimate } from '@/app/(tech)/lib/dexie'
 
+export interface EstimateLineItemInput {
+  id?: string
+  type?: 'product' | 'service' | 'discount' | 'expense'
+  refId?: string | null
+  title?: string | null
+  description?: string
+  qty?: string
+  rate?: string
+  unitPrice?: string
+  cost?: string
+  taxItemId?: string | null
+  groupId?: string | null
+  sortOrder?: number
+}
+
+export interface EstimateGroupInput {
+  id?: string
+  name: string
+  sortOrder?: number
+}
+
+/**
+ * Full PWA estimate payload. Matches the desktop form's `updateEstimateSchema`
+ * so we can delegate directly to `createOfficeEstimateAction`.
+ */
 export interface CreateEstimateInput {
-  customerId: string
-  serviceLocationId: string | null
-  contactName: string | null
-  contactPhone: string | null
-  description: string
-  lineItems: Array<{ name: string; qty: string; unitPrice: string }>
-  followUpDate: string | null
-  expiryDate: string | null
-  notes: string | null
-  internalNotes: string | null
+  customerId?: string
+  newCustomerName?: string
+  newContactFirstName?: string
+  newContactLastName?: string
+  newContactPhone?: string
+  newContactEmail?: string
+  newLocationAddress1?: string
+  newLocationAddress2?: string
+  newLocationCity?: string
+  newLocationState?: string
+  newLocationPostalCode?: string
+  contactId?: string | null
+  serviceLocationId?: string | null
+  categoryId?: string | null
+  description?: string
+  poNumber?: string
+  opportunityRating?: number | null
+  referralSourceId?: string | null
+  expiryDate?: string | null
+  followUpDate?: string | null
+  onSiteDate?: string | null
+  arrivalWindowStart?: string | null
+  arrivalWindowEnd?: string | null
+  notesForTechs?: string
+  notes?: string
+  internalNotes?: string
+  assignedAgentId?: string | null
+  tagIds?: string[]
+  assigneeUserIds?: string[]
+  lineItems?: EstimateLineItemInput[]
+  groups?: EstimateGroupInput[]
 }
 
 function extractErrorMessage(err: unknown): string {
@@ -34,12 +80,11 @@ function isPhase6Missing(err: unknown): boolean {
 }
 
 /**
- * PWA wrapper for the canonical Phase 6 createEstimateAction.
+ * PWA wrapper for the canonical Phase 6 create estimate action.
  *
- * This delegates to `src/app/(app)/estimates/actions` when Phase 6 ships. Until
- * then the module does not exist, so we return a safe "not available" error for
- * online attempts; offline attempts are still queued in the Dexie outbox and will
- * flush automatically once the backend action is present.
+ * Delegates to `src/app/(app)/estimates/actions`' `createOfficeEstimateAction`
+ * so the PWA and desktop share one creation path. Offline attempts are queued
+ * in the Dexie outbox and flush automatically once connectivity returns.
  */
 export async function createEstimateAction(
   input: CreateEstimateInput,
@@ -51,13 +96,57 @@ export async function createEstimateAction(
 
   try {
     const mod = (await import('@/app/(app)/estimates/actions')) as {
-      createEstimateAction?: (orgId: string, input: CreateEstimateInput) => Promise<{ id: string }>
+      createOfficeEstimateAction?: (
+        orgId: string,
+        data: Record<string, unknown>,
+      ) => Promise<{ success: true; id: string } | { error: string }>
     }
-    if (typeof mod.createEstimateAction !== 'function') {
+    if (typeof mod.createOfficeEstimateAction !== 'function') {
       return { success: false, error: 'Estimates are not available yet.' }
     }
-    const result = await mod.createEstimateAction(orgId, input)
-    return { success: true, id: result.id }
+
+    const payload: Record<string, unknown> = {
+      customerId: input.customerId ?? '',
+      newCustomerName: input.newCustomerName ?? '',
+      newContactFirstName: input.newContactFirstName ?? '',
+      newContactLastName: input.newContactLastName ?? '',
+      newContactPhone: input.newContactPhone ?? '',
+      newContactEmail: input.newContactEmail ?? '',
+      newLocationAddress1: input.newLocationAddress1 ?? '',
+      newLocationAddress2: input.newLocationAddress2 ?? '',
+      newLocationCity: input.newLocationCity ?? '',
+      newLocationState: input.newLocationState ?? '',
+      newLocationPostalCode: input.newLocationPostalCode ?? '',
+      contactId: input.contactId ?? null,
+      serviceLocationId: input.serviceLocationId ?? null,
+      categoryId: input.categoryId ?? null,
+      description: input.description ?? '',
+      poNumber: input.poNumber ?? '',
+      opportunityRating: input.opportunityRating ?? null,
+      referralSourceId: input.referralSourceId ?? null,
+      expiryDate: input.expiryDate ?? null,
+      followUpDate: input.followUpDate ?? null,
+      onSiteDate: input.onSiteDate ?? null,
+      arrivalWindowStart: input.arrivalWindowStart ?? null,
+      arrivalWindowEnd: input.arrivalWindowEnd ?? null,
+      notesForTechs: input.notesForTechs ?? '',
+      notes: input.notes ?? '',
+      internalNotes: input.internalNotes ?? '',
+      assignedAgentId: input.assignedAgentId ?? null,
+      tagIds: input.tagIds ?? [],
+      assigneeUserIds: input.assigneeUserIds ?? [],
+      lineItems: JSON.stringify(input.lineItems ?? []),
+      groups: JSON.stringify(input.groups ?? []),
+    }
+
+    const result = await mod.createOfficeEstimateAction(orgId, payload)
+    if ('error' in result && result.error) {
+      return { success: false, error: result.error }
+    }
+    if ('id' in result && result.id) {
+      return { success: true, id: result.id }
+    }
+    return { success: false, error: 'Could not create estimate.' }
   } catch (err) {
     const message = extractErrorMessage(err)
     if (isPhase6Missing(err)) {
