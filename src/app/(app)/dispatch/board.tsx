@@ -13,15 +13,17 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { updateJobAssignment, unassignJob, getJobPopupData } from './actions'
+import { updateJobAssignment, unassignJob, updateEstimateAssignment, unassignEstimate, getJobPopupData } from './actions'
 import type { WeekJob, WeekEstimate, Technician, PoolCounts, PopupData } from './actions'
 import { toISODate, parseCalendarDate, getMonday } from '@/lib/utils'
 import { WeekNavigator } from './components/week-navigator'
 import { WeekGrid } from './grid/week-grid'
 import { JobBlock } from './grid/job-block'
+import { EstimateBlock } from './grid/estimate-block'
 import { JobPool } from './pool/job-pool'
 import { EstimatePool } from './pool/estimate-pool'
 import { PoolCardContent } from './pool/pool-card'
+import { EstimatePoolCardContent } from './pool/estimate-pool-card'
 import { DispatchPopup } from './popup/dispatch-popup'
 import { MobileDispatch } from './mobile-view'
 import { useRealtimeSync } from './hooks/use-realtime-sync'
@@ -109,6 +111,8 @@ export function DispatchBoard({
   const [revertPoolJobs, setRevertPoolJobs] = useState<WeekJob[]>(() => poolJobs.map(parseWeekJob))
   const [activeJob, setActiveJob] = useState<WeekJob | null>(null)
   const [activeFromPool, setActiveFromPool] = useState(false)
+  const [activeEstimate, setActiveEstimate] = useState<WeekEstimate | null>(null)
+  const [activeEstimateFromPool, setActiveEstimateFromPool] = useState(false)
   const [popupJob, setPopupJob] = useState<WeekJob | null>(null)
   const [popupOpen, setPopupOpen] = useState(false)
   const [popupData, setPopupData] = useState<PopupData | null>(null)
@@ -186,13 +190,24 @@ export function DispatchBoard({
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
+      const type = event.active.data.current?.type as string | undefined
+
+      if (type === 'pool-estimate' || type === 'estimate') {
+        const estimate = event.active.data.current?.estimate as WeekEstimate | undefined
+        if (estimate) {
+          setActiveEstimate(estimate)
+          setActiveEstimateFromPool(type === 'pool-estimate')
+        }
+        return
+      }
+
       const rawId = stripDraggableId(event.active.id as string)
       const job =
         localJobs.find((j) => j.id === rawId) ??
         localPoolJobs.find((j) => j.id === rawId)
       if (job) {
         setActiveJob(job)
-        setActiveFromPool(event.active.data.current?.type === 'pool-job')
+        setActiveFromPool(type === 'pool-job')
       }
     },
     [localJobs, localPoolJobs],
@@ -202,8 +217,77 @@ export function DispatchBoard({
     (event: DragEndEvent) => {
       setActiveJob(null)
       setActiveFromPool(false)
+      setActiveEstimate(null)
+      setActiveEstimateFromPool(false)
       const { active, over } = event
       if (!over || active.id === over.id) return
+
+      const dragType = active.data.current?.type as string | undefined
+
+      // ── Estimate drag ──────────────────────────────────────────────────────
+      if (dragType === 'pool-estimate' || dragType === 'estimate') {
+        const estimate = active.data.current?.estimate as WeekEstimate | undefined
+        if (!estimate) return
+
+        const target = over.id as string
+        const isPoolEstimate = dragType === 'pool-estimate'
+
+        const prevEstimates = localEstimates
+        const prevPoolEstimates = localPoolEstimates
+
+        // Drop on estimate pool → unassign
+        if (target === 'estimate-pool') {
+          if (isPoolEstimate) return
+          const unassigned: WeekEstimate = { ...estimate, techIds: [], startDate: null }
+          setLocalEstimates((prev) => prev.filter((e) => e.id !== estimate.id))
+          setLocalPoolEstimates((prev) => [unassigned, ...prev])
+          startTransition(async () => {
+            const result = await unassignEstimate({ estimateId: estimate.id })
+            if (result.error) {
+              setLocalEstimates(prevEstimates)
+              setLocalPoolEstimates(prevPoolEstimates)
+              toast.error(result.error)
+            } else {
+              router.refresh()
+            }
+          })
+          return
+        }
+
+        // Drop on grid cell → assign
+        const [techId, date] = target.split(':')
+        if (!techId || !date) return
+
+        const moved: WeekEstimate = {
+          ...estimate,
+          techIds: [techId],
+          startDate: new Date(`${date}T00:00:00`),
+          endDate: null,
+        }
+
+        if (isPoolEstimate) {
+          setLocalPoolEstimates((prev) => prev.filter((e) => e.id !== estimate.id))
+          setLocalEstimates((prev) => [...prev, moved])
+        } else {
+          setLocalEstimates((prev) => prev.map((e) => (e.id === estimate.id ? moved : e)))
+        }
+
+        startTransition(async () => {
+          const result = await updateEstimateAssignment({
+            estimateId: estimate.id,
+            techUserId: techId,
+            date,
+          })
+          if (result.error) {
+            setLocalEstimates(prevEstimates)
+            setLocalPoolEstimates(prevPoolEstimates)
+            toast.error(result.error)
+          } else {
+            router.refresh()
+          }
+        })
+        return
+      }
 
       const rawJobId = stripDraggableId(active.id as string)
       const target = over.id as string
@@ -340,7 +424,7 @@ export function DispatchBoard({
         }
       })
     },
-    [localJobs, localPoolJobs, startTransition],
+    [localJobs, localPoolJobs, localEstimates, localPoolEstimates, startTransition],
   )
 
   const weekDates: Date[] = []
@@ -405,7 +489,9 @@ export function DispatchBoard({
           </div>
 
           <DragOverlay>
-            {activeJob ? (
+            {activeEstimate ? (
+              <EstimatePoolCardContent estimate={activeEstimate} isOverlay />
+            ) : activeJob ? (
               activeFromPool ? (
                 <PoolCardContent job={activeJob} isOverlay />
               ) : (

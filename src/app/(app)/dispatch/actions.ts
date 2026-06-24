@@ -245,6 +245,96 @@ export async function transitionJobStatusAction(
   return { success: true }
 }
 
+// ── Estimate assignment schemas ──────────────────────────────────────────────
+
+const updateEstimateAssignmentSchema = z.object({
+  estimateId: z.string().uuid(),
+  techUserId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+})
+
+const unassignEstimateSchema = z.object({
+  estimateId: z.string().uuid(),
+})
+
+/** Assign (or reassign) an estimate to a technician on a given date. */
+export async function updateEstimateAssignment(
+  input: z.infer<typeof updateEstimateAssignmentSchema>,
+): Promise<{ error?: string; success?: boolean }> {
+  const parsed = updateEstimateAssignmentSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const { estimateId, techUserId, date } = parsed.data
+
+  const techs = await fetchTechnicians(orgId)
+  if (!techs.some((t) => t.userId === techUserId)) {
+    return { error: 'Selected user is not a member of this organization.' }
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(estimateAssignees)
+        .where(and(eq(estimateAssignees.tenantId, orgId), eq(estimateAssignees.estimateId, estimateId)))
+
+      await tx.insert(estimateAssignees).values({
+        tenantId: orgId,
+        estimateId,
+        userId: techUserId,
+        notify: false,
+      })
+
+      await tx
+        .update(estimates)
+        .set({ onSiteDate: new Date(`${date}T00:00:00`), updatedAt: new Date() })
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+    })
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Assignment failed' }
+  }
+
+  revalidatePath('/dispatch')
+  return { success: true }
+}
+
+/** Remove a grid estimate back to the pool: clear assignees and onSiteDate. */
+export async function unassignEstimate(
+  input: z.infer<typeof unassignEstimateSchema>,
+): Promise<{ error?: string; success?: boolean }> {
+  const parsed = unassignEstimateSchema.safeParse(input)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  }
+
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const { estimateId } = parsed.data
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(estimateAssignees)
+        .where(and(eq(estimateAssignees.tenantId, orgId), eq(estimateAssignees.estimateId, estimateId)))
+
+      await tx
+        .update(estimates)
+        .set({ onSiteDate: null, updatedAt: new Date() })
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+    })
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Unassignment failed' }
+  }
+
+  revalidatePath('/dispatch')
+  return { success: true }
+}
+
 /** List all active org technicians via Clerk. */
 export async function listTechnicians(): Promise<Technician[]> {
   const { orgId } = await auth()

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useDroppable } from '@dnd-kit/core'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { EstimatePoolCard } from './estimate-pool-card'
@@ -20,6 +21,7 @@ interface EstimatePoolProps {
 
 export function EstimatePool({ estimates }: EstimatePoolProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('all')
+  const { isOver, setNodeRef } = useDroppable({ id: 'estimate-pool' })
 
   const counts: Record<TabKey, number> = useMemo(() => ({
     all:         estimates.length,
@@ -71,7 +73,13 @@ export function EstimatePool({ estimates }: EstimatePoolProps) {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto pr-1 content-start">
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'flex flex-wrap gap-2 max-h-[300px] overflow-y-auto pr-1 rounded-md transition-colors content-start',
+          isOver && 'bg-amber-50/60 ring-2 ring-amber-300/40',
+        )}
+      >
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center w-full">No estimates in this tab.</p>
         ) : (

@@ -1,7 +1,10 @@
 'use client'
 
-import Link from 'next/link'
+import { useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useDraggable } from '@dnd-kit/core'
 import { estimateStatusLabel } from '@/lib/estimates/status'
+import { cn } from '@/lib/utils'
 import type { WeekEstimate } from '../actions'
 
 type BadgeStyle = { bg: string; text: string; border: string }
@@ -29,18 +32,22 @@ function formatWindow(start: Date | string | null, end: Date | string | null): s
   return s && e ? `${s} – ${e}` : s || e || ''
 }
 
-interface EstimatePoolCardProps {
+interface EstimatePoolCardContentProps {
   estimate: WeekEstimate
+  isOverlay?: boolean
 }
 
-export function EstimatePoolCard({ estimate }: EstimatePoolCardProps) {
+export function EstimatePoolCardContent({ estimate, isOverlay }: EstimatePoolCardContentProps) {
   const badge = statusBadgeStyle(estimate.status)
   const window = formatWindow(estimate.arrivalWindowStart, estimate.arrivalWindowEnd)
 
   return (
-    <Link
-      href={`/estimates/${estimate.id}`}
-      className="block w-full sm:w-52 min-h-[104px] rounded-md border p-2 text-xs shadow-sm transition-all bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-400 hover:shadow-md"
+    <div
+      className={cn(
+        'w-full sm:w-52 min-h-[104px] cursor-grab rounded-md border p-2 text-xs shadow-sm active:cursor-grabbing transition-all',
+        'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-400 hover:shadow-md',
+        isOverlay && 'shadow-lg rotate-2 scale-105 cursor-grabbing',
+      )}
     >
       <div className="flex items-center justify-between gap-1">
         <span className="font-semibold tabular-nums">EST-{estimate.estimateNo}</span>
@@ -61,6 +68,43 @@ export function EstimatePoolCard({ estimate }: EstimatePoolCardProps) {
       {estimate.description && (
         <div className="truncate text-[10px] opacity-70 mt-0.5">{estimate.description}</div>
       )}
-    </Link>
+    </div>
+  )
+}
+
+interface EstimatePoolCardProps {
+  estimate: WeekEstimate
+}
+
+export function EstimatePoolCard({ estimate }: EstimatePoolCardProps) {
+  const router = useRouter()
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `pool-estimate:${estimate.id}`,
+    data: { type: 'pool-estimate', estimate },
+  })
+
+  const wasDragged = useRef(false)
+  useEffect(() => {
+    if (isDragging) wasDragged.current = true
+  }, [isDragging])
+
+  const handleClick = () => {
+    if (wasDragged.current) {
+      wasDragged.current = false
+      return
+    }
+    router.push(`/estimates/${estimate.id}`)
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={handleClick}
+      className={cn(isDragging && 'opacity-30')}
+    >
+      <EstimatePoolCardContent estimate={estimate} />
+    </div>
   )
 }
