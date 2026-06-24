@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { eq, and, sql, max, count, desc, isNull, inArray } from 'drizzle-orm'
+import { eq, and, sql, max, count, asc, desc, isNull, inArray } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import type { Tx } from '@/db/with-tenant'
@@ -1010,12 +1010,35 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
 
 export async function listEstimatesAction(
   orgId: string,
-  filters?: { status?: string },
+  filters?: { status?: string; sort?: string; dir?: string },
 ): Promise<{ rows: CachedEstimate[] }> {
   return withTenant(orgId, async (tx) => {
     const conditions = [eq(estimates.tenantId, orgId)]
     if (filters?.status && isEstimateStatus(filters.status)) {
       conditions.push(eq(estimates.status, filters.status))
+    }
+
+    const d = filters?.dir === 'asc' ? 'asc' : 'desc'
+    const orderFn = d === 'asc' ? asc : desc
+
+    let orderClause: ReturnType<typeof asc> | ReturnType<typeof sql>
+    switch (filters?.sort) {
+      case 'estimateNo':
+        orderClause = orderFn(estimates.estimateNo)
+        break
+      case 'requestedOn':
+        orderClause = orderFn(estimates.requestedOn)
+        break
+      case 'customerName':
+        orderClause = orderFn(customers.name)
+        break
+      case 'value':
+        orderClause = d === 'asc'
+          ? sql`COALESCE(SUM(${estimateLineItems.rate}::numeric * ${estimateLineItems.qty}::numeric), 0) ASC`
+          : sql`COALESCE(SUM(${estimateLineItems.rate}::numeric * ${estimateLineItems.qty}::numeric), 0) DESC`
+        break
+      default:
+        orderClause = desc(estimates.createdAt)
     }
 
     const rows = await tx
@@ -1051,7 +1074,7 @@ export async function listEstimatesAction(
       .leftJoin(estimateLineItems, and(eq(estimateLineItems.tenantId, estimates.tenantId), eq(estimateLineItems.estimateId, estimates.id)))
       .where(and(...conditions))
       .groupBy(estimates.id, customers.name)
-      .orderBy(desc(estimates.createdAt))
+      .orderBy(orderClause)
 
     return { rows: rows as CachedEstimate[] }
   })

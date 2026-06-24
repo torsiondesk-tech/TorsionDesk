@@ -12,6 +12,8 @@ interface EstimatesPageProps {
   searchParams: Promise<{
     status?: string | string[]
     mine?: string | string[]
+    sort?: string | string[]
+    dir?: string | string[]
   }>
 }
 
@@ -29,7 +31,9 @@ async function EstimateList({
 }) {
   const params = await searchParams
   const status = normalizeParam(params.status)
-  const { rows } = await listEstimatesAction(orgId, { status })
+  const sort = normalizeParam(params.sort)
+  const dir = normalizeParam(params.dir)
+  const { rows } = await listEstimatesAction(orgId, { status, sort, dir })
   return <EstimatesTable rows={rows as import('./estimates-table').EstimateRow[]} status={status} />
 }
 

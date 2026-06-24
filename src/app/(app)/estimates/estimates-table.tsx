@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { useTransition } from 'react'
+import { useQueryStates, parseAsString } from 'nuqs'
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { StarPicker } from '@/components/line-items/star-picker'
+import { cn } from '@/lib/utils'
 
 export interface EstimateRow {
   id: string
@@ -118,12 +121,33 @@ const columns: ColumnDef<EstimateRow>[] = [
   },
 ]
 
+const SORTABLE_COLUMNS = new Set(['estimateNo', 'requestedOn', 'customerName', 'value'])
+
 export function EstimatesTable({ rows, status }: EstimatesTableProps) {
   const hasFilters = !!status
+  const [isPending, startTransition] = useTransition()
+  const [{ sort, dir }, setParams] = useQueryStates(
+    {
+      sort: parseAsString.withDefault(''),
+      dir: parseAsString.withDefault('desc'),
+    },
+    { shallow: false, startTransition },
+  )
+
+  const toggleSort = (columnId: string) => {
+    startTransition(() => {
+      if (sort === columnId) {
+        setParams({ dir: dir === 'asc' ? 'desc' : 'asc' })
+      } else {
+        setParams({ sort: columnId, dir: 'asc' })
+      }
+    })
+  }
 
   const table = useReactTable({
     data: rows,
     columns,
+    manualSorting: true,
     getCoreRowModel: getCoreRowModel(),
   })
 
@@ -134,21 +158,36 @@ export function EstimatesTable({ rows, status }: EstimatesTableProps) {
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
-                {hg.headers.map((h) => (
-                  <TableHead
-                    key={h.id}
-                    className="uppercase tracking-wide text-xs"
-                  >
-                    {flexRender(h.column.columnDef.header, h.getContext())}
-                  </TableHead>
-                ))}
+                {hg.headers.map((h) => {
+                  const sortable = SORTABLE_COLUMNS.has(h.column.id)
+                  const isActive = sort === h.column.id
+                  return (
+                    <TableHead
+                      key={h.id}
+                      className={cn(
+                        'uppercase tracking-wide text-xs',
+                        sortable && 'cursor-pointer select-none',
+                      )}
+                      onClick={sortable ? () => toggleSort(h.column.id) : undefined}
+                    >
+                      <div className="flex items-center gap-1">
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                        {isActive && (
+                          <span className="text-[10px]">
+                            {dir === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </TableHead>
+                  )
+                })}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="py-2">
+                <TableRow key={row.id} data-pending={isPending} className="py-2">
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="py-2">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

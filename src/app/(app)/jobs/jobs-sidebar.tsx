@@ -4,6 +4,7 @@ import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs'
 import { cn } from '@/lib/utils'
 import {
   Search,
+  LayoutList,
   User,
   CalendarDays,
   Briefcase,
@@ -31,6 +32,7 @@ interface Bucket {
 
 const BUCKETS: Bucket[] = [
   { key: 'advanced_search', label: 'Advanced Search', icon: Search },
+  { key: 'all', label: 'All', icon: LayoutList },
   { key: 'my_jobs', label: 'My Jobs', icon: User },
   { key: 'my_additional_visits', label: 'My Additional Visits', icon: CalendarDays },
   { key: 'all_open', label: 'All Open Jobs', icon: Briefcase },

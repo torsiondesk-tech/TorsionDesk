@@ -113,7 +113,7 @@ export async function listJobs(
           AND ${jobSiteVisits.tenantId} = ${orgId}
         )`,
       )
-    } else if (opts.bucket !== 'advanced_search') {
+    } else if (opts.bucket !== 'advanced_search' && opts.bucket !== 'all') {
       // Default to open + in_progress for all other buckets (including all_open and unknown)
       const openStatuses = [...STATUS_GROUPS.open, ...STATUS_GROUPS.in_progress]
       conditions.push(inArray(jobs.status, openStatuses))
