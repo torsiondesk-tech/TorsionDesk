@@ -63,10 +63,14 @@ function parseWeekJob(job: WeekJob): WeekJob {
 }
 
 function parseWeekEstimate(estimate: WeekEstimate): WeekEstimate {
+  const rawDate = parseDate(estimate.startDate)
   return {
     ...estimate,
-    // onSiteDate is a wall-clock timestamp — use parseDate (not parseCalendarDate)
-    startDate: parseDate(estimate.startDate),
+    // onSiteDate arrives from the server as a UTC instant (timestamp column stored
+    // at UTC midnight). Extract the UTC calendar date then build a local midnight
+    // Date so toISODate() returns the correct day in US timezones. Using parseDate
+    // directly would shift the day one day back (UTC midnight = previous evening locally).
+    startDate: rawDate ? parseCalendarDate(rawDate.toISOString().slice(0, 10)) : null,
     endDate: null,
     arrivalWindowStart: parseDate(estimate.arrivalWindowStart),
     arrivalWindowEnd: parseDate(estimate.arrivalWindowEnd),
