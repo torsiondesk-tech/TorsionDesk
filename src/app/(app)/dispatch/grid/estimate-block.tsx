@@ -64,7 +64,7 @@ export function EstimateBlock({ estimate, isOverlay, onClick }: EstimateBlockPro
       {...attributes}
       onClick={handleClick}
       className={cn(
-        'cursor-grab rounded-md border p-2 text-xs shadow-sm active:cursor-grabbing transition-all',
+        'min-h-[104px] cursor-grab rounded-md border p-2 text-xs shadow-sm active:cursor-grabbing transition-all',
         'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-300',
         isDragging && !isOverlay && 'opacity-30',
         isOverlay && 'shadow-lg rotate-2 scale-105 cursor-grabbing',
