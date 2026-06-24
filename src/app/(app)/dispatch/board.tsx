@@ -13,8 +13,8 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { updateJobAssignment, unassignJob, updateEstimateAssignment, unassignEstimate, getJobPopupData } from './actions'
-import type { WeekJob, WeekEstimate, Technician, PoolCounts, PopupData } from './actions'
+import { updateJobAssignment, unassignJob, updateEstimateAssignment, unassignEstimate, getJobPopupData, getEstimatePopupData } from './actions'
+import type { WeekJob, WeekEstimate, Technician, PoolCounts, PopupData, EstimatePopupData } from './actions'
 import { toISODate, parseCalendarDate, getMonday } from '@/lib/utils'
 import { WeekNavigator } from './components/week-navigator'
 import { WeekGrid } from './grid/week-grid'
@@ -25,6 +25,7 @@ import { EstimatePool } from './pool/estimate-pool'
 import { PoolCardContent } from './pool/pool-card'
 import { EstimatePoolCardContent } from './pool/estimate-pool-card'
 import { DispatchPopup } from './popup/dispatch-popup'
+import { EstimatePopup } from './popup/estimate-popup'
 import { MobileDispatch } from './mobile-view'
 import { useRealtimeSync } from './hooks/use-realtime-sync'
 import { StatusColorProvider, type StatusColorMap } from './contexts/status-color-context'
@@ -117,6 +118,10 @@ export function DispatchBoard({
   const [popupOpen, setPopupOpen] = useState(false)
   const [popupData, setPopupData] = useState<PopupData | null>(null)
   const [popupLoading, setPopupLoading] = useState(false)
+  const [popupEstimate, setPopupEstimate] = useState<WeekEstimate | null>(null)
+  const [popupEstimateOpen, setPopupEstimateOpen] = useState(false)
+  const [popupEstimateData, setPopupEstimateData] = useState<EstimatePopupData | null>(null)
+  const [popupEstimateLoading, setPopupEstimateLoading] = useState(false)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const { orgId } = useAuth()
@@ -176,6 +181,35 @@ export function DispatchBoard({
     setPopupOpen(false)
     setPopupData(null)
     setTimeout(() => setPopupJob(null), 200)
+  }, [])
+
+  const openEstimatePopup = useCallback(
+    (estimate: WeekEstimate) => {
+      setPopupEstimate(estimate)
+      setPopupEstimateOpen(true)
+      setPopupEstimateData(null)
+      setPopupEstimateLoading(true)
+
+      if (orgId) {
+        startTransition(async () => {
+          try {
+            const data = await getEstimatePopupData(estimate.id, orgId)
+            setPopupEstimateData(data)
+          } catch {
+            setPopupEstimateData(null)
+          } finally {
+            setPopupEstimateLoading(false)
+          }
+        })
+      }
+    },
+    [orgId],
+  )
+
+  const closeEstimatePopup = useCallback(() => {
+    setPopupEstimateOpen(false)
+    setPopupEstimateData(null)
+    setTimeout(() => setPopupEstimate(null), 200)
   }, [])
 
   // Sync when server data changes (week navigation, refresh)
@@ -479,12 +513,13 @@ export function DispatchBoard({
                 weekDates={weekDates}
                 isLoading={isPending}
                 onJobClick={openPopup}
+                onEstimateClick={openEstimatePopup}
               />
             </div>
 
             <JobPool jobs={localPoolJobs} counts={counts} onJobClick={openPopup} />
             {localPoolEstimates.length > 0 && (
-              <EstimatePool estimates={localPoolEstimates} />
+              <EstimatePool estimates={localPoolEstimates} onEstimateClick={openEstimatePopup} />
             )}
           </div>
 
@@ -508,6 +543,13 @@ export function DispatchBoard({
         open={popupOpen}
         onClose={closePopup}
         popupData={popupData}
+      />
+      <EstimatePopup
+        estimate={popupEstimate}
+        techs={technicians}
+        open={popupEstimateOpen}
+        onClose={closeEstimatePopup}
+        popupData={popupEstimateData}
       />
       <Toaster />
     </>

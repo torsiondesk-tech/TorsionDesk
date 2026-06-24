@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { useDraggable } from '@dnd-kit/core'
 import { estimateStatusLabel } from '@/lib/estimates/status'
 import { cn } from '@/lib/utils'
@@ -74,10 +73,10 @@ export function EstimatePoolCardContent({ estimate, isOverlay }: EstimatePoolCar
 
 interface EstimatePoolCardProps {
   estimate: WeekEstimate
+  onClick?: (estimate: WeekEstimate) => void
 }
 
-export function EstimatePoolCard({ estimate }: EstimatePoolCardProps) {
-  const router = useRouter()
+export function EstimatePoolCard({ estimate, onClick }: EstimatePoolCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `pool-estimate:${estimate.id}`,
     data: { type: 'pool-estimate', estimate },
@@ -93,7 +92,7 @@ export function EstimatePoolCard({ estimate }: EstimatePoolCardProps) {
       wasDragged.current = false
       return
     }
-    router.push(`/estimates/${estimate.id}`)
+    onClick?.(estimate)
   }
 
   return (

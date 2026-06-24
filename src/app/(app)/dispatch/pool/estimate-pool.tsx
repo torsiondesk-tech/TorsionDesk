@@ -17,9 +17,10 @@ const TABS: { key: TabKey; label: string }[] = [
 
 interface EstimatePoolProps {
   estimates: WeekEstimate[]
+  onEstimateClick?: (estimate: WeekEstimate) => void
 }
 
-export function EstimatePool({ estimates }: EstimatePoolProps) {
+export function EstimatePool({ estimates, onEstimateClick }: EstimatePoolProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('all')
   const { isOver, setNodeRef } = useDroppable({ id: 'estimate-pool' })
 
@@ -83,7 +84,7 @@ export function EstimatePool({ estimates }: EstimatePoolProps) {
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center w-full">No estimates in this tab.</p>
         ) : (
-          filtered.map((e) => <EstimatePoolCard key={e.id} estimate={e} />)
+          filtered.map((e) => <EstimatePoolCard key={e.id} estimate={e} onClick={onEstimateClick} />)
         )}
       </div>
     </div>

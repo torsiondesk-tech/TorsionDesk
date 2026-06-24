@@ -18,6 +18,7 @@ import {
   teamProfiles,
   estimates,
   estimateAssignees,
+  estimateLineItems,
 } from '@/db/schema'
 import type { JobStatusValue } from '@/lib/jobs/transitions'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
@@ -1027,6 +1028,264 @@ export async function getPoolEstimates(orgId: string): Promise<WeekEstimate[]> {
     }
     return Array.from(map.values())
   })
+}
+
+// ── Estimate popup data ──────────────────────────────────────────────────────
+
+export type EstimatePopupData = {
+  customerId: string | null
+  serviceLocationId: string | null
+  customerPhone: string | null
+  fullAddress: string | null
+  notesForTechs: string | null
+  contactName: string | null
+  contactEmail: string | null
+  totalAmount: number | null
+}
+
+export async function getEstimatePopupData(
+  estimateId: string,
+  orgId: string,
+): Promise<EstimatePopupData | null> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        customerId: estimates.customerId,
+        serviceLocationId: estimates.serviceLocationId,
+        notesForTechs: estimates.notesForTechs,
+        addressLine1: serviceLocations.addressLine1,
+        addressLine2: serviceLocations.addressLine2,
+        city: serviceLocations.city,
+        state: serviceLocations.state,
+        postalCode: serviceLocations.postalCode,
+        contactFirstName: contacts.firstName,
+        contactLastName: contacts.lastName,
+        customerPrimaryContactId: customers.primaryContactId,
+        phone: contactPhones.number,
+        email: contactEmails.address,
+      })
+      .from(estimates)
+      .leftJoin(customers, eq(customers.id, estimates.customerId))
+      .leftJoin(serviceLocations, eq(serviceLocations.id, estimates.serviceLocationId))
+      .leftJoin(
+        contacts,
+        eq(contacts.id, sql`COALESCE(${estimates.contactId}, ${customers.primaryContactId})`),
+      )
+      .leftJoin(contactPhones, eq(contactPhones.contactId, contacts.id))
+      .leftJoin(contactEmails, eq(contactEmails.contactId, contacts.id))
+      .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+      .limit(1)
+
+    if (rows.length === 0) return null
+
+    const r = rows[0]
+    const parts = [r.addressLine1, r.addressLine2, r.city, r.state, r.postalCode].filter(Boolean)
+    const fullAddress = parts.length ? parts.join(', ') : null
+    const contactName = [r.contactFirstName, r.contactLastName].filter(Boolean).join(' ') || null
+
+    const [totRow] = await tx
+      .select({ total: sql<string>`COALESCE(SUM(${estimateLineItems.qty} * ${estimateLineItems.rate}), 0)` })
+      .from(estimateLineItems)
+      .where(and(eq(estimateLineItems.tenantId, orgId), eq(estimateLineItems.estimateId, estimateId)))
+
+    const totalAmount = totRow?.total ? Number(totRow.total) : null
+
+    return {
+      customerId: r.customerId ?? null,
+      serviceLocationId: r.serviceLocationId ?? null,
+      customerPhone: r.phone ?? null,
+      fullAddress,
+      notesForTechs: r.notesForTechs ?? null,
+      contactName,
+      contactEmail: r.email ?? null,
+      totalAmount,
+    }
+  })
+}
+
+// ── Estimate status transitions ──────────────────────────────────────────────
+
+const ESTIMATE_ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  estimate_requested: ['estimate_provided', 'estimate_accepted', 'estimate_won', 'estimate_lost'],
+  estimate_provided:  ['estimate_accepted', 'estimate_won', 'estimate_lost'],
+  estimate_accepted:  ['estimate_won', 'estimate_lost'],
+  estimate_won:       [],
+  estimate_lost:      [],
+}
+
+const updateEstimateStatusSchema = z.object({
+  estimateId: z.string().uuid(),
+  toStatus: z.string().min(1),
+})
+
+export async function updateEstimateStatus(
+  input: z.infer<typeof updateEstimateStatusSchema>,
+): Promise<{ error?: string; success?: boolean }> {
+  const parsed = updateEstimateStatusSchema.safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const { estimateId, toStatus } = parsed.data
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      const [row] = await tx
+        .select({ status: estimates.status })
+        .from(estimates)
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+        .limit(1)
+
+      if (!row) throw new Error('Estimate not found')
+      const allowed = ESTIMATE_ALLOWED_TRANSITIONS[row.status] ?? []
+      if (!allowed.includes(toStatus)) throw new Error(`Cannot transition from ${row.status} to ${toStatus}`)
+
+      await tx
+        .update(estimates)
+        .set({ status: toStatus as typeof estimates.$inferInsert['status'], updatedAt: new Date() })
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+    })
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Status update failed' }
+  }
+
+  revalidatePath('/dispatch')
+  revalidatePath(`/estimates/${estimateId}`)
+  return { success: true }
+}
+
+// ── Estimate inline field updates ────────────────────────────────────────────
+
+const estimateIdSchema = z.object({ estimateId: z.string().uuid() })
+
+async function updateEstimateField(
+  estimateId: string,
+  set: Record<string, unknown>,
+): Promise<{ error?: string; success?: boolean }> {
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(estimates)
+        .set({ ...set, updatedAt: new Date() })
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+    })
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Update failed' }
+  }
+
+  revalidatePath('/dispatch')
+  revalidatePath(`/estimates/${estimateId}`)
+  return { success: true }
+}
+
+export async function updateEstimateDescription(
+  input: z.infer<typeof estimateIdSchema> & { description: string | null },
+) {
+  const parsed = estimateIdSchema.merge(z.object({ description: z.string().nullable() })).safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  return updateEstimateField(parsed.data.estimateId, { description: parsed.data.description })
+}
+
+export async function updateEstimateNotesForTechs(
+  input: z.infer<typeof estimateIdSchema> & { notesForTechs: string | null },
+) {
+  const parsed = estimateIdSchema.merge(z.object({ notesForTechs: z.string().nullable() })).safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  return updateEstimateField(parsed.data.estimateId, { notesForTechs: parsed.data.notesForTechs })
+}
+
+export async function updateEstimateOnSiteDate(
+  input: z.infer<typeof estimateIdSchema> & { date: string | null },
+) {
+  const parsed = estimateIdSchema.merge(z.object({ date: z.string().nullable() })).safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+  const date = parsed.data.date ? new Date(`${parsed.data.date}T00:00:00`) : null
+  return updateEstimateField(parsed.data.estimateId, { onSiteDate: date })
+}
+
+export async function updateEstimateArrivalWindow(
+  input: z.infer<typeof estimateIdSchema> & {
+    arrivalWindowStart: string | null
+    arrivalWindowEnd: string | null
+  },
+) {
+  const parsed = estimateIdSchema
+    .merge(z.object({ arrivalWindowStart: z.string().nullable(), arrivalWindowEnd: z.string().nullable() }))
+    .safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const toDateTime = (t: string | null): Date | null => {
+    if (!t) return null
+    const [h, m] = t.split(':').map(Number)
+    const d = new Date()
+    d.setHours(h, m, 0, 0)
+    return d
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(estimates)
+        .set({
+          arrivalWindowStart: toDateTime(parsed.data.arrivalWindowStart),
+          arrivalWindowEnd: toDateTime(parsed.data.arrivalWindowEnd),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, parsed.data.estimateId)))
+    })
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Update failed' }
+  }
+
+  revalidatePath('/dispatch')
+  revalidatePath(`/estimates/${parsed.data.estimateId}`)
+  return { success: true }
+}
+
+export async function updateEstimateAssigneesAction(
+  input: z.infer<typeof estimateIdSchema> & { techUserIds: string[] },
+) {
+  const parsed = estimateIdSchema
+    .merge(z.object({ techUserIds: z.array(z.string().min(1)) }))
+    .safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  const { orgId } = await auth()
+  if (!orgId) return { error: 'Unauthorized' }
+
+  const { estimateId, techUserIds } = parsed.data
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(estimateAssignees)
+        .where(and(eq(estimateAssignees.tenantId, orgId), eq(estimateAssignees.estimateId, estimateId)))
+
+      if (techUserIds.length > 0) {
+        await tx.insert(estimateAssignees).values(
+          techUserIds.map((userId) => ({
+            tenantId: orgId,
+            estimateId,
+            userId,
+            notify: false,
+          })),
+        )
+      }
+    })
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Update failed' }
+  }
+
+  revalidatePath('/dispatch')
+  revalidatePath(`/estimates/${estimateId}`)
+  return { success: true }
 }
 
 export type PoolCounts = {
