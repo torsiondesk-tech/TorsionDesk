@@ -537,138 +537,159 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
       const isCatalog = e.type === 'product' || e.type === 'service'
       const isDiscountEdit = e.type === 'discount'
       return (
-        <tr key={e.id} className="border-b bg-muted/30">
-          <td colSpan={8} className="px-3 py-3">
-            <div className={`grid grid-cols-1 gap-3 ${isDiscountEdit ? 'md:grid-cols-[2fr_1fr_1fr_1fr_auto]' : 'md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]'}`}>
-              {/* Item */}
-              <div className="space-y-2">
-                {isCatalog ? (
-                  <div>
-                    <Label className="text-xs">Title</Label>
-                    <SearchDropdown
-                      kind={e.type as 'product' | 'service'}
-                      query={inlineEditSearch.query}
-                      results={inlineEditSearch.results}
-                      loading={inlineEditSearch.loading}
-                      onQueryChange={(q) => {
-                        setInlineEdit({ ...e, title: q })
-                        inlineEditSearch.search(q, e.type as 'product' | 'service')
-                      }}
-                      onSelect={handleInlineEditSelect}
-                      onCreateNew={() =>
-                        openCreateCatalog(e.type as 'product' | 'service', 'inline-edit', e.title)
-                      }
-                      onAddCustom={(q) => {
-                        setInlineEdit({ ...e, title: q, refId: null })
-                        inlineEditSearch.setQuery(q)
-                        inlineEditSearch.setResults([])
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <Label className="text-xs">Title</Label>
-                    <Input
-                      value={e.title}
-                      onChange={(ev) => setInlineEdit({ ...e, title: ev.target.value })}
-                      placeholder="Title"
-                    />
-                  </div>
-                )}
+        <tr key={e.id} className="border-b bg-muted/30 align-top">
+          <td className="px-3 py-3">
+            <div className="space-y-2">
+              {isCatalog ? (
                 <div>
-                  <Label className="text-xs">Description</Label>
-                  <Textarea
-                    value={e.description}
-                    onChange={(ev) => setInlineEdit({ ...e, description: ev.target.value })}
-                    placeholder="Description"
-                    rows={2}
-                  />
-                </div>
-              </div>
-              {/* Qty */}
-              <div className="space-y-1">
-                <Label className="text-xs">Qty</Label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="1"
-                  value={e.qty}
-                  onChange={(ev) => setInlineEdit({ ...e, qty: ev.target.value })}
-                  className="w-full md:w-20"
-                />
-              </div>
-              {/* Rate */}
-              <div className="space-y-1">
-                <Label className="text-xs">Rate</Label>
-                <Input
-                  value={e.rate}
-                  onChange={(ev) => setInlineEdit({ ...e, rate: ev.target.value })}
-                  className="w-full md:w-24"
-                />
-              </div>
-              {/* Total */}
-              <div className="space-y-1">
-                <span className="text-xs text-transparent">Total</span>
-                <div className="text-sm text-muted-foreground">
-                  ${(parseMoney(e.rate) * (parseFloat(e.qty || '0') || 0) / 100).toFixed(2)}
-                </div>
-              </div>
-              {!isDiscountEdit && (
-                <>
-                  {/* Cost */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Cost</Label>
-                    <Input
-                      value={e.cost}
-                      onChange={(ev) => setInlineEdit({ ...e, cost: ev.target.value })}
-                      className="w-full md:w-24"
-                    />
-                  </div>
-                  {/* Margin */}
-                  <div className="space-y-1">
-                    <span className="text-xs text-transparent">Margin</span>
-                    <div className="text-sm text-muted-foreground">
-                      {computeMargin(e.rate || '0', e.cost || '0') ?? '—'}
-                    </div>
-                  </div>
-                  {/* Tax */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tax</Label>
-                    <select
-                      value={e.taxItemId ?? ''}
-                      onChange={(ev) => setInlineEdit({ ...e, taxItemId: ev.target.value || null })}
-                      className="h-8 w-full rounded-md border border-input bg-transparent px-1.5 text-xs md:w-auto"
-                    >
-                      <option value="">No Tax</option>
-                      {referenceData.taxItems.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} ({t.rate}%)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-              {/* Action */}
-              <div className="space-y-1">
-                <span className="text-xs text-transparent">Action</span>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={handleInlineEditSave}>
-                    Save
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setInlineEdit(null)
-                      inlineEditSearch.setQuery('')
+                  <Label className="text-xs">Title</Label>
+                  <SearchDropdown
+                    kind={e.type as 'product' | 'service'}
+                    query={inlineEditSearch.query}
+                    results={inlineEditSearch.results}
+                    loading={inlineEditSearch.loading}
+                    onQueryChange={(q) => {
+                      setInlineEdit({ ...e, title: q })
+                      inlineEditSearch.search(q, e.type as 'product' | 'service')
+                    }}
+                    onSelect={handleInlineEditSelect}
+                    onCreateNew={() =>
+                      openCreateCatalog(e.type as 'product' | 'service', 'inline-edit', e.title)
+                    }
+                    onAddCustom={(q) => {
+                      setInlineEdit({ ...e, title: q, refId: null })
+                      inlineEditSearch.setQuery(q)
                       inlineEditSearch.setResults([])
                     }}
-                  >
-                    Cancel
-                  </Button>
+                  />
                 </div>
+              ) : (
+                <div>
+                  <Label className="text-xs">Title</Label>
+                  <Input
+                    value={e.title}
+                    onChange={(ev) => setInlineEdit({ ...e, title: ev.target.value })}
+                    placeholder="Title"
+                  />
+                </div>
+              )}
+              <div>
+                <Label className="text-xs">Description</Label>
+                <Textarea
+                  value={e.description}
+                  onChange={(ev) => setInlineEdit({ ...e, description: ev.target.value })}
+                  placeholder="Description"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </td>
+          <td className="px-3 py-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Qty</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="1"
+                value={e.qty}
+                onChange={(ev) => setInlineEdit({ ...e, qty: ev.target.value })}
+                className="w-full md:w-20"
+              />
+            </div>
+          </td>
+          <td className="px-3 py-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Rate</Label>
+              <Input
+                value={e.rate}
+                onChange={(ev) => setInlineEdit({ ...e, rate: ev.target.value })}
+                className="w-full md:w-24"
+              />
+            </div>
+          </td>
+          <td className="px-3 py-3">
+            <div className="space-y-1">
+              <span className="text-xs text-transparent">Total</span>
+              <div className="text-sm text-muted-foreground">
+                ${(parseMoney(e.rate) * (parseFloat(e.qty || '0') || 0) / 100).toFixed(2)}
+              </div>
+            </div>
+          </td>
+          {!isDiscountEdit ? (
+            <>
+              <td className="px-3 py-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Cost</Label>
+                  <Input
+                    value={e.cost}
+                    onChange={(ev) => setInlineEdit({ ...e, cost: ev.target.value })}
+                    className="w-full md:w-24"
+                  />
+                </div>
+              </td>
+              <td className="px-3 py-3">
+                <div className="space-y-1">
+                  <span className="text-xs text-transparent">Margin</span>
+                  <div className="text-sm text-muted-foreground">
+                    {computeMargin(e.rate || '0', e.cost || '0') ?? '—'}
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tax</Label>
+                  <Select
+                    value={e.taxItemId ?? ''}
+                    onValueChange={(v) => setInlineEdit({ ...e, taxItemId: v || null })}
+                  >
+                    <SelectTrigger className="h-8 px-1.5 text-xs w-full md:w-auto">
+                      <SelectValue placeholder="No Tax">
+                        {e.taxItemId
+                          ? (() => {
+                              const t = referenceData.taxItems.find((x) => x.id === e.taxItemId)
+                              return t ? `${t.name} (${t.rate}%)` : e.taxItemId
+                            })()
+                          : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Tax</SelectItem>
+                      {referenceData.taxItems.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} ({t.rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </td>
+            </>
+          ) : (
+            <>
+              <td className="px-3 py-3 text-sm text-muted-foreground">—</td>
+              <td className="px-3 py-3 text-sm text-muted-foreground">—</td>
+              <td className="px-3 py-3 text-sm text-muted-foreground">—</td>
+            </>
+          )}
+          <td className="px-3 py-3">
+            <div className="space-y-1">
+              <span className="text-xs text-transparent">Action</span>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" onClick={handleInlineEditSave}>
+                  Save
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setInlineEdit(null)
+                    inlineEditSearch.setQuery('')
+                    inlineEditSearch.setResults([])
+                  }}
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           </td>
@@ -757,140 +778,161 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
     const a = inlineAdd
     const isDiscount = a.type === 'discount'
     return (
-      <tr key="inline-add" className="border-b bg-muted/20">
-        <td colSpan={8} className="px-3 py-3">
-          <div className={`grid grid-cols-1 gap-3 ${isDiscount ? 'md:grid-cols-[2fr_1fr_1fr_1fr_auto]' : 'md:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]'}`}>
-            {/* Item */}
-            <div className="space-y-2">
-              <div>
-                <Label className="text-xs">{isDiscount ? 'Description' : 'Title'}</Label>
-                {isDiscount ? (
-                  <Input
-                    value={a.title}
-                    onChange={(e) => setInlineAdd({ ...a, title: e.target.value })}
-                    placeholder="e.g. 5% Discount"
-                  />
-                ) : (
-                  <SearchDropdown
-                    kind={a.type as 'product' | 'service'}
-                    query={inlineAddSearch.query}
-                    results={inlineAddSearch.results}
-                    loading={inlineAddSearch.loading}
-                    onQueryChange={(q) => {
-                      setInlineAdd({ ...a, title: q })
-                      inlineAddSearch.search(q, a.type as 'product' | 'service')
-                    }}
-                    onSelect={handleInlineAddSelect}
-                    onCreateNew={() =>
-                      openCreateCatalog(a.type as 'product' | 'service', 'inline-add', a.title)
-                    }
-                    onAddCustom={(q) => {
-                      setInlineAdd({ ...a, title: q, refId: null })
-                      inlineAddSearch.setQuery(q)
-                      inlineAddSearch.setResults([])
-                    }}
-                  />
-                )}
-              </div>
-              <div>
-                <Label className="text-xs">{isDiscount ? 'Notes' : 'Description'}</Label>
-                <Textarea
-                  value={a.description}
-                  onChange={(e) => setInlineAdd({ ...a, description: e.target.value })}
-                  placeholder={isDiscount ? 'Optional notes' : 'Description'}
-                  rows={2}
+      <tr key="inline-add" className="border-b bg-muted/20 align-top">
+        <td className="px-3 py-3">
+          <div className="space-y-2">
+            <div>
+              <Label className="text-xs">{isDiscount ? 'Description' : 'Title'}</Label>
+              {isDiscount ? (
+                <Input
+                  value={a.title}
+                  onChange={(e) => setInlineAdd({ ...a, title: e.target.value })}
+                  placeholder="e.g. 5% Discount"
                 />
-              </div>
-            </div>
-            {/* Qty */}
-            <div className="space-y-1">
-              <Label className="text-xs">Qty</Label>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="1"
-                value={a.qty}
-                onChange={(e) => setInlineAdd({ ...a, qty: e.target.value })}
-                className="w-full md:w-20"
-                disabled={isDiscount}
-              />
-            </div>
-            {/* Rate */}
-            <div className="space-y-1">
-              <Label className="text-xs">Rate</Label>
-              <Input
-                value={a.rate}
-                onChange={(e) => setInlineAdd({ ...a, rate: e.target.value })}
-                className="w-full md:w-24"
-                placeholder={isDiscount ? '0.00' : undefined}
-              />
-              {isDiscount && (
-                <p className="text-xs text-muted-foreground">Enter positive -- saved as negative.</p>
-              )}
-            </div>
-            {/* Total */}
-            <div className="space-y-1">
-              <span className="text-xs text-transparent">Total</span>
-              <div className="text-sm text-muted-foreground">
-                ${(parseMoney(a.rate) * (parseFloat(a.qty || '0') || 0) / 100).toFixed(2)}
-              </div>
-            </div>
-            {!isDiscount && (
-              <>
-                {/* Cost */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Cost</Label>
-                  <Input
-                    value={a.cost}
-                    onChange={(e) => setInlineAdd({ ...a, cost: e.target.value })}
-                    className="w-full md:w-24"
-                  />
-                </div>
-                {/* Margin */}
-                <div className="space-y-1">
-                  <span className="text-xs text-transparent">Margin</span>
-                  <div className="text-sm text-muted-foreground">
-                    {computeMargin(a.rate || '0', a.cost || '0') ?? '—'}
-                  </div>
-                </div>
-                {/* Tax */}
-                <div className="space-y-1">
-                  <Label className="text-xs">Tax</Label>
-                  <select
-                    value={a.taxItemId ?? ''}
-                    onChange={(e) => setInlineAdd({ ...a, taxItemId: e.target.value || null })}
-                    className="h-8 w-full rounded-md border border-input bg-transparent px-1.5 text-xs md:w-auto"
-                  >
-                    <option value="">No Tax</option>
-                    {referenceData.taxItems.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.rate}%)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-            {/* Action */}
-            <div className="space-y-1">
-              <span className="text-xs text-transparent">Action</span>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={handleInlineAdd}>
-                  Add
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setInlineAdd(null)
-                    inlineAddSearch.setQuery('')
+              ) : (
+                <SearchDropdown
+                  kind={a.type as 'product' | 'service'}
+                  query={inlineAddSearch.query}
+                  results={inlineAddSearch.results}
+                  loading={inlineAddSearch.loading}
+                  onQueryChange={(q) => {
+                    setInlineAdd({ ...a, title: q })
+                    inlineAddSearch.search(q, a.type as 'product' | 'service')
+                  }}
+                  onSelect={handleInlineAddSelect}
+                  onCreateNew={() =>
+                    openCreateCatalog(a.type as 'product' | 'service', 'inline-add', a.title)
+                  }
+                  onAddCustom={(q) => {
+                    setInlineAdd({ ...a, title: q, refId: null })
+                    inlineAddSearch.setQuery(q)
                     inlineAddSearch.setResults([])
                   }}
-                >
-                  Cancel
-                </Button>
+                />
+              )}
+            </div>
+            <div>
+              <Label className="text-xs">{isDiscount ? 'Notes' : 'Description'}</Label>
+              <Textarea
+                value={a.description}
+                onChange={(e) => setInlineAdd({ ...a, description: e.target.value })}
+                placeholder={isDiscount ? 'Optional notes' : 'Description'}
+                rows={2}
+              />
+            </div>
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Qty</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="1"
+              value={a.qty}
+              onChange={(e) => setInlineAdd({ ...a, qty: e.target.value })}
+              className="w-full md:w-20"
+              disabled={isDiscount}
+            />
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Rate</Label>
+            <Input
+              value={a.rate}
+              onChange={(e) => setInlineAdd({ ...a, rate: e.target.value })}
+              className="w-full md:w-24"
+              placeholder={isDiscount ? '0.00' : undefined}
+            />
+            {isDiscount && (
+              <p className="text-xs text-muted-foreground">Enter positive -- saved as negative.</p>
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div className="space-y-1">
+            <span className="text-xs text-transparent">Total</span>
+            <div className="text-sm text-muted-foreground">
+              ${(parseMoney(a.rate) * (parseFloat(a.qty || '0') || 0) / 100).toFixed(2)}
+            </div>
+          </div>
+        </td>
+        {!isDiscount ? (
+          <>
+            <td className="px-3 py-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Cost</Label>
+                <Input
+                  value={a.cost}
+                  onChange={(e) => setInlineAdd({ ...a, cost: e.target.value })}
+                  className="w-full md:w-24"
+                />
               </div>
+            </td>
+            <td className="px-3 py-3">
+              <div className="space-y-1">
+                <span className="text-xs text-transparent">Margin</span>
+                <div className="text-sm text-muted-foreground">
+                  {computeMargin(a.rate || '0', a.cost || '0') ?? '—'}
+                </div>
+              </div>
+            </td>
+            <td className="px-3 py-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Tax</Label>
+                <Select
+                  value={a.taxItemId ?? ''}
+                  onValueChange={(v) => setInlineAdd({ ...a, taxItemId: v || null })}
+                >
+                  <SelectTrigger className="h-8 px-1.5 text-xs w-full md:w-auto">
+                    <SelectValue placeholder="No Tax">
+                      {a.taxItemId
+                        ? (() => {
+                            const t = referenceData.taxItems.find((x) => x.id === a.taxItemId)
+                            return t ? `${t.name} (${t.rate}%)` : a.taxItemId
+                          })()
+                        : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Tax</SelectItem>
+                    {referenceData.taxItems.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name} ({t.rate}%)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </td>
+          </>
+        ) : (
+          <>
+            <td className="px-3 py-3 text-sm text-muted-foreground">—</td>
+            <td className="px-3 py-3 text-sm text-muted-foreground">—</td>
+            <td className="px-3 py-3 text-sm text-muted-foreground">—</td>
+          </>
+        )}
+        <td className="px-3 py-3">
+          <div className="space-y-1">
+            <span className="text-xs text-transparent">Action</span>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={handleInlineAdd}>
+                Add
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setInlineAdd(null)
+                  inlineAddSearch.setQuery('')
+                  inlineAddSearch.setResults([])
+                }}
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         </td>

@@ -726,11 +726,12 @@ function EditRow({
   const isCatalog = draft.type === 'product' || draft.type === 'service'
 
   return (
-    <tr className="border-b bg-muted/30">
-      <td colSpan={isTechnician ? 5 : 8} className="px-2 py-2">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-          <div className="space-y-2">
-            {isCatalog ? (
+    <tr className="border-b bg-muted/30 align-top">
+      <td className="px-2 py-2">
+        <div className="space-y-2">
+          {isCatalog ? (
+            <div>
+              <Label className="text-xs">Title</Label>
               <SearchDropdown
                 kind={draft.type as 'product' | 'service'}
                 query={search.query}
@@ -759,13 +760,19 @@ function EditRow({
                   search.setResults([])
                 }}
               />
-            ) : (
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">Title</Label>
               <Input
                 value={draft.title ?? ''}
                 onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
                 placeholder="Title"
               />
-            )}
+            </div>
+          )}
+          <div>
+            <Label className="text-xs">Description</Label>
             <Textarea
               value={draft.description}
               onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
@@ -773,6 +780,11 @@ function EditRow({
               rows={2}
             />
           </div>
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Qty</Label>
           <Input
             type="number"
             inputMode="decimal"
@@ -781,7 +793,13 @@ function EditRow({
             value={draft.qty}
             onChange={(e) => setDraft((d) => ({ ...d, qty: e.target.value }))}
             placeholder="Qty"
+            className="w-full md:w-20"
           />
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Rate</Label>
           <Input
             type="number"
             inputMode="decimal"
@@ -790,41 +808,70 @@ function EditRow({
             value={draft.rate}
             onChange={(e) => setDraft((d) => ({ ...d, rate: e.target.value }))}
             placeholder="Rate"
+            className="w-full md:w-24"
           />
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <span className="text-xs text-transparent">Total</span>
           <div className="text-sm text-muted-foreground">
             ${toMoney(parseMoney(draft.rate) * (parseFloat(draft.qty || '0') || 0))}
           </div>
-          {!isTechnician && <>
-            <Input
-              value={draft.cost}
-              onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))}
-              placeholder="Cost"
-            />
-            <div className="text-sm text-muted-foreground">{computeMargin(draft.rate || '0', draft.cost || '0') ?? '—'}</div>
-            <Select
-              value={draft.taxItemId ?? ''}
-              onValueChange={(v) => setDraft((d) => ({ ...d, taxItemId: v || null }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="No Tax">
-                  {draft.taxItemId
-                    ? (() => {
-                        const t = referenceData.taxItems.find((x) => x.id === draft.taxItemId)
-                        return t ? `${t.name} (${t.rate}%)` : draft.taxItemId
-                      })()
-                    : null}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">No Tax</SelectItem>
-                {referenceData.taxItems.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name} ({t.rate}%)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>}
+        </div>
+      </td>
+      {!isTechnician && (
+        <>
+          <td className="px-2 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Cost</Label>
+              <Input
+                value={draft.cost}
+                onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))}
+                placeholder="Cost"
+                className="w-full md:w-24"
+              />
+            </div>
+          </td>
+          <td className="px-2 py-2">
+            <div className="space-y-1">
+              <span className="text-xs text-transparent">Margin</span>
+              <div className="text-sm text-muted-foreground">{computeMargin(draft.rate || '0', draft.cost || '0') ?? '—'}</div>
+            </div>
+          </td>
+          <td className="px-2 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Tax</Label>
+              <Select
+                value={draft.taxItemId ?? ''}
+                onValueChange={(v) => setDraft((d) => ({ ...d, taxItemId: v || null }))}
+              >
+                <SelectTrigger className="h-8 px-1.5 text-xs w-full md:w-auto">
+                  <SelectValue placeholder="No Tax">
+                    {draft.taxItemId
+                      ? (() => {
+                          const t = referenceData.taxItems.find((x) => x.id === draft.taxItemId)
+                          return t ? `${t.name} (${t.rate}%)` : draft.taxItemId
+                        })()
+                      : null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Tax</SelectItem>
+                  {referenceData.taxItems.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} ({t.rate}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </td>
+        </>
+      )}
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <span className="text-xs text-transparent">Action</span>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={() => onSave(draft)}>Save</Button>
             <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
@@ -876,10 +923,11 @@ function AddRow({
   }
 
   return (
-    <tr className="border-b bg-muted/20">
-      <td colSpan={isTechnician ? 5 : 8} className="px-2 py-2">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-          <div className="space-y-2">
+    <tr className="border-b bg-muted/20 align-top">
+      <td className="px-2 py-2">
+        <div className="space-y-2">
+          <div>
+            <Label className="text-xs">Item</Label>
             <div className="flex items-center gap-2">
               <Select value={type} onValueChange={(v) => setType(v as LineItemRow['type'])}>
                 <SelectTrigger className="w-32">
@@ -928,6 +976,9 @@ function AddRow({
                 />
               )}
             </div>
+          </div>
+          <div>
+            <Label className="text-xs">Description</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -935,6 +986,11 @@ function AddRow({
               rows={2}
             />
           </div>
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Qty</Label>
           <Input
             type="number"
             inputMode="decimal"
@@ -943,8 +999,14 @@ function AddRow({
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             placeholder="Qty"
+            className="w-full md:w-20"
             disabled={type === 'discount'}
           />
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Rate</Label>
           <Input
             type="number"
             inputMode="decimal"
@@ -953,34 +1015,67 @@ function AddRow({
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             placeholder="Rate"
+            className="w-full md:w-24"
           />
+        </div>
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <span className="text-xs text-transparent">Total</span>
           <div className="text-sm text-muted-foreground">
             ${toMoney(parseMoney(rate) * (parseFloat(qty || '0') || 0))}
           </div>
-          {!isTechnician && <>
-            <Input value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Cost" />
-            <div className="text-sm text-muted-foreground">{computeMargin(rate || '0', cost || '0') ?? '—'}</div>
-            <Select value={taxItemId ?? ''} onValueChange={(v) => setTaxItemId(v || null)}>
-              <SelectTrigger>
-                <SelectValue placeholder="No Tax">
-                  {taxItemId
-                    ? (() => {
-                        const t = referenceData.taxItems.find((x) => x.id === taxItemId)
-                        return t ? `${t.name} (${t.rate}%)` : taxItemId
-                      })()
-                    : null}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">No Tax</SelectItem>
-                {referenceData.taxItems.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name} ({t.rate}%)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>}
+        </div>
+      </td>
+      {!isTechnician && (
+        <>
+          <td className="px-2 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Cost</Label>
+              <Input
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                placeholder="Cost"
+                className="w-full md:w-24"
+              />
+            </div>
+          </td>
+          <td className="px-2 py-2">
+            <div className="space-y-1">
+              <span className="text-xs text-transparent">Margin</span>
+              <div className="text-sm text-muted-foreground">{computeMargin(rate || '0', cost || '0') ?? '—'}</div>
+            </div>
+          </td>
+          <td className="px-2 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Tax</Label>
+              <Select value={taxItemId ?? ''} onValueChange={(v) => setTaxItemId(v || null)}>
+                <SelectTrigger className="h-8 px-1.5 text-xs w-full md:w-auto">
+                  <SelectValue placeholder="No Tax">
+                    {taxItemId
+                      ? (() => {
+                          const t = referenceData.taxItems.find((x) => x.id === taxItemId)
+                          return t ? `${t.name} (${t.rate}%)` : taxItemId
+                        })()
+                      : null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Tax</SelectItem>
+                  {referenceData.taxItems.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} ({t.rate}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </td>
+        </>
+      )}
+      <td className="px-2 py-2">
+        <div className="space-y-1">
+          <span className="text-xs text-transparent">Action</span>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" onClick={handleSave}>Add</Button>
             <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
