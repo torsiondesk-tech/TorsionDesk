@@ -14,7 +14,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { updateJobAssignment, unassignJob, getJobPopupData } from './actions'
-import type { WeekJob, Technician, PoolCounts, PopupData } from './actions'
+import type { WeekJob, WeekEstimate, Technician, PoolCounts, PopupData } from './actions'
 import { toISODate, parseCalendarDate, getMonday } from '@/lib/utils'
 import { WeekNavigator } from './components/week-navigator'
 import { WeekGrid } from './grid/week-grid'
@@ -62,9 +62,21 @@ function parseWeekJob(job: WeekJob): WeekJob {
   }
 }
 
+function parseWeekEstimate(estimate: WeekEstimate): WeekEstimate {
+  return {
+    ...estimate,
+    // onSiteDate is a wall-clock timestamp — use parseDate (not parseCalendarDate)
+    startDate: parseDate(estimate.startDate),
+    endDate: null,
+    arrivalWindowStart: parseDate(estimate.arrivalWindowStart),
+    arrivalWindowEnd: parseDate(estimate.arrivalWindowEnd),
+  }
+}
+
 interface DispatchBoardProps {
   technicians: Technician[]
   jobs: WeekJob[]
+  estimates: WeekEstimate[]
   poolJobs: WeekJob[]
   counts: PoolCounts
   weekStart: string
@@ -75,6 +87,7 @@ interface DispatchBoardProps {
 export function DispatchBoard({
   technicians,
   jobs,
+  estimates,
   poolJobs,
   counts,
   weekStart,
@@ -83,6 +96,7 @@ export function DispatchBoard({
 }: DispatchBoardProps) {
   const [localJobs, setLocalJobs] = useState<WeekJob[]>(() => jobs.map(parseWeekJob))
   const [revertJobs, setRevertJobs] = useState<WeekJob[]>(() => jobs.map(parseWeekJob))
+  const [localEstimates, setLocalEstimates] = useState<WeekEstimate[]>(() => estimates.map(parseWeekEstimate))
   const [localPoolJobs, setLocalPoolJobs] = useState<WeekJob[]>(() => poolJobs.map(parseWeekJob))
   const [revertPoolJobs, setRevertPoolJobs] = useState<WeekJob[]>(() => poolJobs.map(parseWeekJob))
   const [activeJob, setActiveJob] = useState<WeekJob | null>(null)
@@ -156,9 +170,10 @@ export function DispatchBoard({
   useEffect(() => {
     setLocalJobs(jobs.map(parseWeekJob))
     setRevertJobs(jobs.map(parseWeekJob))
+    setLocalEstimates(estimates.map(parseWeekEstimate))
     setLocalPoolJobs(poolJobs.map(parseWeekJob))
     setRevertPoolJobs(poolJobs.map(parseWeekJob))
-  }, [jobs, poolJobs])
+  }, [jobs, estimates, poolJobs])
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -367,7 +382,7 @@ export function DispatchBoard({
               <WeekGrid
                 technicians={technicians}
                 jobs={localJobs}
-                estimates={[]}
+                estimates={localEstimates}
                 weekDates={weekDates}
                 isLoading={isPending}
                 onJobClick={openPopup}

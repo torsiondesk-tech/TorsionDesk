@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { listTechnicians, getWeekJobs, getPoolJobs, countPoolJobs } from './actions'
+import { listTechnicians, getWeekJobs, getWeekEstimates, getPoolJobs, countPoolJobs } from './actions'
 import { DispatchBoard } from './board'
 import { listStatusColors } from '@/lib/settings'
 import type { StatusColorMap } from './contexts/status-color-context'
@@ -29,9 +29,10 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
   weekEndDate.setDate(weekEndDate.getDate() + 6)
   const weekEnd = toISODate(weekEndDate)
 
-  const [technicians, jobs, poolJobs, counts, colorRows] = await Promise.all([
+  const [technicians, jobs, weekEstimates, poolJobs, counts, colorRows] = await Promise.all([
     listTechnicians(),
     getWeekJobs(orgId, weekStart, weekEnd),
+    getWeekEstimates(orgId, weekStart, weekEnd),
     getPoolJobs(orgId),
     countPoolJobs(orgId),
     listStatusColors(orgId),
@@ -50,6 +51,7 @@ export default async function DispatchPage({ searchParams }: DispatchPageProps) 
     <DispatchBoard
       technicians={technicians}
       jobs={jobs}
+      estimates={weekEstimates}
       poolJobs={poolJobs}
       counts={counts}
       weekStart={weekStart}

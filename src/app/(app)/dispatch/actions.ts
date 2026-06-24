@@ -16,6 +16,8 @@ import {
   contactPhones,
   contactEmails,
   teamProfiles,
+  estimates,
+  estimateAssignees,
 } from '@/db/schema'
 import type { JobStatusValue } from '@/lib/jobs/transitions'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
@@ -685,6 +687,64 @@ export async function getJobMinimal(
       description: first.description,
       techIds,
     }
+  })
+}
+
+/** Fetch estimates with an on-site date within the week range, with assignees + customer + location. */
+export async function getWeekEstimates(
+  orgId: string,
+  weekStart: string,
+  weekEnd: string,
+): Promise<WeekEstimate[]> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        id: estimates.id,
+        estimateNo: estimates.estimateNo,
+        status: estimates.status,
+        onSiteDate: estimates.onSiteDate,
+        customerName: customers.name,
+        address: sql<string | null>`COALESCE(${serviceLocations.addressLine1}, '')`,
+        arrivalWindowStart: estimates.arrivalWindowStart,
+        arrivalWindowEnd: estimates.arrivalWindowEnd,
+        description: estimates.description,
+        techId: estimateAssignees.userId,
+      })
+      .from(estimates)
+      .leftJoin(customers, eq(customers.id, estimates.customerId))
+      .leftJoin(serviceLocations, eq(serviceLocations.id, estimates.serviceLocationId))
+      .leftJoin(estimateAssignees, eq(estimateAssignees.estimateId, estimates.id))
+      .where(
+        and(
+          eq(estimates.tenantId, orgId),
+          sql`${estimates.onSiteDate}::date >= ${weekStart}`,
+          sql`${estimates.onSiteDate}::date <= ${weekEnd}`,
+        ),
+      )
+      .orderBy(estimates.arrivalWindowStart)
+
+    const map = new Map<string, WeekEstimate>()
+    for (const r of rows) {
+      const existing = map.get(r.id)
+      if (existing) {
+        if (r.techId) existing.techIds.push(r.techId)
+      } else {
+        map.set(r.id, {
+          id: r.id,
+          estimateNo: r.estimateNo,
+          status: r.status,
+          startDate: r.onSiteDate,
+          endDate: null,
+          customerName: r.customerName ?? '',
+          address: r.address,
+          arrivalWindowStart: r.arrivalWindowStart,
+          arrivalWindowEnd: r.arrivalWindowEnd,
+          description: r.description,
+          techIds: r.techId ? [r.techId] : [],
+        })
+      }
+    }
+    return Array.from(map.values())
   })
 }
 
