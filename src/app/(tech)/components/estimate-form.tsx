@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Search, X, Star } from 'lucide-react'
+import { Plus, Trash2, Search, X, Star, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -57,7 +57,9 @@ import {
 import {
   createTechCustomerAction,
   createTechServiceLocationAction,
+  updateTechLocationAction,
 } from '@/app/(tech)/tech/customers/actions'
+import { setPrimaryLocationAction } from '@/app/(app)/customers/actions'
 import {
   searchPlacesAction,
   getPlaceDetailsAction,
@@ -106,6 +108,18 @@ function computeTotalCents(items: MobileLineItem[]): number {
     const rate = parseFloat(item.rate || item.unitPrice || '0') || 0
     return sum + Math.round(qty * rate * 100)
   }, 0)
+}
+
+function isRedundantLocationName(
+  name: string | null,
+  addressLine1: string | null,
+  city: string | null,
+): boolean {
+  if (!name || !addressLine1) return true
+  const n = name.trim().toLowerCase().replace(/,\s*/g, ',')
+  const a1 = addressLine1.trim().toLowerCase()
+  const a1City = [addressLine1, city].filter(Boolean).join(', ').toLowerCase().replace(/,\s*/g, ',')
+  return n === a1 || n === a1City || n.startsWith(a1 + ',')
 }
 
 export function EstimateForm({
@@ -228,10 +242,28 @@ export function EstimateForm({
 
   // ── Location state ──
   const [serviceLocationId, setServiceLocationId] = useState('')
-  const customerLocations = useMemo(
-    () => (customerId ? locations.filter((l) => l.customerId === customerId) : []),
-    [locations, customerId],
+  const [customerLocations, setCustomerLocations] = useState<CachedLocation[]>(
+    () => (customerId ? initialLocations.filter((l) => l.customerId === customerId) : []),
   )
+
+  useEffect(() => {
+    if (!customerId) {
+      setCustomerLocations([])
+      setServiceLocationId('')
+      setPrimaryLocationId(null)
+      setLocationMode('select')
+      return
+    }
+    const matched = locations.filter((l) => l.customerId === customerId)
+    setCustomerLocations(matched)
+    const customer = customers.find((c) => c.id === customerId)
+    const primaryId = customer?.primaryLocationId ?? matched[0]?.id ?? null
+    setPrimaryLocationId(primaryId)
+    if (!serviceLocationId && primaryId) {
+      setServiceLocationId(primaryId)
+      setLocationMode('view')
+    }
+  }, [customerId, locations, customers, serviceLocationId])
 
   // ── Reference data helpers ──
   const categories = referenceData?.jobCategories ?? []
@@ -280,13 +312,18 @@ export function EstimateForm({
   const [newCustZip, setNewCustZip] = useState('')
   const [creatingCust, setCreatingCust] = useState(false)
 
-  // ── New location dialog state ──
-  const [newLocOpen, setNewLocOpen] = useState(false)
+  // ── Location create/edit state ──
+  // 'view' = selected-location card, 'select' = dropdown, 'new'/'edit' = inline form
+  const [locationMode, setLocationMode] = useState<'view' | 'select' | 'new' | 'edit'>('select')
+  const [newLocName, setNewLocName] = useState('')
   const [newLocAddress, setNewLocAddress] = useState('')
+  const [newLocAddress2, setNewLocAddress2] = useState('')
   const [newLocCity, setNewLocCity] = useState('')
   const [newLocState, setNewLocState] = useState('')
   const [newLocZip, setNewLocZip] = useState('')
+  const [newLocGated, setNewLocGated] = useState(false)
   const [creatingLoc, setCreatingLoc] = useState(false)
+  const [primaryLocationId, setPrimaryLocationId] = useState<string | null>(null)
 
   // Address autocomplete refs
   const addrDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -442,47 +479,6 @@ export function EstimateForm({
     setCreatingCust(false)
   }
 
-  async function handleCreateLocation(e: React.FormEvent) {
-    e.preventDefault()
-    if (!customerId) return
-    setCreatingLoc(true)
-    const result = await createTechServiceLocationAction({
-      customerId,
-      addressLine1: newLocAddress || null,
-      city: newLocCity || null,
-      state: newLocState || null,
-      postalCode: newLocZip || null,
-    })
-    if (!result.success) {
-      toast.error(result.error)
-      setCreatingLoc(false)
-      return
-    }
-    await db.open()
-    await db.serviceLocations.put({
-      id: result.locationId,
-      tenantId: orgId,
-      customerId,
-      name: null,
-      addressLine1: newLocAddress || null,
-      addressLine2: null,
-      city: newLocCity || null,
-      state: newLocState || null,
-      postalCode: newLocZip || null,
-      country: null,
-      latitude: null,
-      longitude: null,
-      gated: false,
-    })
-    setServiceLocationId(result.locationId)
-    toast.success('Location added')
-    setNewLocOpen(false)
-    setNewLocAddress('')
-    setNewLocCity('')
-    setNewLocState('')
-    setNewLocZip('')
-    setCreatingLoc(false)
-  }
 
   // ── Line item helpers ──
   const [lineItemSheetOpen, setLineItemSheetOpen] = useState(false)
@@ -1012,124 +1008,377 @@ export function EstimateForm({
 
       {/* Service location */}
       <div className="space-y-2">
-        <Label htmlFor="location">Service location</Label>
-        <div className="flex gap-2">
-          <Select
-            value={serviceLocationId}
-            onValueChange={(val) => setServiceLocationId(val ?? '')}
-            disabled={!customerId}
-          >
-            <SelectTrigger className="w-full text-base" id="location">
-              <SelectValue placeholder={customerId ? 'Select location (optional)' : 'Select a customer first'}>
-                {(() => {
-                  if (!serviceLocationId) return null
-                  const loc = customerLocations.find((x) => x.id === serviceLocationId)
-                  if (!loc) return serviceLocationId
-                  return [loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ') || serviceLocationId
-                })()}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">No location</SelectItem>
-              {customerLocations.map((loc) => {
-                const label = [loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ')
-                return (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {label || loc.id}
-                  </SelectItem>
-                )
-              })}
-            </SelectContent>
-          </Select>
-          <Dialog open={newLocOpen} onOpenChange={setNewLocOpen}>
-            <DialogTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  disabled={!customerId}
-                  title="Add location"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              }
-            />
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>New Location</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreateLocation} className="flex flex-col gap-3 mt-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="nl-address">Address</Label>
-                  <div className="relative">
-                    <Input
-                      id="nl-address"
-                      autoComplete="off"
-                      value={newLocAddress}
-                      onChange={(e) => handleLocAddrInput(e.target.value)}
-                      onBlur={() => setTimeout(() => setShowLocAddrDropdown(false), 150)}
-                      placeholder="123 Main St"
-                      autoFocus
-                      className="text-base"
-                    />
-                    {showLocAddrDropdown && locAddrPredictions.length > 0 && (
-                      <ul className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-md max-h-56 overflow-y-auto">
-                        {locAddrPredictions.map((p) => (
-                          <li
-                            key={p.placeId}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => { void handleLocAddrSelect(p) }}
-                            className="cursor-pointer px-3 py-2.5 text-sm hover:bg-accent leading-snug"
-                          >
-                            {p.description}
-                          </li>
-                        ))}
-                      </ul>
+        <Label>Service location</Label>
+        {serviceLocationId && locationMode === 'view' ? (
+          <div className="rounded-lg border p-3 space-y-2">
+            {(() => {
+              const loc = customerLocations.find((x) => x.id === serviceLocationId)
+              if (!loc) return null
+              return (
+                <>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="size-4 mt-0.5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm">
+                        {loc.name && !isRedundantLocationName(loc.name, loc.addressLine1, loc.city)
+                          ? loc.name
+                          : loc.addressLine1}
+                      </p>
+                      {loc.name && !isRedundantLocationName(loc.name, loc.addressLine1, loc.city) && (
+                        <p className="text-sm text-muted-foreground">{loc.addressLine1}</p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {[loc.city, loc.state, loc.postalCode].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {serviceLocationId === primaryLocationId && (
+                      <span className="inline-flex items-center rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        <Star className="mr-1 size-3" />
+                        Primary
+                      </span>
+                    )}
+                    {loc.gated && (
+                      <span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        Gated Property
+                      </span>
                     )}
                   </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-1 space-y-1.5">
-                    <Label htmlFor="nl-city">City</Label>
-                    <Input
-                      id="nl-city"
-                      value={newLocCity}
-                      onChange={(e) => setNewLocCity(e.target.value)}
-                      placeholder="City"
-                      className="text-base"
-                    />
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {serviceLocationId !== primaryLocationId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!customerId || !serviceLocationId) return
+                          setCreatingLoc(true)
+                          try {
+                            const res = await setPrimaryLocationAction(customerId, serviceLocationId)
+                            if (res?.error) throw new Error(res.error)
+                            setPrimaryLocationId(serviceLocationId)
+                            await db.customers.update(customerId, { primaryLocationId: serviceLocationId })
+                          } catch (e) {
+                            toast.error(e instanceof Error ? e.message : 'Failed to set primary location')
+                          } finally {
+                            setCreatingLoc(false)
+                          }
+                        }}
+                        disabled={creatingLoc}
+                      >
+                        Set as Primary
+                      </Button>
+                    )}
+                    {serviceLocationId === primaryLocationId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="opacity-60"
+                      >
+                        Primary
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const loc = customerLocations.find((x) => x.id === serviceLocationId)
+                        if (!loc) return
+                        setNewLocName(loc.name || '')
+                        setNewLocAddress(loc.addressLine1 || '')
+                        setNewLocAddress2(loc.addressLine2 || '')
+                        setNewLocCity(loc.city || '')
+                        setNewLocState(loc.state || '')
+                        setNewLocZip(loc.postalCode || '')
+                        setNewLocGated(!!loc.gated)
+                        setLocationMode('edit')
+                      }}
+                    >
+                      Edit address
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLocationMode('select')}
+                    >
+                      Change location
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setNewLocName('')
+                        setNewLocAddress('')
+                        setNewLocAddress2('')
+                        setNewLocCity('')
+                        setNewLocState('')
+                        setNewLocZip('')
+                        setNewLocGated(false)
+                        setLocationMode('new')
+                      }}
+                    >
+                      + New address
+                    </Button>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nl-state">State</Label>
-                    <Input
-                      id="nl-state"
-                      value={newLocState}
-                      onChange={(e) => setNewLocState(e.target.value)}
-                      placeholder="IL"
-                      maxLength={2}
-                      className="text-base"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nl-zip">Zip</Label>
-                    <Input
-                      id="nl-zip"
-                      value={newLocZip}
-                      onChange={(e) => setNewLocZip(e.target.value)}
-                      placeholder="60601"
-                      className="text-base"
-                    />
-                  </div>
-                </div>
-                <Button type="submit" disabled={creatingLoc} className="w-full mt-1">
-                  {creatingLoc ? 'Adding…' : 'Add Location'}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                </>
+              )
+            })()}
+          </div>
+        ) : locationMode === 'new' || locationMode === 'edit' ? (
+          <div className="rounded-lg border p-3 space-y-3">
+            <p className="text-sm font-medium">
+              {locationMode === 'new' ? 'New address' : 'Edit address'}
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="loc-name">Location name (optional)</Label>
+              <Input
+                id="loc-name"
+                value={newLocName}
+                onChange={(e) => setNewLocName(e.target.value)}
+                placeholder="e.g. Main Office"
+                className="text-base"
+                autoCapitalize="words"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="loc-address">Address</Label>
+              <div className="relative">
+                <Input
+                  id="loc-address"
+                  autoComplete="off"
+                  value={newLocAddress}
+                  onChange={(e) => handleLocAddrInput(e.target.value)}
+                  onBlur={() => setTimeout(() => setShowLocAddrDropdown(false), 150)}
+                  placeholder="123 Main St"
+                  className="text-base"
+                  autoFocus={locationMode === 'new'}
+                />
+                {showLocAddrDropdown && locAddrPredictions.length > 0 && (
+                  <ul className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-md max-h-56 overflow-y-auto">
+                    {locAddrPredictions.map((p) => (
+                      <li
+                        key={p.placeId}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { void handleLocAddrSelect(p) }}
+                        className="cursor-pointer px-3 py-2.5 text-sm hover:bg-accent leading-snug"
+                      >
+                        {p.description}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <Input
+              value={newLocAddress2}
+              onChange={(e) => setNewLocAddress2(e.target.value)}
+              placeholder="Apt, suite, unit (optional)"
+              className="text-base"
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-1 space-y-1.5">
+                <Label htmlFor="loc-city">City</Label>
+                <Input
+                  id="loc-city"
+                  value={newLocCity}
+                  onChange={(e) => setNewLocCity(e.target.value)}
+                  placeholder="City"
+                  className="text-base"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="loc-state">State</Label>
+                <Input
+                  id="loc-state"
+                  value={newLocState}
+                  onChange={(e) => setNewLocState(e.target.value)}
+                  placeholder="IL"
+                  maxLength={2}
+                  className="text-base"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="loc-zip">Zip</Label>
+                <Input
+                  id="loc-zip"
+                  value={newLocZip}
+                  onChange={(e) => setNewLocZip(e.target.value)}
+                  placeholder="60601"
+                  className="text-base"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="loc-gated"
+                checked={newLocGated}
+                onCheckedChange={(v) => setNewLocGated(!!v)}
+              />
+              <Label htmlFor="loc-gated" className="text-sm font-normal">
+                Gated property
+              </Label>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                onClick={async () => {
+                  if (!customerId || !newLocAddress.trim() || !newLocCity.trim() || !newLocState.trim()) {
+                    toast.error('Address, city and state are required')
+                    return
+                  }
+                  setCreatingLoc(true)
+                  try {
+                    if (locationMode === 'edit' && serviceLocationId) {
+                      const res = await updateTechLocationAction({
+                        locationId: serviceLocationId,
+                        jobId: '',
+                        addressLine1: newLocAddress.trim(),
+                        city: newLocCity.trim(),
+                        state: newLocState.trim().toUpperCase(),
+                        postalCode: newLocZip.trim() || null,
+                      })
+                      if (!res.success) throw new Error(res.error)
+                      const updatedFields = {
+                        name: newLocName.trim() || null,
+                        addressLine1: newLocAddress.trim(),
+                        addressLine2: newLocAddress2.trim() || null,
+                        city: newLocCity.trim(),
+                        state: newLocState.trim().toUpperCase(),
+                        postalCode: newLocZip.trim() || null,
+                        gated: newLocGated,
+                      }
+                      await db.serviceLocations.update(serviceLocationId, updatedFields)
+                      setCustomerLocations((prev) =>
+                        prev.map((loc) =>
+                          loc.id === serviceLocationId ? { ...loc, ...updatedFields } : loc
+                        )
+                      )
+                      toast.success('Address updated')
+                    } else {
+                      const res = await createTechServiceLocationAction({
+                        customerId,
+                        addressLine1: newLocAddress.trim(),
+                        city: newLocCity.trim(),
+                        state: newLocState.trim().toUpperCase(),
+                        postalCode: newLocZip.trim() || null,
+                      })
+                      if (!res.success) throw new Error(res.error)
+                      const id = res.locationId
+                      const newLoc: CachedLocation = {
+                        id,
+                        tenantId: orgId,
+                        customerId,
+                        name: newLocName.trim() || null,
+                        addressLine1: newLocAddress.trim(),
+                        addressLine2: newLocAddress2.trim() || null,
+                        city: newLocCity.trim(),
+                        state: newLocState.trim().toUpperCase(),
+                        postalCode: newLocZip.trim() || null,
+                        country: null,
+                        latitude: null,
+                        longitude: null,
+                        gated: newLocGated,
+                      }
+                      await db.serviceLocations.put(newLoc)
+                      setServiceLocationId(id)
+                      setCustomerLocations((prev) => [...prev, newLoc])
+                      if (!primaryLocationId) {
+                        setPrimaryLocationId(id)
+                        await db.customers.update(customerId, { primaryLocationId: id })
+                      }
+                      toast.success('Address added')
+                    }
+                    setLocationMode('view')
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : 'Failed to save address')
+                  } finally {
+                    setCreatingLoc(false)
+                  }
+                }}
+                disabled={creatingLoc}
+              >
+                {creatingLoc
+                  ? locationMode === 'edit'
+                    ? 'Updating…'
+                    : 'Saving…'
+                  : locationMode === 'edit'
+                    ? 'Update address'
+                    : 'Save address'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (locationMode === 'edit' && !serviceLocationId) {
+                    setLocationMode('new')
+                  } else if (!serviceLocationId) {
+                    setLocationMode('select')
+                  } else {
+                    setLocationMode('view')
+                  }
+                }}
+                disabled={creatingLoc}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Select
+              value={serviceLocationId}
+              onValueChange={(val) => {
+                if (val === '__new__') {
+                  setNewLocName('')
+                  setNewLocAddress('')
+                  setNewLocAddress2('')
+                  setNewLocCity('')
+                  setNewLocState('')
+                  setNewLocZip('')
+                  setNewLocGated(false)
+                  setLocationMode('new')
+                } else {
+                  setServiceLocationId(val ?? '')
+                  setLocationMode(val ? 'view' : 'select')
+                }
+              }}
+              disabled={!customerId}
+            >
+              <SelectTrigger className="w-full text-base" id="location" data-testid="location-select-trigger">
+                <SelectValue placeholder={customerId ? 'Select location (optional)' : 'Select a customer first'}>
+                  {(() => {
+                    if (!serviceLocationId) return null
+                    const loc = customerLocations.find((x) => x.id === serviceLocationId)
+                    if (!loc) return serviceLocationId
+                    return [loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ') || serviceLocationId
+                  })()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No location</SelectItem>
+                {customerLocations.map((loc) => {
+                  const label = [loc.name, loc.addressLine1, loc.city].filter(Boolean).join(' — ')
+                  return (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {label || loc.id}
+                    </SelectItem>
+                  )
+                })}
+                {customerId && (
+                  <SelectItem value="__new__">+ New address…</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Category + PO */}

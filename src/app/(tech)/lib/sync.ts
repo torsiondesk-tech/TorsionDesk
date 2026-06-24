@@ -541,6 +541,7 @@ export async function hydrateTechData(orgId: string, userId: string): Promise<vo
       accountNo: row.accountNo ?? null,
       primaryPhone: row.primaryPhone ?? null,
       primaryCity: row.primaryCity ?? null,
+      primaryLocationId: (row as { primaryLocationId?: string | null }).primaryLocationId ?? null,
     }))
     await db.transaction('rw', db.customers, async () => {
       await db.customers.clear()

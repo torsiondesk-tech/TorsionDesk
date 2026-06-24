@@ -48,6 +48,7 @@ export interface CachedCustomer {
   accountNo: number | null
   primaryPhone: string | null
   primaryCity: string | null
+  primaryLocationId?: string | null
 }
 
 export interface CachedJob {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { createTechDb } from './dexie'
 import { TECH_DATA_UPDATED } from './sync'
@@ -32,9 +32,11 @@ export function useTechJobs(orgId: string, userId: string) {
   )
 }
 
+const EMPTY_ARRAY: never[] = []
+
 export function useTechCustomers(orgId: string) {
   const tick = useTechDataTick()
-  return useLiveQuery(
+  const live = useLiveQuery(
     async () => {
       const db = createTechDb(orgId)
       await db.open()
@@ -42,11 +44,14 @@ export function useTechCustomers(orgId: string) {
     },
     [orgId, tick],
   )
+  // During SSR/tests the hook returns undefined before first DB read.
+  // Return a stable empty array instead so consumers never see undefined.
+  return live === undefined ? EMPTY_ARRAY : live
 }
 
 export function useTechLocations(orgId: string, customerId?: string | null) {
   const tick = useTechDataTick()
-  return useLiveQuery(
+  const live = useLiveQuery(
     async () => {
       const db = createTechDb(orgId)
       await db.open()
@@ -56,6 +61,7 @@ export function useTechLocations(orgId: string, customerId?: string | null) {
     },
     [orgId, customerId, tick],
   )
+  return live === undefined ? EMPTY_ARRAY : live
 }
 
 export function useTechEstimates(orgId: string) {

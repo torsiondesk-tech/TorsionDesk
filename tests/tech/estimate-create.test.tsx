@@ -47,6 +47,7 @@ describe('EstimateForm offline queue', () => {
       accountNo: 1001,
       primaryPhone: null,
       primaryCity: null,
+      primaryLocationId: 'loc-1',
     },
   ]
 
@@ -96,8 +97,9 @@ describe('EstimateForm offline queue', () => {
     const suggestion = await screen.findByText('Alice Homeowner')
     await userEvent.click(suggestion)
 
-    // Select service location
-    const locationTrigger = screen.getByRole('combobox', { name: /service location/i })
+    // Switch to location dropdown (primary is shown as selected card by default)
+    await userEvent.click(screen.getByRole('button', { name: /change location/i }))
+    const locationTrigger = screen.getByTestId('location-select-trigger')
     await userEvent.click(locationTrigger)
     const locOption = screen.getByRole('option', { name: /main house/i })
     await userEvent.click(locOption)
