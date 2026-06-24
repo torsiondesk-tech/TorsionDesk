@@ -24,6 +24,7 @@ import { searchPlacesAction, getPlaceDetailsAction, type PlaceSuggestion } from 
 import { getTechCustomerPrimaryContactAction } from '@/app/(tech)/tech/customers/actions'
 import { toISODate, formatPhoneInput, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
+import { TECH_DATA_UPDATED } from '@/app/(tech)/lib/sync'
 
 interface TechJobFormProps {
   orgId: string
@@ -362,6 +363,41 @@ export function TechJobForm({
         setSaving(false)
         return
       }
+
+      // Optimistically cache the new job in Dexie so the detail page renders
+      // instantly instead of flashing "Job not found" while we wait for Realtime
+      // to trigger a full hydration round-trip.
+      const selectedCustomer = allCustomers.find((c) => c.id === customerId)
+      const selectedLocation = locations.find((l) => l.id === serviceLocationId)
+      await db.open()
+      await db.jobs.put({
+        id: result.id,
+        tenantId: orgId,
+        jobNo: result.jobNo,
+        customerId,
+        contactId: result.contactId,
+        serviceLocationId: result.serviceLocationId,
+        status: 'unscheduled',
+        description: description.trim(),
+        startDate: startDate || null,
+        arrivalWindowStart: null,
+        arrivalWindowEnd: null,
+        notesForTechs: null,
+        completionNotes: null,
+        assigneeUserIds: [userId],
+        customerName: selectedCustomer?.name ?? null,
+        addressLine1: selectedLocation?.addressLine1 ?? null,
+        city: selectedLocation?.city ?? null,
+        state: selectedLocation?.state ?? null,
+        postalCode: selectedLocation?.postalCode ?? null,
+        contactPhone: contactPhone || null,
+        contactEmail: null,
+        contactFirstName: contactFirstName.trim() || null,
+        contactLastName: contactLastName.trim() || null,
+        lineItems: [],
+      })
+      window.dispatchEvent(new CustomEvent(TECH_DATA_UPDATED))
+
       toast.success('Job created')
       router.push(`/tech/jobs/${result.id}`)
     } else {
