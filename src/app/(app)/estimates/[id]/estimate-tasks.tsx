@@ -39,6 +39,8 @@ interface EstimateTasksProps {
   estimateId: string
   tasks: EstimateTask[]
   reminders: EstimateReminder[]
+  onSiteDate?: string | null
+  arrivalWindowStart?: string | null
 }
 
 const TASK_PRESETS = [
@@ -52,12 +54,17 @@ const TASK_PRESETS = [
   'Clean tracks',
 ]
 
-const REMINDER_PRESETS = [
-  'Call customer 30 min before arrival',
-  'Follow up on parts order',
-  'Send estimate reminder',
-  'Schedule return visit',
-  'Confirm appointment day before',
+interface ReminderPreset {
+  label: string
+  offsetMinutes: number
+}
+
+const REMINDER_PRESETS: ReminderPreset[] = [
+  { label: 'Call customer 30 min before arrival', offsetMinutes: -30 },
+  { label: 'Follow up on parts order', offsetMinutes: 60 * 24 * -2 },
+  { label: 'Send estimate reminder', offsetMinutes: 60 * 24 * -1 },
+  { label: 'Schedule return visit', offsetMinutes: 60 * 24 * 2 },
+  { label: 'Confirm appointment day before', offsetMinutes: 60 * 24 * -1 },
 ]
 
 function toDateTimeLocalValue(d: Date | string | null): string {
@@ -71,10 +78,25 @@ function toDateTimeLocalValue(d: Date | string | null): string {
   return `${y}-${m}-${day}T${h}:${min}`
 }
 
+function resolvePresetDateTime(
+  onSiteDate: string | null | undefined,
+  arrivalWindowStart: string | null | undefined,
+): Date | null {
+  if (!onSiteDate) return null
+  const time = arrivalWindowStart || '08:00'
+  const [hours, minutes] = time.split(':').map(Number)
+  const base = new Date(onSiteDate)
+  if (isNaN(base.getTime()) || isNaN(hours) || isNaN(minutes)) return null
+  base.setHours(hours, minutes, 0, 0)
+  return base
+}
+
 export function EstimateTasks({
   estimateId,
   tasks: initialTasks,
   reminders: initialReminders,
+  onSiteDate,
+  arrivalWindowStart,
 }: EstimateTasksProps) {
   const router = useRouter()
   const [tasks, setTasks] = useState<EstimateTask[]>(initialTasks)
@@ -340,28 +362,33 @@ export function EstimateTasks({
 
         {showReminderPresets && (
           <div className="flex flex-wrap gap-2">
-            {REMINDER_PRESETS.map((preset) => (
-              <Button
-                key={preset}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Quick reminder with tomorrow 9am default time
-                  const tomorrow = new Date()
-                  tomorrow.setDate(tomorrow.getDate() + 1)
-                  tomorrow.setHours(9, 0, 0, 0)
-                  createEstimateReminderAction(estimateId, {
-                    remindAt: tomorrow.toISOString(),
-                    note: preset,
-                  }).then((result) => {
-                    if (result.success) router.refresh()
-                  })
-                }}
-              >
-                {preset}
-              </Button>
-            ))}
+            {REMINDER_PRESETS.map((preset) => {
+              const base = resolvePresetDateTime(onSiteDate, arrivalWindowStart)
+              const disabled = !base
+              const remindAt = base
+                ? new Date(base.getTime() + preset.offsetMinutes * 60_000)
+                : null
+              return (
+                <Button
+                  key={preset.label}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() => {
+                    if (!remindAt) return
+                    createEstimateReminderAction(estimateId, {
+                      remindAt: remindAt.toISOString(),
+                      note: preset.label,
+                    }).then((result) => {
+                      if (result.success) router.refresh()
+                    })
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              )
+            })}
           </div>
         )}
 

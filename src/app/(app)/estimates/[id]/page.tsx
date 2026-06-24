@@ -87,6 +87,14 @@ export default async function EstimateDetailPage({ params }: EstimateDetailPageP
           note: r.note,
           done: r.done,
         }))}
+        onSiteDate={estimateData.estimate.onSiteDate?.toISOString().slice(0, 10)}
+        arrivalWindowStart={
+          estimateData.estimate.arrivalWindowStart
+            ? estimateData.estimate.arrivalWindowStart.toISOString().slice(11, 16)
+            : estimateData.estimate.arrivalWindowEnd
+              ? estimateData.estimate.arrivalWindowEnd.toISOString().slice(11, 16)
+              : null
+        }
       />
     </div>
   )
