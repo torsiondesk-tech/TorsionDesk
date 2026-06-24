@@ -206,6 +206,7 @@ export interface CachedEstimate {
   expiryDate: string | null
   notes: string | null
   createdAt: string | null
+  opportunityRating: number | null
 }
 
 export interface CachedInvoice {

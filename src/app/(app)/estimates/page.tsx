@@ -15,9 +15,22 @@ interface EstimatesPageProps {
   }>
 }
 
-async function EstimateList({ orgId }: { orgId: string }) {
-  const { rows } = await listEstimatesAction(orgId)
-  return <EstimatesTable rows={rows as import('./estimates-table').EstimateRow[]} />
+function normalizeParam(param: string | string[] | undefined): string | undefined {
+  if (Array.isArray(param)) return param[0]
+  return param
+}
+
+async function EstimateList({
+  orgId,
+  searchParams,
+}: {
+  orgId: string
+  searchParams: EstimatesPageProps['searchParams']
+}) {
+  const params = await searchParams
+  const status = normalizeParam(params.status)
+  const { rows } = await listEstimatesAction(orgId, { status })
+  return <EstimatesTable rows={rows as import('./estimates-table').EstimateRow[]} status={status} />
 }
 
 export default async function EstimatesPage({ searchParams }: EstimatesPageProps) {
@@ -51,7 +64,7 @@ export default async function EstimatesPage({ searchParams }: EstimatesPageProps
             <div className="h-64 animate-pulse rounded-lg bg-muted">Loading estimates…</div>
           }
         >
-          <EstimateList orgId={orgId} />
+          <EstimateList orgId={orgId} searchParams={searchParams} />
         </Suspense>
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useQueryStates, parseAsString, parseAsBoolean } from 'nuqs'
+import { useTransition } from 'react'
 import { cn } from '@/lib/utils'
 import {
   Clock,
@@ -33,20 +34,23 @@ const STATUS_FOLDERS: Folder[] = [
 ]
 
 export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
+  const [isPending, startTransition] = useTransition()
   const [{ status }, setParams] = useQueryStates(
     {
       status: parseAsString.withDefault(''),
       mine: parseAsBoolean.withDefault(false),
     },
-    { shallow: false },
+    { shallow: false, startTransition },
   )
 
   const selectFolder = (key: string) => {
-    if (status === key) {
-      setParams({ status: null, mine: null })
-    } else {
-      setParams({ status: key, mine: null })
-    }
+    startTransition(() => {
+      if (status === key) {
+        setParams({ status: null, mine: null })
+      } else {
+        setParams({ status: key, mine: null })
+      }
+    })
   }
 
   return (
@@ -61,12 +65,14 @@ export function EstimatesSidebar({ statusCounts }: EstimatesSidebarProps) {
         return (
           <button
             key={folder.key}
+            disabled={isPending}
             onClick={() => selectFolder(folder.key)}
             className={cn(
               'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
               isActive
                 ? 'bg-sidebar-accent text-primary font-medium'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              isPending && 'opacity-70',
             )}
           >
             <Icon className="size-4" />

@@ -1,8 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useQueryStates, parseAsString, parseAsBoolean } from 'nuqs'
-import { useTransition } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -35,11 +33,12 @@ export interface EstimateRow {
   expiryDate: string | null
   notes: string | null
   createdAt: string | null
-  opportunityRating?: number | null
+  opportunityRating: number | null
 }
 
 interface EstimatesTableProps {
   rows: EstimateRow[]
+  status?: string
 }
 
 function formatDate(value: string | null) {
@@ -101,32 +100,17 @@ const columns: ColumnDef<EstimateRow>[] = [
   {
     accessorKey: 'opportunityRating',
     header: 'Rating',
-    cell: ({ row }) => {
-      const rating = (row.original as unknown as { opportunityRating?: number | null }).opportunityRating
-      return <StarPicker value={rating ?? null} onChange={() => {}} readOnly />
-    },
+    cell: ({ row }) => (
+      <StarPicker value={row.original.opportunityRating} onChange={() => {}} readOnly />
+    ),
   },
 ]
 
-export function EstimatesTable({ rows }: EstimatesTableProps) {
-  const [isPending, startTransition] = useTransition()
-  const [{ status }] = useQueryStates(
-    {
-      status: parseAsString.withDefault(''),
-      mine: parseAsBoolean.withDefault(false),
-    },
-    { shallow: false, startTransition },
-  )
-
-  const filteredRows = rows.filter((row) => {
-    if (status && row.status !== status) return false
-    return true
-  })
-
+export function EstimatesTable({ rows, status }: EstimatesTableProps) {
   const hasFilters = !!status
 
   const table = useReactTable({
-    data: filteredRows,
+    data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
   })
@@ -152,7 +136,7 @@ export function EstimatesTable({ rows }: EstimatesTableProps) {
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-pending={isPending} className="py-2">
+                <TableRow key={row.id} className="py-2">
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="py-2">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

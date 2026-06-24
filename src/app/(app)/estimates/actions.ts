@@ -1003,8 +1003,16 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
   })
 }
 
-export async function listEstimatesAction(orgId: string): Promise<{ rows: CachedEstimate[] }> {
+export async function listEstimatesAction(
+  orgId: string,
+  filters?: { status?: string },
+): Promise<{ rows: CachedEstimate[] }> {
   return withTenant(orgId, async (tx) => {
+    const conditions = [eq(estimates.tenantId, orgId)]
+    if (filters?.status && isEstimateStatus(filters.status)) {
+      conditions.push(eq(estimates.status, filters.status))
+    }
+
     const rows = await tx
       .select({
         id: estimates.id,
@@ -1020,12 +1028,13 @@ export async function listEstimatesAction(orgId: string): Promise<{ rows: Cached
         notes: estimates.notes,
         createdAt: sql<string>`TO_CHAR(${estimates.createdAt}, 'YYYY-MM-DD"T"HH24:MI:SS')`,
         assignedAgentId: estimates.assignedAgentId,
+        opportunityRating: estimates.opportunityRating,
       })
       .from(estimates)
       .leftJoin(customers, and(eq(customers.tenantId, estimates.tenantId), eq(customers.id, estimates.customerId)))
       .leftJoin(estimateLineItems, and(eq(estimateLineItems.tenantId, estimates.tenantId), eq(estimateLineItems.estimateId, estimates.id)))
-      .where(eq(estimates.tenantId, orgId))
-      .groupBy(estimates.id, customers.name)
+      .where(and(...conditions))
+      .groupBy(estimates.id, customers.name, estimates.opportunityRating)
       .orderBy(desc(estimates.createdAt))
 
     return { rows: rows as CachedEstimate[] }
@@ -1241,19 +1250,25 @@ export async function sendEstimateAction(
   return { success: true }
 }
 
+const ESTIMATE_STATUSES = [
+  'estimate_requested',
+  'estimate_provided',
+  'estimate_accepted',
+  'estimate_won',
+  'estimate_lost',
+] as const
+
+type EstimateStatusValue = (typeof ESTIMATE_STATUSES)[number]
+
+function isEstimateStatus(value: string): value is EstimateStatusValue {
+  return (ESTIMATE_STATUSES as readonly string[]).includes(value)
+}
+
 export async function countEstimatesByStatus(
   orgId: string,
 ): Promise<Record<string, number> & { all: Record<string, number> }> {
-  const ALL_STATUSES = [
-    'estimate_requested',
-    'estimate_provided',
-    'estimate_accepted',
-    'estimate_won',
-    'estimate_lost',
-  ]
-
   const base: Record<string, number> = {}
-  for (const s of ALL_STATUSES) base[s] = 0
+  for (const s of ESTIMATE_STATUSES) base[s] = 0
 
   return withTenant(orgId, async (tx) => {
     const allRows = await tx
