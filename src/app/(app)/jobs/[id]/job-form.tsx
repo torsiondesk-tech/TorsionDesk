@@ -839,12 +839,22 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
           value={JSON.stringify(lineItemGroups)}
         />
 
-        {/* Top save action — duplicated for easy access on long job forms (desktop only) */}
+        {/* Top action bar — duplicated for easy access on long job forms (desktop only) */}
         <div className="hidden md:flex items-center justify-end gap-3">
           {state.error && (
             <p role="alert" className="text-sm text-destructive">
               {state.error}
             </p>
+          )}
+          {mode === 'edit' && onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
           )}
           <Button type="submit" disabled={pending || !!arrivalTimeError}>
             {pending ? 'Saving…' : cta}
