@@ -557,6 +557,22 @@ export async function countOpenJobs(orgId: string): Promise<number> {
  * Per-tag job counts scoped to the tenant.
  * Used by the jobs dashboard sidebar bucket nav (JOB-13).
  */
+export async function countTodayJobs(orgId: string): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const [{ c }] = await tx
+      .select({ c: count() })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.tenantId, orgId),
+          sql`${jobs.startDate} >= current_date`,
+          sql`${jobs.startDate} < current_date + interval '1 day'`,
+        ),
+      )
+    return c
+  })
+}
+
 export async function countJobsByTag(
   orgId: string,
 ): Promise<{ tagId: string; name: string; color: string | null; count: number }[]> {

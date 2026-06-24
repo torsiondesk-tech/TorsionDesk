@@ -9,15 +9,16 @@ import {
   CardContent,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { countOpenJobs, listRecentJobs } from '@/lib/jobs/jobs'
+import { countOpenJobs, countTodayJobs, listRecentJobs } from '@/lib/jobs/jobs'
 import { statusLabel, statusBadgeVariant } from '@/lib/jobs/transitions'
 
 export default async function DashboardPage() {
   const { orgId } = await auth()
   if (!orgId) redirect('/sign-in')
 
-  const [openJobCount, recentJobs] = await Promise.all([
+  const [openJobCount, todayJobCount, recentJobs] = await Promise.all([
     countOpenJobs(orgId),
+    countTodayJobs(orgId),
     listRecentJobs(orgId, 5),
   ])
 
@@ -54,10 +55,10 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader>
             <CardDescription>Today&apos;s Schedule</CardDescription>
-            <CardTitle className="text-3xl font-bold">—</CardTitle>
+            <CardTitle className="text-3xl font-bold">{todayJobCount}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-muted-foreground">Available in Phase 4</p>
+            <p className="text-xs text-muted-foreground">Jobs scheduled today</p>
           </CardContent>
         </Card>
 
