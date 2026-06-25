@@ -1,4 +1,7 @@
+import 'server-only'
+
 import { eq, and, sql } from 'drizzle-orm'
+import { createClient } from '@supabase/supabase-js'
 import { withTenant } from '@/db/with-tenant'
 import {
   invoices,
@@ -11,6 +14,31 @@ import {
   paymentAllocations,
   payments,
 } from '@/db/schema'
+
+const SIGNATURE_BUCKET = 'tenant-assets'
+
+function getServiceClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('SUPABASE storage env not configured')
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+async function createSignedSignatureUrl(
+  storagePath: string | null | undefined,
+): Promise<string | null> {
+  if (!storagePath) return null
+  const supabase = getServiceClient()
+  const { data, error } = await supabase.storage
+    .from(SIGNATURE_BUCKET)
+    .createSignedUrl(storagePath, 3600)
+  if (error || !data?.signedUrl) return null
+  return data.signedUrl
+}
 
 export interface InvoicePdfLineItem {
   id: string
@@ -174,6 +202,8 @@ export async function getInvoiceForPdf(
     const applied = paymentRows.reduce((sum, p) => sum + parseFloat(p.amountApplied), 0)
     const balance = Math.max(0, totalNum - applied).toFixed(2)
 
+    const signatureUrl = await createSignedSignatureUrl(signatureRow?.storagePath)
+
     return {
       id: invoice.id,
       tenantId: invoice.tenantId,
@@ -202,7 +232,7 @@ export async function getInvoiceForPdf(
       job: jobRow
         ? { id: jobRow.id, jobNo: jobRow.jobNo, completionNotes: jobRow.completionNotes ?? null }
         : null,
-      signatureUrl: signatureRow?.storagePath ?? null,
+      signatureUrl,
       signedBy: signatureRow?.signedBy ?? null,
       lineItems: lineItems.map((li) => ({
         id: li.id,
