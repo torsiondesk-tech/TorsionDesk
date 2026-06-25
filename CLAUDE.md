@@ -142,6 +142,25 @@ const channel = client.channel(...)             // real-time fast path
 
 This pattern was broken in production (but not dev) because Next.js dev mode revalidates more aggressively, masking both missing `router.refresh()` calls and WebSocket failures. Always test auto-refresh with `pnpm build && pnpm start`.
 
+### Rate Limiting — Upstash Redis via Middleware
+
+All routes (except `/api/webhooks/*`) are rate-limited at the Next.js Edge middleware layer **before** Clerk auth runs. Two tiers:
+
+| Limiter | Limit | Routes |
+|---|---|---|
+| `generalLimiter` | 100 req / 10s per IP | All non-webhook routes |
+| `strictLimiter` | 20 req / 60s per IP | `/api/invoices/*/pdf` (CPU-heavy) |
+
+**Canonical implementation:** `src/lib/rate-limit.ts` + `src/middleware.ts`
+
+**Fail-open:** If `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are not set, both limiters are `null` and rate limiting is silently skipped. Local dev works with no config.
+
+**Webhooks are excluded** intentionally — Stripe/Clerk webhooks are signature-verified and must never be dropped by a rate limit counter.
+
+**Do not** move the rate limit check after `isPublic()` — it must run on all routes including sign-in/sign-up to catch credential-stuffing bots before they touch Clerk.
+
+Production database: `torsiondesk-prod` on Upstash (Free Tier, GCP Iowa us-central1). Env vars are in Vercel project settings.
+
 ### PWA Offline
 - iOS/Safari does **not** support Background Sync API
 - Dual flush triggers required: `online` event + Background Sync where available
