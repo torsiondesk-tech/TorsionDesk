@@ -40,12 +40,31 @@ const allocationRows: Array<{
 
 vi.mock('@/db/with-tenant', () => ({
   withTenant: vi.fn(async (_orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
+    let selectCallCount = 0
     const tx = {
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(async () => [{ m: 1000 }]),
-        })),
-      })),
+      select: vi.fn((_cols?: unknown) => {
+        selectCallCount++
+        const callNum = selectCallCount
+        return {
+          from: vi.fn((_table?: unknown) => ({
+            where: vi.fn(async (_cond?: unknown) => {
+              if (callNum === 1) {
+                // nextPaymentNo max query
+                return [{ m: 1000 }]
+              }
+              if (callNum === 2) {
+                // invoice bulk fetch — return invoices owned by cust_1 with ample balance
+                return [
+                  { id: 'inv_1', customerId: 'cust_1', total: '1000.00' },
+                  { id: 'inv_2', customerId: 'cust_1', total: '1000.00' },
+                ]
+              }
+              // alloc SUM query — no existing allocations
+              return [{ sum: '0' }]
+            }),
+          })),
+        }
+      }),
       insert: vi.fn((table: any) => ({
         values: vi.fn((vals: any) => ({
           returning: vi.fn(async () => {
