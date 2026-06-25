@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 07
-last_updated: "2026-06-25T11:20:00.000Z"
+status: Executing Phase 08
+last_updated: "2026-06-25T19:17:00.000Z"
 progress:
   total_phases: 11
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 46
-  completed_plans: 36
-  percent: 78
+  completed_plans: 33
+  percent: 64
 ---
 
 # TorsionDesk — Project State
@@ -19,18 +19,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Core value:** A tech gets dispatched from the board, completes the job on their phone, creates the invoice and collects payment on site, and the customer has a paid invoice with a receipt in their inbox — without the owner touching anything twice.
-**Current focus:** Phase 07 — invoicing and payments
+**Current focus:** Phase 08 — communications and notifications
 
 ## Current Phase
 
-**Phase 7: Invoicing and Payments**
+**Phase 8: Communications and Notifications**
 
 - Status: Executing
-- Goal: Office and field can create invoices from completed jobs, collect payment via Stripe (online) and Square (on-site), maintain a single canonical ledger, and send paid receipts to customers.
-- Requirements: INV-01 through INV-14
-- Depends on: Phase 3 (completed), Phase 6 (completed)
-- Cross-phase note: `createInvoiceFromJobAction`, `sendInvoiceAction`, and Square payment posting must be callable from the PWA and share the same canonical ledger as office flows.
-- Progress: 07-04 complete — /invoices/[id] live with payment history and Stripe link, /payments/new live with over-application guard, /payments/[id] payment view live, /settings/payment-methods admin CRUD live (INV-04, INV-05, INV-06, INV-09, INV-11, INV-12, INV-14, SET-08).
+- Goal: The system automatically emails and texts the right people on job, estimate, invoice, and payment events, governed by per-trigger settings, from both the office and the PWA.
+- Requirements: COMM-01 through COMM-09
+- Depends on: Phase 3 (completed), Phase 6 (completed), Phase 7 (completed)
+- Cross-phase note: A shared `sendCustomerCommunicationAction` should power estimate/invoice sends from both office modules and the Phase 5 PWA so per-trigger settings and PDF attachments are applied consistently.
 
 ## Phase 4 Plans
 
@@ -59,13 +58,13 @@ Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
 Phase 5  [██████████] Completed  ← 2026-06-21
 Phase 6  [██████████] Completed  ← 2026-06-24
-Phase 7  [███████   ] Executing    ← current (4/5 plans)
-Phase 8  [          ] Not started
+Phase 7  [██████████] Completed  ← 2026-06-25
+Phase 8  [          ] Executing    ← current
 Phase 9  [          ] Not started
 Phase 10 [          ] Not started
 ```
 
-6 / 11 phases complete · 81 / 109 requirements delivered
+7 / 11 phases complete · 95 / 109 requirements delivered
 
 ## Completed Phases
 
@@ -139,7 +138,18 @@ Phase 10 [          ] Not started
 - Plans executed: 5 / 5 (06-01 through 06-05)
 - Notes: |
   Full estimates pipeline: dashboard with status-folder sidebar (Draft/Sent/Won/Lost/Expired) + tag filters, two-panel estimate form with grouped catalog line items, task/reminder CRUD, StarPicker rating, PDF generation via @react-pdf/renderer (/api/estimates/[id]/pdf), estimate email/SMS send, one-click convert-to-job, Settings estimate templates tab. `createEstimateAction`, `convertEstimateToJobAction`, and `sendEstimateAction` are PWA-callable server actions (offline-queued wrappers already stubbed in Phase 5). Customer name links to customer detail page. Reminder presets derived from scheduled on-site date/time.
+
 - Requirements delivered: EST-01, EST-02, EST-03, EST-04, EST-05, EST-06, EST-07, EST-08, EST-09
+
+### Phase 7: Invoicing and Payments
+
+- Status: Completed
+- Completed: 2026-06-25
+- Plans executed: 5 / 5 (07-01 through 07-05)
+- Notes: |
+  Full invoicing and payments pipeline: AR aging dashboard with live counts, invoice detail with payment history and Stripe payment link, receive payment and payment view pages, payment-method settings CRUD, invoice PDF generation with optional work order, dispatch popup Close & Invoice and Deposits wiring, job detail Create Invoice button with invoice cross-link, and To Be Invoiced bucket corrected to exclude already-invoiced completed jobs. Stripe webhook posts to the canonical ledger deduped by event.id; Square on-site payments share the same ledger.
+
+- Requirements delivered: INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08, INV-09, INV-10, INV-11, INV-12, INV-13, INV-14
 
 ## Phase 7 Plans
 
@@ -147,7 +157,7 @@ Phase 10 [          ] Not started
 - [x] 07-02-PLAN.md — Wave 1: Canonical server actions + Stripe webhook + Settings payment-methods tab + Square CDN URL fix
 - [x] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
 - [x] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new + /payments/[id] + /settings/payment-methods CRUD
-- [ ] 07-05-PLAN.md — Wave 4: Invoice PDF route + wire dispatch popup Close & Invoice + wire job detail Create Invoice button
+- [x] 07-05-PLAN.md — Wave 4: Invoice PDF route (/api/invoices/[id]/pdf with optional workOrder), InvoicePdfDocument component, dispatch popup Close & Invoice + Deposits buttons, job detail Create Invoice button and invoice cross-link, To Be Invoiced bucket excludes already-invoiced completed jobs
 
 ## Key Decisions Made
 
@@ -212,13 +222,13 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 07-04 (Invoicing and Payments Wave 3) completed 2026-06-25.
-**Next action:** Execute 07-05 to continue Invoicing and Payments Wave 4 (invoice PDF route, dispatch popup Close & Invoice, job detail Create Invoice button, To Be Invoiced bucket fix).
+**Last action:** Phase 07-05 (Invoicing and Payments Wave 4) completed 2026-06-25.
+**Next action:** Plan and execute Phase 08 — Communications and Notifications (COMM-01 through COMM-09). Shared `sendCustomerCommunicationAction` should power estimate/invoice sends from both office modules and the Phase 5 PWA.
 **Resume files:**
 
-- `.planning/ROADMAP.md` — Phase 7 requirements (INV-01–INV-08, PAY-01–PAY-06)
-- `.planning/phases/07-invoicing-and-payments/07-03-SUMMARY.md` — Wave 2 dashboard summary
+- `.planning/ROADMAP.md` — Phase 8 requirements (COMM-01–COMM-09)
+- `.planning/phases/07-invoicing-and-payments/07-05-SUMMARY.md` — Wave 4 summary
 
 ---
 *State initialized: 2026-06-10*
-*Updated: 2026-06-25 — Phase 07-04 complete, ready for 07-05*
+*Updated: 2026-06-25 — Phase 07-05 complete, Phase 7 complete, ready for Phase 8*
