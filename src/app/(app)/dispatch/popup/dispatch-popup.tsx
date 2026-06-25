@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import {
   X,
   Eye,
@@ -66,6 +67,8 @@ import {
   updateJobServiceLocation,
   createServiceLocationForJob,
 } from '@/app/(app)/dispatch/actions'
+import { createInvoiceFromJobAction } from '@/app/(app)/invoices/actions'
+import { toast } from 'sonner'
 import type {
   WeekJob,
   Technician,
@@ -319,6 +322,7 @@ function InlineRow({
 
 export function DispatchPopup({ job, techs, open, onClose, popupData }: DispatchPopupProps) {
   const router = useRouter()
+  const { orgId } = useAuth()
 
   // ── Local copies of props (synced via effect) ──
   const [localJob, setLocalJob] = useState<WeekJob | null>(job)
@@ -413,11 +417,30 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
             <ActionButton icon={Route} label="Dispatch" disabled />
             <ActionButton icon={Eye} label="View Details" onClick={() => router.push(editHref)} />
             <ActionButton icon={Pencil} label="Make Changes" onClick={() => router.push(`${editHref}?edit=true`)} />
-            <ActionButton icon={DollarSign} label="Deposits" disabled />
+            <ActionButton
+              icon={DollarSign}
+              label="Deposits"
+              disabled={isClosed || isCancelled}
+              onClick={() => router.push(`/payments/new?jobId=${localJob.id}&type=deposit`)}
+            />
             <ActionButton
               icon={FileCheck}
               label="Close & Invoice"
               disabled={isClosed || isCancelled || localJob.status !== 'completed'}
+              onClick={async () => {
+                if (!orgId) {
+                  toast.error('No active organization.')
+                  return
+                }
+                const result = await createInvoiceFromJobAction(orgId, localJob.id)
+                if (result.error) {
+                  toast.error(result.error)
+                  return
+                }
+                toast.success(`Invoice #INV-${result.invoiceNo} created.`)
+                router.push(`/invoices/${result.invoiceId}`)
+                router.refresh()
+              }}
             />
             <ActionButton icon={Ban} label="Cancel This Job" disabled />
             <ActionButton icon={Mail} label="Email" disabled />

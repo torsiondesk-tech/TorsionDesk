@@ -18,6 +18,7 @@ import {
   serviceLocations,
   jobCategories,
   estimates,
+  invoices,
 } from '@/db/schema'
 import { STATUS_GROUPS, type JobStatusValue } from './transitions'
 
@@ -95,7 +96,15 @@ export async function listJobs(
     if (opts.bucket === 'completed_ready_to_close') {
       conditions.push(eq(jobs.status, 'completed'))
     } else if (opts.bucket === 'to_be_invoiced') {
-      conditions.push(eq(jobs.status, 'invoiced'))
+      conditions.push(eq(jobs.status, 'completed'))
+      conditions.push(
+        sql`NOT EXISTS (
+          SELECT 1 FROM ${invoices}
+          WHERE ${invoices.jobId} = ${jobs.id}
+            AND ${invoices.tenantId} = ${jobs.tenantId}
+            AND ${invoices.status} != 'void'
+        )`,
+      )
     } else if (opts.bucket === 'my_jobs' && opts.userId) {
       conditions.push(
         sql`EXISTS (

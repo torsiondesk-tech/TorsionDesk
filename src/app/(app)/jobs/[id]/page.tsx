@@ -30,6 +30,42 @@ import {
   statusLabel,
 } from '@/lib/jobs/transitions'
 import { toISODate } from '@/lib/utils'
+import { withTenant } from '@/db/with-tenant'
+import { invoices } from '@/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
+
+async function getInvoiceForJob(
+  orgId: string,
+  jobId: string,
+): Promise<{ id: string; invoiceNo: number; invoiceDate: string | null } | null> {
+  return withTenant(orgId, async (tx) => {
+    const [row] = await tx
+      .select({
+        id: invoices.id,
+        invoiceNo: invoices.invoiceNo,
+        invoiceDate: invoices.invoiceDate,
+      })
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.tenantId, orgId),
+          eq(invoices.jobId, jobId),
+          eq(invoices.status, 'active'),
+        ),
+      )
+      .orderBy(desc(invoices.createdAt))
+      .limit(1)
+    return row
+      ? {
+          id: row.id,
+          invoiceNo: row.invoiceNo,
+          invoiceDate: row.invoiceDate
+            ? String(row.invoiceDate).slice(0, 10)
+            : null,
+        }
+      : null
+  })
+}
 
 interface JobDetailPageProps {
   params: Promise<{ id: string }>
@@ -188,6 +224,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
   ])
 
   const initial = mapJobToFormData(job)
+  const invoice = await getInvoiceForJob(orgId, id)
 
   return (
     <div className="animate-in fade-in-0 duration-300 space-y-6">
@@ -222,6 +259,29 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
         </p>
       )}
 
+      {invoice && (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Invoiced as </span>
+          <Link
+            href={`/invoices/${invoice.id}`}
+            className="font-medium underline hover:text-foreground"
+          >
+            #{`INV-${invoice.invoiceNo}`}
+          </Link>
+          {invoice.invoiceDate && (
+            <span className="text-muted-foreground">
+              {' '}
+              (created {new Date(invoice.invoiceDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+              )
+            </span>
+          )}
+        </p>
+      )}
+
       {/* Tabs */}
       <Tabs defaultValue="summary">
         <TabsList>
@@ -235,6 +295,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
 
         <TabsContent value="summary" className="space-y-6">
           <JobDetailShell
+            orgId={orgId}
             job={job}
             initial={initial}
             referenceData={{
@@ -252,6 +313,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
             }
             sourceName={jobSources.find((s) => s.id === job.jobSourceId)?.name}
             initialEdit={initialEdit}
+            invoice={invoice}
           />
         </TabsContent>
 
