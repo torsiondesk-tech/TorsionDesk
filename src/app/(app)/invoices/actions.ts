@@ -10,6 +10,7 @@ import {
   invoiceLineItems,
   payments,
   paymentAllocations,
+  paymentMethods,
   jobs,
   jobLineItems,
   customers,
@@ -86,6 +87,7 @@ export interface InvoiceDetail {
     amountApplied: string
     receivedOn: string | null
     method: string
+    methodName: string | null
   }>
   createdAt: Date | null
 }
@@ -421,12 +423,14 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         amountApplied: paymentAllocations.amountApplied,
         receivedOn: payments.receivedOn,
         method: payments.method,
+        methodName: paymentMethods.name,
       })
       .from(paymentAllocations)
       .innerJoin(
         payments,
         and(eq(payments.tenantId, paymentAllocations.tenantId), eq(payments.id, paymentAllocations.paymentId)),
       )
+      .leftJoin(paymentMethods, and(eq(paymentMethods.tenantId, payments.tenantId), eq(paymentMethods.id, payments.method)))
       .where(and(eq(paymentAllocations.tenantId, orgId), eq(paymentAllocations.invoiceId, id)))
       .orderBy(desc(paymentAllocations.createdAt))
 
@@ -472,6 +476,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         amountApplied: a.amountApplied ? String(a.amountApplied) : '0.00',
         receivedOn: toDateString(a.receivedOn),
         method: a.method,
+        methodName: a.methodName ?? null,
       })),
       createdAt: invoice.createdAt,
     }

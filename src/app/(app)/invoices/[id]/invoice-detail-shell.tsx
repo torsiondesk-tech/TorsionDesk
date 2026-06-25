@@ -379,7 +379,7 @@ export function InvoiceDetailShell({ invoice, customer, jobNo }: InvoiceDetailSh
                               {`PAY-${a.paymentNo}`}
                             </Link>
                           </td>
-                          <td className="px-3 py-2">{a.method}</td>
+                          <td className="px-3 py-2">{a.methodName ?? a.method}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {fmtMoney(a.amountApplied)}
                           </td>
