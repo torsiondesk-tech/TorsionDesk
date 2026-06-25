@@ -2,10 +2,8 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPaymentAction } from '../actions'
-import { Pencil } from 'lucide-react'
 
 interface PaymentDetailPageProps {
   params: Promise<{ id: string }>
@@ -46,12 +44,6 @@ export default async function PaymentDetailPage({ params }: PaymentDetailPagePro
         <h1 className="text-3xl font-semibold tracking-tight">
           Payment #{`PAY-${payment.paymentNo}`}
         </h1>
-        <Link href={`/payments/new?paymentId=${payment.id}`}>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Pencil className="size-4" />
-            Edit Payment
-          </Button>
-        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

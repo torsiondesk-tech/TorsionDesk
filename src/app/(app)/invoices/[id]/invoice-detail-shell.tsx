@@ -224,25 +224,27 @@ export function InvoiceDetailShell({ invoice, customer, jobNo }: InvoiceDetailSh
         <div className="space-y-6">
           {/* Actions */}
           <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/payments/new?invoiceId=${invoice.id}&customerId=${invoice.customerId}`}
-              passHref
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={() => router.push(`/payments/new?invoiceId=${invoice.id}&customerId=${invoice.customerId}`)}
             >
-              <Button size="sm" className="gap-2">
-                <Banknote className="size-4" />
-                Receive Payment
-              </Button>
-            </Link>
+              <Banknote className="size-4" />
+              Receive Payment
+            </Button>
             <Button variant="outline" size="sm" className="gap-2" onClick={handleEmail}>
               <Mail className="size-4" />
               Email Invoice
             </Button>
-            <Link href={`/api/invoices/${invoice.id}/pdf`} target="_blank" passHref>
-              <Button variant="outline" size="sm" className="gap-2">
-                <FileDown className="size-4" />
-                Download PDF
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => window.open(`/api/invoices/${invoice.id}/pdf`, '_blank')}
+            >
+              <FileDown className="size-4" />
+              Download PDF
+            </Button>
           </div>
 
           {/* Meta sidebar */}
@@ -408,9 +410,9 @@ export function InvoiceDetailShell({ invoice, customer, jobNo }: InvoiceDetailSh
               <DialogHeader>
                 <DialogTitle>Delete this invoice?</DialogTitle>
                 <DialogDescription>
-                  Invoice {`#INV-${invoice.invoiceNo}`} and its line items will be permanently
-                  removed. Recorded payments stay on the ledger and become unallocated. This
-                  can&apos;t be undone.
+                  Invoice {`#INV-${invoice.invoiceNo}`} will be marked as void and hidden from
+                  the dashboard. Recorded payments stay on the ledger. You can recreate it from
+                  the job if needed.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">

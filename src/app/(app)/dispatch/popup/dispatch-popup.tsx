@@ -421,7 +421,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
               icon={DollarSign}
               label="Deposits"
               disabled={isClosed || isCancelled}
-              onClick={() => router.push(`/payments/new?jobId=${localJob.id}&type=deposit`)}
+              onClick={() => router.push(`/payments/new?jobId=${localJob.id}&type=deposit${localPopupData?.customerId ? `&customerId=${localPopupData.customerId}` : ''}`)}
             />
             <ActionButton
               icon={FileCheck}
