@@ -10,6 +10,7 @@ import {
   payments,
   paymentAllocations,
   invoices,
+  jobs,
   customers,
   customerEvents,
   paymentMethods,
@@ -258,6 +259,7 @@ export interface PaymentDetail {
     invoiceId: string
     invoiceNo: number
     jobId: string
+    jobNo: number | null
     amountApplied: string
   }>
 }
@@ -297,6 +299,7 @@ export async function getPaymentAction(
         invoiceId: paymentAllocations.invoiceId,
         invoiceNo: invoices.invoiceNo,
         jobId: invoices.jobId,
+        jobNo: jobs.jobNo,
         amountApplied: paymentAllocations.amountApplied,
       })
       .from(paymentAllocations)
@@ -304,6 +307,7 @@ export async function getPaymentAction(
         invoices,
         and(eq(invoices.tenantId, paymentAllocations.tenantId), eq(invoices.id, paymentAllocations.invoiceId)),
       )
+      .leftJoin(jobs, and(eq(jobs.tenantId, invoices.tenantId), eq(jobs.id, invoices.jobId)))
       .where(and(eq(paymentAllocations.tenantId, orgId), eq(paymentAllocations.paymentId, id)))
 
     return {
@@ -326,6 +330,7 @@ export async function getPaymentAction(
         invoiceId: a.invoiceId,
         invoiceNo: a.invoiceNo,
         jobId: a.jobId,
+        jobNo: a.jobNo ?? null,
         amountApplied: String(a.amountApplied),
       })),
     }
