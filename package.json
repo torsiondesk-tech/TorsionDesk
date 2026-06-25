@@ -48,6 +48,8 @@
     "@serwist/next": "9.5.11",
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-table": "^8.21.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

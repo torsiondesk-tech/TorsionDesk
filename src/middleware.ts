@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { generalLimiter, strictLimiter } from '@/lib/rate-limit'
 
 /**
  * Security perimeter (AUTH-06, D-14/D-15/D-16; RESEARCH Pattern 2).
@@ -32,8 +33,22 @@ const isPublic = createRouteMatcher([
 ])
 const isSettings = createRouteMatcher(['/settings(.*)'])
 const isTechRoute = createRouteMatcher(['/tech(.*)'])
+const isPdfRoute = createRouteMatcher(['/api/invoices/(.*)/pdf'])
+const isWebhook = createRouteMatcher(['/api/webhooks(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
+  // Rate limiting — skip webhooks (signature-verified) to avoid dropping legitimate events.
+  if (!isWebhook(req)) {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
+    const limiter = isPdfRoute(req) ? strictLimiter : generalLimiter
+    if (limiter) {
+      const { success } = await limiter.limit(ip)
+      if (!success) {
+        return new NextResponse('Too Many Requests', { status: 429 })
+      }
+    }
+  }
+
   // Public routes opt OUT of protection entirely.
   if (isPublic(req)) return
 
