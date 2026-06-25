@@ -843,7 +843,7 @@ function TemplateFormInner({
                         <div className="space-y-1">
                           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
                           <Input
-                            type="number" min="0" step="0.01"
+                            type="number" min="0" step="1"
                             value={e.qty}
                             onChange={(ev) => setEditForm({ ...e, qty: ev.target.value })}
                             className="h-8 text-xs"
@@ -852,7 +852,7 @@ function TemplateFormInner({
                         <div className="space-y-1">
                           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
                           <Input
-                            type="number" min="0" step="0.01"
+                            type="number" min="0" step="1"
                             value={e.rate}
                             onChange={(ev) => setEditForm({ ...e, rate: ev.target.value })}
                             className="h-8 text-xs"
@@ -861,7 +861,7 @@ function TemplateFormInner({
                         <div className="space-y-1">
                           <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
                           <Input
-                            type="number" min="0" step="0.01"
+                            type="number" min="0" step="1"
                             value={e.cost}
                             onChange={(ev) => setEditForm({ ...e, cost: ev.target.value })}
                             className="h-8 text-xs"
@@ -969,7 +969,7 @@ function TemplateFormInner({
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
                       <Input
-                        type="number" min="0" step="0.01"
+                        type="number" min="0" step="1"
                         value={inlineAdd.qty}
                         onChange={(e) => setInlineAdd({ ...inlineAdd, qty: e.target.value })}
                         className="h-8 text-xs"
@@ -978,7 +978,7 @@ function TemplateFormInner({
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
                       <Input
-                        type="number" min="0" step="0.01"
+                        type="number" min="0" step="1"
                         value={inlineAdd.rate}
                         onChange={(e) => setInlineAdd({ ...inlineAdd, rate: e.target.value })}
                         className="h-8 text-xs"
@@ -987,7 +987,7 @@ function TemplateFormInner({
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
                       <Input
-                        type="number" min="0" step="0.01"
+                        type="number" min="0" step="1"
                         value={inlineAdd.cost}
                         onChange={(e) => setInlineAdd({ ...inlineAdd, cost: e.target.value })}
                         className="h-8 text-xs"

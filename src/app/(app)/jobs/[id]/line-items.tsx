@@ -1074,7 +1074,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                     <Input
                       id="discount-amount"
                       type="number"
-                      step="0.01"
+                      step="1"
                       value={addRate}
                       onChange={(e) => setAddRate(e.target.value)}
                       placeholder="0.00"

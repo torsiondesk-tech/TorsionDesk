@@ -233,7 +233,7 @@ export function ReceivePaymentForm({
                 <Input
                   id="amount"
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
                   placeholder="0.00"
                   value={paymentAmount}
@@ -324,7 +324,7 @@ export function ReceivePaymentForm({
                           <td className="px-3 py-2 text-right">
                             <Input
                               type="number"
-                              step="0.01"
+                              step="1"
                               min="0"
                               className="w-32 text-right tabular-nums"
                               value={allocations[inv.id] ?? '0.00'}
@@ -419,7 +419,7 @@ export function ReceivePaymentForm({
               <Input
                 id="deposit-amount"
                 type="number"
-                step="0.01"
+                step="1"
                 min="0"
                 placeholder="0.00"
                 value={paymentAmount}

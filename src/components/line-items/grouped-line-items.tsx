@@ -804,7 +804,7 @@ function EditRow({
             type="number"
             inputMode="decimal"
             min="0"
-            step="0.01"
+            step="1"
             value={draft.rate}
             onChange={(e) => setDraft((d) => ({ ...d, rate: e.target.value }))}
             placeholder="Rate"
@@ -1011,7 +1011,7 @@ function AddRow({
             type="number"
             inputMode="decimal"
             min="0"
-            step="0.01"
+            step="1"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             placeholder="Rate"

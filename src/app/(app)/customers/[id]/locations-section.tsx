@@ -663,11 +663,11 @@ function EquipmentForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-widthFt">Width (ft) *</Label>
-              <Input id="eq-widthFt" name="widthFt" type="number" step="0.01" required />
+              <Input id="eq-widthFt" name="widthFt" type="number" step="1" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-heightFt">Height (ft) *</Label>
-              <Input id="eq-heightFt" name="heightFt" type="number" step="0.01" required />
+              <Input id="eq-heightFt" name="heightFt" type="number" step="1" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-material">Material</Label>
@@ -696,7 +696,7 @@ function EquipmentForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-hp">HP</Label>
-              <Input id="eq-hp" name="hp" type="number" step="0.01" />
+              <Input id="eq-hp" name="hp" type="number" step="1" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-serial">Serial</Label>
@@ -713,11 +713,11 @@ function EquipmentForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-insideDiameter">Inside Diameter *</Label>
-              <Input id="eq-insideDiameter" name="insideDiameter" type="number" step="0.01" required />
+              <Input id="eq-insideDiameter" name="insideDiameter" type="number" step="1" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-length">Length (in) *</Label>
-              <Input id="eq-length" name="length" type="number" step="0.01" required />
+              <Input id="eq-length" name="length" type="number" step="1" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="eq-windDirection">Wind Direction *</Label>
