@@ -8,3 +8,5 @@ allowBuilds:
   node-pty: false
   sharp: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - stripe@22.3.0
