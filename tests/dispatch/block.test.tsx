@@ -20,8 +20,8 @@ const baseJob: WeekJob = {
   endDate: null,
   customerName: "Infantino's Garage",
   address: '123 Main St',
-  arrivalWindowStart: new Date('2026-06-16T08:00:00'),
-  arrivalWindowEnd: new Date('2026-06-16T12:00:00'),
+  arrivalWindowStart: new Date('2026-06-16T08:00:00Z'),
+  arrivalWindowEnd: new Date('2026-06-16T12:00:00Z'),
   description: 'Spring replacement and tune-up',
   techIds: ['u1'],
 }

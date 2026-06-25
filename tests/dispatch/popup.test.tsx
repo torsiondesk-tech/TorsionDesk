@@ -5,6 +5,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ orgId: 'org_test' }),
+}))
+
 import { DispatchPopup } from '@/app/(app)/dispatch/popup/dispatch-popup'
 import type { WeekJob, Technician, PopupData } from '@/app/(app)/dispatch/actions'
 
@@ -20,8 +24,8 @@ const job: WeekJob = {
   endDate: null,
   customerName: 'Acme Corp',
   address: '123 Main St',
-  arrivalWindowStart: new Date(2026, 5, 16, 9, 0),
-  arrivalWindowEnd: new Date(2026, 5, 16, 11, 0),
+  arrivalWindowStart: new Date(Date.UTC(2026, 5, 16, 9, 0)),
+  arrivalWindowEnd: new Date(Date.UTC(2026, 5, 16, 11, 0)),
   description: 'Fix spring',
   techIds: ['u1'],
 }

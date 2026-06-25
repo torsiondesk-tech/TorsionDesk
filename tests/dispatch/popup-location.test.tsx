@@ -6,6 +6,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
 
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ orgId: 'org_test' }),
+}))
+
 const mockUpdateJobServiceLocation = vi.fn().mockResolvedValue({ success: true })
 const mockCreateServiceLocationForJob = vi.fn().mockResolvedValue({ id: 'loc-new', error: undefined })
 
