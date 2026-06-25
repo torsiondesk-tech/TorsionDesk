@@ -321,6 +321,7 @@ export interface PaymentDetail {
   method: string
   methodName: string | null
   amount: string
+  receivedBy: string | null
   checkRefNo: string | null
   receivedOn: string | null
   memo: string | null
@@ -353,6 +354,7 @@ export async function getPaymentAction(
         method: payments.method,
         methodName: paymentMethods.name,
         amount: payments.amount,
+        receivedBy: payments.receivedBy,
         checkRefNo: payments.checkRefNo,
         receivedOn: payments.receivedOn,
         memo: payments.memo,
@@ -395,6 +397,7 @@ export async function getPaymentAction(
       method: payment.method,
       methodName: payment.methodName ?? null,
       amount: String(payment.amount),
+      receivedBy: payment.receivedBy ?? null,
       checkRefNo: payment.checkRefNo ?? null,
       receivedOn: toDateString(payment.receivedOn),
       memo: payment.memo ?? null,

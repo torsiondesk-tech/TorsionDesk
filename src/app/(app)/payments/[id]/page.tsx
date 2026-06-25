@@ -97,6 +97,12 @@ export default async function PaymentDetailPage({ params }: PaymentDetailPagePro
                   <dt className="text-muted-foreground">Received On</dt>
                   <dd>{fmtDate(payment.receivedOn)}</dd>
                 </div>
+                {payment.receivedBy && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Received By</dt>
+                    <dd>{payment.receivedBy}</dd>
+                  </div>
+                )}
                 {payment.checkRefNo && (
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Check/Reference#</dt>
