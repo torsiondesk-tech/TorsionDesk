@@ -206,7 +206,11 @@ export function ReceivePaymentForm({
                 <Label htmlFor="method">Method</Label>
                 <Select value={selectedMethodId} onValueChange={(v) => setSelectedMethodId(v ?? '')}>
                   <SelectTrigger id="method" className="w-full">
-                    <SelectValue placeholder="Select a payment method" />
+                    <SelectValue placeholder="Select a payment method">
+                      {selectedMethodId
+                        ? (activeMethods.find(m => m.id === selectedMethodId)?.name ?? selectedMethodId)
+                        : null}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {activeMethods.map((m) => (
@@ -400,7 +404,11 @@ export function ReceivePaymentForm({
               <Label htmlFor="deposit-method">Method</Label>
               <Select value={selectedMethodId} onValueChange={(v) => setSelectedMethodId(v ?? '')}>
                 <SelectTrigger id="deposit-method" className="w-full">
-                  <SelectValue placeholder="Select a payment method" />
+                  <SelectValue placeholder="Select a payment method">
+                    {selectedMethodId
+                      ? (activeMethods.find(m => m.id === selectedMethodId)?.name ?? selectedMethodId)
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {activeMethods
