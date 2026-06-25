@@ -1,9 +1,22 @@
 ﻿'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ClipboardList, Pencil } from 'lucide-react'
+import { ArrowLeft, ClipboardList, Pencil, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useOnline } from '@/app/(tech)/lib/use-online'
@@ -30,22 +43,53 @@ export function EstimateDetail({ orgId, userId, estimateId }: EstimateDetailProp
   const online = useOnline()
   const router = useRouter()
 
-  async function handleConvert() {
-    if (online) {
-      const result = await convertEstimateToJobAction(estimateId)
-      if (!result.success) {
-        toast.error(result.error)
-      } else {
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false)
+  const [converting, setConverting] = useState(false)
+  const [scheduledDate, setScheduledDate] = useState(estimate?.onSiteDate ?? '')
+  const [scheduledTimeStart, setScheduledTimeStart] = useState(estimate?.arrivalWindowStart ?? '')
+  const [scheduledTimeEnd, setScheduledTimeEnd] = useState(estimate?.arrivalWindowEnd ?? '')
+  const [conversionNote, setConversionNote] = useState('')
+
+  async function confirmConvert() {
+    const input = {
+      scheduledDate: scheduledDate || null,
+      scheduledTimeStart: scheduledTimeStart || null,
+      scheduledTimeEnd: scheduledTimeEnd || null,
+      note: conversionNote || null,
+    }
+
+    setConverting(true)
+    try {
+      if (online) {
+        const result = await convertEstimateToJobAction(estimateId, input)
+        if (!result.success) {
+          toast.error(result.error)
+          return
+        }
         toast.success('Estimate converted to job')
         router.push('/tech/jobs')
+      } else {
+        await enqueueOutboxItem(orgId, {
+          type: 'estimate_conversion',
+          payload: { estimateId, ...input },
+        })
+        toast.info('Queued conversion — will sync when online')
+        setConvertDialogOpen(false)
       }
-    } else {
-      await enqueueOutboxItem(orgId, {
-        type: 'estimate_conversion',
-        payload: { estimateId },
-      })
-      toast.info('Queued conversion — will sync when online')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not convert estimate.')
+    } finally {
+      setConverting(false)
+      if (online) setConvertDialogOpen(false)
     }
+  }
+
+  function openConvertDialog() {
+    setScheduledDate(estimate?.onSiteDate ?? '')
+    setScheduledTimeStart(estimate?.arrivalWindowStart ?? '')
+    setScheduledTimeEnd(estimate?.arrivalWindowEnd ?? '')
+    setConversionNote('')
+    setConvertDialogOpen(true)
   }
 
   if (estimate === undefined) {
@@ -146,12 +190,69 @@ export function EstimateDetail({ orgId, userId, estimateId }: EstimateDetailProp
       </Card>
 
       <Button
-        onClick={handleConvert}
+        onClick={openConvertDialog}
         disabled={pending > 0}
         className="w-full"
       >
         {pending > 0 ? 'Conversion queued…' : 'Convert to Job'}
       </Button>
+
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Convert to Job</DialogTitle>
+            <DialogDescription>
+              Schedule the appointment before converting.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="tech-convert-date">Scheduled Date</Label>
+              <Input
+                id="tech-convert-date"
+                type="date"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Leave blank to leave the job unscheduled.</p>
+            </div>
+
+            {scheduledDate && (
+              <div className="space-y-1.5">
+                <Label>Arrival Window</Label>
+                <TimeWindowPicker
+                  startValue={scheduledTimeStart}
+                  endValue={scheduledTimeEnd}
+                  onStartChange={setScheduledTimeStart}
+                  onEndChange={setScheduledTimeEnd}
+                />
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="tech-convert-note">Note for Techs</Label>
+              <Textarea
+                id="tech-convert-note"
+                placeholder="Add a note about this appointment..."
+                value={conversionNote}
+                onChange={(e) => setConversionNote(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvertDialogOpen(false)} disabled={converting}>
+              Cancel
+            </Button>
+            <Button onClick={confirmConvert} disabled={converting}>
+              {converting && <Loader2 className="mr-1 size-4 animate-spin" />}
+              Convert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

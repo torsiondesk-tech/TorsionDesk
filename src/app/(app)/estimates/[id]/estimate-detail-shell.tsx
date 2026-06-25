@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, X, FileDown, Mail, Send, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { TimeWindowPicker } from '@/components/ui/time-window-picker'
 import {
   Dialog,
   DialogContent,
@@ -44,6 +48,21 @@ interface EstimateDetailShellProps {
   referenceData: ReferenceData
   estimateTemplates: EstimateTemplate[]
   initialEdit?: boolean
+  initialConvertOpen?: boolean
+}
+
+function toDateInputValue(d: Date | string | null | undefined): string {
+  if (!d) return ''
+  const date = d instanceof Date ? d : new Date(d)
+  if (isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
+
+function fmtTime24(d: Date | string | null | undefined): string {
+  if (!d) return ''
+  const date = d instanceof Date ? d : new Date(d)
+  if (isNaN(date.getTime())) return ''
+  return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
 }
 
 export function EstimateDetailShell({
@@ -55,11 +74,16 @@ export function EstimateDetailShell({
   referenceData,
   estimateTemplates,
   initialEdit = false,
+  initialConvertOpen = false,
 }: EstimateDetailShellProps) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(initialEdit)
   const [converting, setConverting] = useState(false)
-  const [convertDialogOpen, setConvertDialogOpen] = useState(false)
+  const [convertDialogOpen, setConvertDialogOpen] = useState(initialConvertOpen)
+  const [scheduledDate, setScheduledDate] = useState(toDateInputValue(initial.estimate.onSiteDate))
+  const [scheduledTimeStart, setScheduledTimeStart] = useState(fmtTime24(initial.estimate.arrivalWindowStart))
+  const [scheduledTimeEnd, setScheduledTimeEnd] = useState(fmtTime24(initial.estimate.arrivalWindowEnd))
+  const [conversionNote, setConversionNote] = useState('')
 
   const isLost = initial.estimate.status === 'estimate_lost'
   const hasConvertedJobs = (initial.convertedJobs?.length ?? 0) > 0
@@ -76,7 +100,12 @@ export function EstimateDetailShell({
   const handleConvert = async () => {
     setConverting(true)
     try {
-      const result = await convertEstimateToJobAction(orgId, estimateId)
+      const result = await convertEstimateToJobAction(orgId, estimateId, {
+        scheduledDate: scheduledDate || null,
+        scheduledTimeStart: scheduledTimeStart || null,
+        scheduledTimeEnd: scheduledTimeEnd || null,
+        note: conversionNote || null,
+      })
       if (result.error) {
         toast.error(result.error)
         return
@@ -151,7 +180,7 @@ export function EstimateDetailShell({
           />
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Convert to Job?</DialogTitle>
+              <DialogTitle>Convert to Job</DialogTitle>
               <DialogDescription className="space-y-2">
                 <p>
                   This creates a new job from this estimate, copies the line items and groups, and
@@ -172,6 +201,45 @@ export function EstimateDetailShell({
                 )}
               </DialogDescription>
             </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="convert-scheduled-date">Scheduled Date</Label>
+                <Input
+                  id="convert-scheduled-date"
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to create the job as Unscheduled.
+                </p>
+              </div>
+
+              {scheduledDate && (
+                <div className="space-y-1.5">
+                  <Label>Arrival Window</Label>
+                  <TimeWindowPicker
+                    startValue={scheduledTimeStart}
+                    endValue={scheduledTimeEnd}
+                    onStartChange={setScheduledTimeStart}
+                    onEndChange={setScheduledTimeEnd}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="convert-note">Note for Techs</Label>
+                <Textarea
+                  id="convert-note"
+                  placeholder="Add a note about this appointment..."
+                  value={conversionNote}
+                  onChange={(e) => setConversionNote(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setConvertDialogOpen(false)}>
                 Cancel

@@ -18,7 +18,7 @@ import { EstimateDetailShell } from './estimate-detail-shell'
 
 interface EstimateDetailPageProps {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ edit?: string }>
+  searchParams: Promise<{ edit?: string; convert?: string }>
 }
 
 export default async function EstimateDetailPage({ params, searchParams }: EstimateDetailPageProps) {
@@ -26,8 +26,9 @@ export default async function EstimateDetailPage({ params, searchParams }: Estim
   if (!orgId || !userId) redirect('/sign-in')
 
   const { id } = await params
-  const { edit } = await searchParams
+  const { edit, convert } = await searchParams
   const initialEdit = edit === 'true'
+  const initialConvertOpen = convert === 'true'
 
   const estimateData = await getEstimateAction(orgId, id)
   if (!estimateData) notFound()
@@ -115,6 +116,7 @@ export default async function EstimateDetailPage({ params, searchParams }: Estim
         }}
         estimateTemplates={templates}
         initialEdit={initialEdit}
+        initialConvertOpen={initialConvertOpen}
       />
     </div>
   )

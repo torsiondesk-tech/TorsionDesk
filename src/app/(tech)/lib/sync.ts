@@ -106,6 +106,10 @@ export interface EstimateCreatePayload {
 
 export interface EstimateConversionPayload {
   estimateId: string
+  scheduledDate?: string | null
+  scheduledTimeStart?: string | null
+  scheduledTimeEnd?: string | null
+  note?: string | null
 }
 
 export interface InvoiceCreatePayload {
@@ -303,7 +307,12 @@ async function syncEstimateCreate(item: OutboxItem): Promise<void> {
 
 async function syncEstimateConversion(item: OutboxItem): Promise<void> {
   const payload = item.payload as EstimateConversionPayload
-  const result = await convertEstimateToJobAction(payload.estimateId)
+  const result = await convertEstimateToJobAction(payload.estimateId, {
+    scheduledDate: payload.scheduledDate ?? null,
+    scheduledTimeStart: payload.scheduledTimeStart ?? null,
+    scheduledTimeEnd: payload.scheduledTimeEnd ?? null,
+    note: payload.note ?? null,
+  })
   if (!result.success) {
     if (result.error === 'Estimates are not available yet.') {
       throw new DeferSyncError(result.error)

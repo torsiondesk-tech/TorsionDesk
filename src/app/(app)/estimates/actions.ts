@@ -37,7 +37,7 @@ import { nextAccountNo } from '@/lib/account-number'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { estimateStatusLabel } from '@/lib/estimates/status'
 import { logger } from '@/lib/logger'
-import { normalizePhone } from '@/lib/utils'
+import { normalizePhone, combineDateTime } from '@/lib/utils'
 import type { CachedEstimate } from '@/app/(tech)/lib/dexie'
 import {
   searchProductsAction as jobsSearchProductsAction,
@@ -1217,9 +1217,17 @@ export async function updateEstimateMetaAction(
   }
 }
 
+export interface ConvertEstimateToJobInput {
+  scheduledDate?: string | null
+  scheduledTimeStart?: string | null
+  scheduledTimeEnd?: string | null
+  note?: string | null
+}
+
 export async function convertEstimateToJobAction(
   orgId: string,
   estimateId: string,
+  input: ConvertEstimateToJobInput = {},
 ): Promise<{ jobId?: string; error?: string }> {
   try {
     const result = await withTenant(orgId, async (tx) => {
@@ -1254,6 +1262,10 @@ export async function convertEstimateToJobAction(
         .limit(1)
       const jobNo = (m ?? 1000) + 1
 
+      const scheduledDate = input.scheduledDate
+      const hasDate = !!scheduledDate && scheduledDate.trim() !== ''
+      const notesForTechs = [est.notesForTechs, input.note].filter(Boolean).join('\n\n')
+
       const [jobRow] = await tx
         .insert(jobs)
         .values({
@@ -1265,8 +1277,11 @@ export async function convertEstimateToJobAction(
           categoryId: est.categoryId,
           description: est.description,
           poNumber: est.poNumber,
-          notesForTechs: est.notesForTechs,
-          status: 'unscheduled',
+          notesForTechs: notesForTechs || null,
+          status: hasDate ? 'scheduled' : 'unscheduled',
+          startDate: hasDate ? new Date(`${scheduledDate}T00:00:00Z`) : null,
+          arrivalWindowStart: combineDateTime(scheduledDate, input.scheduledTimeStart),
+          arrivalWindowEnd: combineDateTime(scheduledDate, input.scheduledTimeEnd),
           estimateId,
         })
         .returning({ id: jobs.id, jobNo: jobs.jobNo })

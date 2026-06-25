@@ -37,7 +37,12 @@ describe('estimate_conversion outbox sync', () => {
 
     await flushOutbox(orgId, userId)
 
-    expect(mocked).toHaveBeenCalledWith('est-1')
+    expect(mocked).toHaveBeenCalledWith('est-1', {
+      scheduledDate: null,
+      scheduledTimeStart: null,
+      scheduledTimeEnd: null,
+      note: null,
+    })
 
     const items = await db.outbox.toArray()
     expect(items).toHaveLength(1)
@@ -55,7 +60,12 @@ describe('estimate_conversion outbox sync', () => {
 
     await flushOutbox(orgId, userId)
 
-    expect(mocked).toHaveBeenCalledWith('est-2')
+    expect(mocked).toHaveBeenCalledWith('est-2', {
+      scheduledDate: null,
+      scheduledTimeStart: null,
+      scheduledTimeEnd: null,
+      note: null,
+    })
 
     const items = await db.outbox.toArray()
     expect(items).toHaveLength(1)

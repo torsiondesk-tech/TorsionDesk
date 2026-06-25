@@ -31,7 +31,7 @@ import { nextJobNo } from '@/lib/jobs/job-number'
 import { nextAccountNo } from '@/lib/account-number'
 import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
 import { logger } from '@/lib/logger'
-import { normalizePhone } from '@/lib/utils'
+import { normalizePhone, combineDateTime } from '@/lib/utils'
 import { broadcastJobEvent } from '@/lib/jobs/broadcast'
 
 /**
@@ -53,20 +53,6 @@ function extractErrorMessage(err: unknown): string {
     return err.message
   }
   return String(err)
-}
-
-// Arrival window inputs are time-only (HH:MM). Combine with the job's start
-// date to produce a full timestamp. If no start date is set, the arrival
-// window is stored as null — a time without a date is meaningless.
-function combineDateTime(date: string | null | undefined, time: string | null | undefined): Date | null {
-  if (!time || time.trim() === '') return null
-  if (!date || date.trim() === '') return null
-  // Append 'Z' to force UTC interpretation so postgres-js doesn't shift the
-  // stored value by the server's UTC offset on the way in, then shift it back
-  // on the way out (double-shift bug on non-UTC machines / local dev).
-  const combined = new Date(`${date}T${time}:00Z`)
-  if (isNaN(combined.getTime())) return null
-  return combined
 }
 
 // Base UI Checkbox does not render a native <input>, so we use hidden inputs

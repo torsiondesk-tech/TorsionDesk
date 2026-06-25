@@ -157,11 +157,19 @@ export async function createEstimateAction(
   }
 }
 
+export interface ConvertEstimateToJobInput {
+  scheduledDate?: string | null
+  scheduledTimeStart?: string | null
+  scheduledTimeEnd?: string | null
+  note?: string | null
+}
+
 /**
  * PWA wrapper for the canonical Phase 6 convertEstimateToJobAction.
  */
 export async function convertEstimateToJobAction(
   estimateId: string,
+  input: ConvertEstimateToJobInput = {},
 ): Promise<{ success: false; error: string } | { success: true; jobId?: string }> {
   const { orgId } = await auth()
   if (!orgId) {
@@ -170,12 +178,16 @@ export async function convertEstimateToJobAction(
 
   try {
     const mod = (await import('@/app/(app)/estimates/actions')) as {
-      convertEstimateToJobAction?: (orgId: string, estimateId: string) => Promise<{ jobId?: string }>
+      convertEstimateToJobAction?: (
+        orgId: string,
+        estimateId: string,
+        input?: ConvertEstimateToJobInput,
+      ) => Promise<{ jobId?: string }>
     }
     if (typeof mod.convertEstimateToJobAction !== 'function') {
       return { success: false, error: 'Estimates are not available yet.' }
     }
-    const result = await mod.convertEstimateToJobAction(orgId, estimateId)
+    const result = await mod.convertEstimateToJobAction(orgId, estimateId, input)
     return { success: true, jobId: result.jobId }
   } catch (err) {
     const message = extractErrorMessage(err)
