@@ -321,7 +321,15 @@ Plans:
   6. Deposits can be recorded against a job before an invoice exists and appear on the resulting invoice.
   7. Every payment has a view page showing transaction details, audit line, and invoice allocations.
 
-**Plans:** TBD
+**Plans:** 5 plans across 5 waves
+
+Plans:
+- [ ] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers (nextInvoiceNo, nextPaymentNo, computeInvoiceTotals, invoiceStatusBadgeVariant, computeArAging) + pnpm add stripe square + [BLOCKING] pnpm db:push
+- [ ] 07-02-PLAN.md — Wave 1: Canonical server actions (createInvoiceFromJobAction, listInvoicesAction, recordPaymentAction, processSquarePaymentAction, generateStripePaymentLinkAction, sendInvoiceAction stub, voidPaymentAction, seedDefaultPaymentMethodsAction) + Stripe webhook /api/webhooks/stripe + Settings payment-methods tab activated + Square CDN URL fix
+- [ ] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
+- [ ] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new Receive a Payment + /payments/[id] view page + /settings/payment-methods CRUD
+- [ ] 07-05-PLAN.md — Wave 4: Invoice PDF route (/api/invoices/[id]/pdf, Node.js runtime) + InvoicePdfDocument + wire dispatch popup Close & Invoice + wire job detail Create Invoice button + fix To Be Invoiced sidebar bucket
+
 **UI hint:** yes
 
 ### Phase 8: Communications and Notifications
@@ -381,8 +389,8 @@ Plans:
 | 3. Jobs Core and Status FSM | 6/6 | Completed | 2026-06-15 |
 | 4. Dispatch Board | 6/6 | Completed | 2026-06-15 |
 | 5. Technician Mobile PWA | 6/6 | Completed | 2026-06-21 |
-| 6. Estimates | 0/5 | In progress | - |
-| 7. Invoicing and Payments | 0/0 | Not started | - |
+| 6. Estimates | 5/5 | Completed | 2026-06-24 |
+| 7. Invoicing and Payments | 0/5 | Not started | - |
 | 8. Communications and Notifications | 0/0 | Not started | - |
 | 9. Reports | 0/0 | Not started | - |
 | 10. Data Migration | 0/0 | Not started | - |
