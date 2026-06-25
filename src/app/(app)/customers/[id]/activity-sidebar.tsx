@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, FileText, Mail, Wrench, Banknote, MessageSquare } from 'lucide-react'
+import { FileText, Mail, Wrench, Banknote, MessageSquare } from 'lucide-react'
 
 interface EventRow {
   id: string
@@ -54,12 +53,8 @@ export function ActivitySidebar({ events }: ActivitySidebarProps) {
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold">Activity Feed</CardTitle>
-        <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" disabled title="Coming soon">
-          <Plus className="size-3" />
-          New
-        </Button>
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto">
