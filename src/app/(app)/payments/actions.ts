@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { eq, and, sql, desc, max } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import type { Tx } from '@/db/with-tenant'
@@ -33,8 +33,10 @@ const recordPaymentSchema = z.object({
   customerId: z.string().min(1),
   methodId: z.string().min(1),
   amount: z.string().min(1),
+  jobId: z.string().optional(),
   receivedOn: z.string().optional(),
   checkRefNo: z.string().optional(),
+  receivedBy: z.string().optional(),
   memo: z.string().optional(),
   allocations: z
     .array(
@@ -84,10 +86,12 @@ export async function recordPaymentAction(
           tenantId: orgId,
           paymentNo,
           customerId: parsed.data.customerId,
+          jobId: parsed.data.jobId ?? null,
           method: parsed.data.methodId,
           amount: parsed.data.amount,
           checkRefNo: parsed.data.checkRefNo ?? null,
           receivedOn: parsed.data.receivedOn ? toISODate(parsed.data.receivedOn) : null,
+          receivedBy: parsed.data.receivedBy ?? null,
           memo: parsed.data.memo ?? null,
           enteredByUserId: userId,
         })
@@ -387,4 +391,235 @@ export async function seedDefaultPaymentMethodsAction(orgId: string): Promise<vo
       { tenantId: orgId, name: 'On-Site Card (Square)', isSystem: true, isActive: true, sortOrder: 5 },
     ])
   })
+}
+
+export interface OpenInvoiceRow {
+  id: string
+  invoiceNo: number
+  invoiceDate: string | null
+  dueDate: string | null
+  total: string
+  balance: string
+  customerName: string | null
+  jobNo: number | null
+}
+
+const openInvoiceBalanceSubquery = sql<string>`
+  ${invoices.total}::numeric - COALESCE(
+    (SELECT SUM(${paymentAllocations.amountApplied})::numeric
+     FROM ${paymentAllocations}
+     WHERE ${paymentAllocations.invoiceId} = ${invoices.id}
+       AND ${paymentAllocations.tenantId} = ${invoices.tenantId}),
+    0
+  )
+`.as('balance')
+
+export async function listOpenInvoicesForCustomerAction(
+  orgId: string,
+  customerId: string,
+): Promise<{ rows: OpenInvoiceRow[] }> {
+  return withTenant(orgId, async (tx) => {
+    const rows = await tx
+      .select({
+        id: invoices.id,
+        invoiceNo: invoices.invoiceNo,
+        invoiceDate: invoices.invoiceDate,
+        dueDate: invoices.dueDate,
+        total: invoices.total,
+        balance: openInvoiceBalanceSubquery,
+        customerName: customers.name,
+        jobNo: jobs.jobNo,
+      })
+      .from(invoices)
+      .leftJoin(customers, and(eq(customers.tenantId, invoices.tenantId), eq(customers.id, invoices.customerId)))
+      .leftJoin(jobs, and(eq(jobs.tenantId, invoices.tenantId), eq(jobs.id, invoices.jobId)))
+      .where(
+        and(
+          eq(invoices.tenantId, orgId),
+          eq(invoices.customerId, customerId),
+          sql`${openInvoiceBalanceSubquery} > 0`,
+        ),
+      )
+      .orderBy(desc(invoices.invoiceNo))
+
+    return {
+      rows: rows.map((r) => ({
+        id: r.id,
+        invoiceNo: r.invoiceNo,
+        invoiceDate: toDateString(r.invoiceDate),
+        dueDate: toDateString(r.dueDate),
+        total: String(r.total),
+        balance: String(r.balance),
+        customerName: r.customerName ?? null,
+        jobNo: r.jobNo ?? null,
+      })),
+    }
+  })
+}
+
+export interface PaymentMethodActionState {
+  success?: boolean
+  error?: string
+}
+
+function requireAdmin() {
+  return auth().then(({ orgRole }) => {
+    if (orgRole !== 'admin') {
+      throw new Error('Admin access required.')
+    }
+  })
+}
+
+export async function createPaymentMethodAction(
+  orgId: string,
+  data: { name: string },
+): Promise<PaymentMethodActionState> {
+  try {
+    await requireAdmin()
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Admin access required.' }
+  }
+
+  const parsed = z.object({ name: z.string().min(1).max(255) }).safeParse(data)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid name.' }
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      const [{ m }] = await tx
+        .select({ m: max(paymentMethods.sortOrder) })
+        .from(paymentMethods)
+        .where(eq(paymentMethods.tenantId, orgId))
+      const nextOrder = (m ?? -1) + 1
+
+      await tx.insert(paymentMethods).values({
+        tenantId: orgId,
+        name: parsed.data.name,
+        isSystem: false,
+        isActive: true,
+        sortOrder: nextOrder,
+      })
+    })
+    revalidatePath('/settings/payment-methods')
+    return { success: true }
+  } catch (err) {
+    logger.error('createPaymentMethodAction', err)
+    return { error: extractErrorMessage(err) || 'Could not add payment method.' }
+  }
+}
+
+export async function updatePaymentMethodAction(
+  orgId: string,
+  id: string,
+  data: { name?: string; isActive?: boolean },
+): Promise<PaymentMethodActionState> {
+  try {
+    await requireAdmin()
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Admin access required.' }
+  }
+
+  const parsed = z
+    .object({ name: z.string().min(1).max(255).optional(), isActive: z.boolean().optional() })
+    .safeParse(data)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  if (parsed.data.name === undefined && parsed.data.isActive === undefined) {
+    return { error: 'Nothing to update.' }
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      const setValues: Record<string, unknown> = { updatedAt: new Date() }
+      if (parsed.data.name !== undefined) setValues.name = parsed.data.name
+      if (parsed.data.isActive !== undefined) setValues.isActive = parsed.data.isActive
+
+      await tx
+        .update(paymentMethods)
+        .set(setValues)
+        .where(and(eq(paymentMethods.tenantId, orgId), eq(paymentMethods.id, id)))
+    })
+    revalidatePath('/settings/payment-methods')
+    return { success: true }
+  } catch (err) {
+    logger.error('updatePaymentMethodAction', err)
+    return { error: extractErrorMessage(err) || 'Could not update payment method.' }
+  }
+}
+
+export async function deletePaymentMethodAction(
+  orgId: string,
+  id: string,
+): Promise<PaymentMethodActionState> {
+  try {
+    await requireAdmin()
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Admin access required.' }
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.tenantId, orgId),
+            eq(paymentMethods.id, id),
+            eq(paymentMethods.isSystem, false),
+          ),
+        )
+    })
+    revalidatePath('/settings/payment-methods')
+    return { success: true }
+  } catch (err) {
+    logger.error('deletePaymentMethodAction', err)
+    return { error: extractErrorMessage(err) || 'Could not remove payment method.' }
+  }
+}
+
+export async function reorderPaymentMethodAction(
+  orgId: string,
+  id: string,
+  direction: 'up' | 'down',
+): Promise<PaymentMethodActionState> {
+  try {
+    await requireAdmin()
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Admin access required.' }
+  }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      const rows = await tx
+        .select({ id: paymentMethods.id, sortOrder: paymentMethods.sortOrder })
+        .from(paymentMethods)
+        .where(eq(paymentMethods.tenantId, orgId))
+        .orderBy(paymentMethods.sortOrder, paymentMethods.name)
+
+      const index = rows.findIndex((r) => r.id === id)
+      if (index === -1) throw new Error('Payment method not found.')
+
+      const swapIndex = direction === 'up' ? index - 1 : index + 1
+      if (swapIndex < 0 || swapIndex >= rows.length) return
+
+      const current = rows[index]
+      const neighbor = rows[swapIndex]
+      await tx
+        .update(paymentMethods)
+        .set({ sortOrder: neighbor.sortOrder, updatedAt: new Date() })
+        .where(and(eq(paymentMethods.tenantId, orgId), eq(paymentMethods.id, current.id)))
+      await tx
+        .update(paymentMethods)
+        .set({ sortOrder: current.sortOrder, updatedAt: new Date() })
+        .where(and(eq(paymentMethods.tenantId, orgId), eq(paymentMethods.id, neighbor.id)))
+    })
+    revalidatePath('/settings/payment-methods')
+    return { success: true }
+  } catch (err) {
+    logger.error('reorderPaymentMethodAction', err)
+    return { error: extractErrorMessage(err) || 'Could not reorder payment method.' }
+  }
 }
