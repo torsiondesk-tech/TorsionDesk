@@ -50,6 +50,15 @@ export function EstimateSummary({ initial, referenceData }: EstimateSummaryProps
       ].filter(Boolean)
     : []
 
+  const mapsAddress = loc
+    ? [loc.addressLine1, loc.addressLine2, loc.city, loc.state, loc.postalCode]
+        .filter(Boolean)
+        .join(', ')
+    : ''
+  const mapsHref = mapsAddress
+    ? `https://maps.google.com/?q=${encodeURIComponent(mapsAddress)}`
+    : null
+
   const arrivalStart = fmtTime(est.arrivalWindowStart)
   const arrivalEnd = fmtTime(est.arrivalWindowEnd)
   const arrivalWindow =
@@ -151,14 +160,32 @@ export function EstimateSummary({ initial, referenceData }: EstimateSummaryProps
                 <div className="flex items-start gap-1.5">
                   <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div className="text-sm">
-                    {locationLines.map((line, i) => (
-                      <div
-                        key={i}
-                        className={i === 0 && loc.name ? 'font-medium' : 'text-muted-foreground'}
+                    {mapsHref ? (
+                      <a
+                        href={mapsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
                       >
-                        {line}
-                      </div>
-                    ))}
+                        {locationLines.map((line, i) => (
+                          <div
+                            key={i}
+                            className={i === 0 && loc.name ? 'font-medium' : 'text-muted-foreground'}
+                          >
+                            {line}
+                          </div>
+                        ))}
+                      </a>
+                    ) : (
+                      locationLines.map((line, i) => (
+                        <div
+                          key={i}
+                          className={i === 0 && loc.name ? 'font-medium' : 'text-muted-foreground'}
+                        >
+                          {line}
+                        </div>
+                      ))
+                    )}
                     {loc.gated && (
                       <Badge variant="outline" className="mt-1 text-xs">
                         Gated Property

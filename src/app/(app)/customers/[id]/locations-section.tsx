@@ -367,11 +367,22 @@ export function LocationsSection({
                       <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
                         {loc.name && <p className="font-medium">{loc.name}</p>}
-                        <p className="text-sm text-muted-foreground">
-                          {[loc.addressLine1, loc.addressLine2, loc.city, loc.state, loc.postalCode]
+                        {(() => {
+                          const addrStr = [loc.addressLine1, loc.addressLine2, loc.city, loc.state, loc.postalCode]
                             .filter(Boolean)
-                            .join(', ')}
-                        </p>
+                            .join(', ')
+                          if (!addrStr) return null
+                          return (
+                            <a
+                              href={`https://maps.google.com/?q=${encodeURIComponent(addrStr)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-muted-foreground hover:underline"
+                            >
+                              {addrStr}
+                            </a>
+                          )
+                        })()}
                         {loc.gated && (
                           <Badge className="mt-1" variant="outline">
                             Gated

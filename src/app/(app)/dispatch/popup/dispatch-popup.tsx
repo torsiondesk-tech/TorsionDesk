@@ -699,7 +699,22 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                       </div>
                     ) : (
                       <>
-                        <div className="text-sm font-medium">{localPopupData?.fullAddress || localJob.address || <span className="text-muted-foreground/60">Not Set</span>}</div>
+                        <div className="text-sm font-medium">
+                          {(() => {
+                            const addr = localPopupData?.fullAddress || localJob.address
+                            if (!addr) return <span className="text-muted-foreground/60">Not Set</span>
+                            return (
+                              <a
+                                href={`https://maps.google.com/?q=${encodeURIComponent(addr)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                              >
+                                {addr}
+                              </a>
+                            )
+                          })()}
+                        </div>
                         <button
                           onClick={() => {
                             setDraftLocation(localPopupData?.serviceLocationId ?? '')

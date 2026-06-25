@@ -62,6 +62,17 @@ export function JobSummary({
       .join(', '),
   ].filter(Boolean)
 
+  const mapsAddress = [
+    job.serviceLocation?.addressLine1,
+    job.serviceLocation?.addressLine2,
+    job.serviceLocation?.city,
+    job.serviceLocation?.state,
+    job.serviceLocation?.postalCode,
+  ].filter(Boolean).join(', ')
+  const mapsHref = mapsAddress
+    ? `https://maps.google.com/?q=${encodeURIComponent(mapsAddress)}`
+    : null
+
   const arrivalStart = job.arrivalWindowStart
     ? new Date(job.arrivalWindowStart).toLocaleTimeString([], {
         hour: '2-digit',
@@ -192,18 +203,40 @@ export function JobSummary({
                 <div className="flex items-start gap-1.5">
                   <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div className="text-sm">
-                    {locationLines.map((line, i) => (
-                      <div
-                        key={i}
-                        className={
-                          i === 0 && job.serviceLocation?.name
-                            ? 'font-medium'
-                            : 'text-muted-foreground'
-                        }
+                    {mapsHref ? (
+                      <a
+                        href={mapsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
                       >
-                        {line}
-                      </div>
-                    ))}
+                        {locationLines.map((line, i) => (
+                          <div
+                            key={i}
+                            className={
+                              i === 0 && job.serviceLocation?.name
+                                ? 'font-medium'
+                                : 'text-muted-foreground'
+                            }
+                          >
+                            {line}
+                          </div>
+                        ))}
+                      </a>
+                    ) : (
+                      locationLines.map((line, i) => (
+                        <div
+                          key={i}
+                          className={
+                            i === 0 && job.serviceLocation?.name
+                              ? 'font-medium'
+                              : 'text-muted-foreground'
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))
+                    )}
                     {job.serviceLocation.gated && (
                       <Badge variant="outline" className="mt-1 text-xs">
                         Gated Property
