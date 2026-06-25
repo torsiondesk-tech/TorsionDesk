@@ -199,7 +199,16 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
         <Badge variant={statusBadgeVariant(job.status)}>
           {statusLabel(job.status)}
         </Badge>
-        <span className="text-sm text-muted-foreground">{job.customerName}</span>
+        {job.customerId ? (
+          <Link
+            href={`/customers/${job.customerId}`}
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            {job.customerName}
+          </Link>
+        ) : (
+          <span className="text-sm text-muted-foreground">{job.customerName}</span>
+        )}
       </div>
       {job.estimateId && job.estimateNo != null && (
         <p className="text-sm">
