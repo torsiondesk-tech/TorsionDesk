@@ -1673,3 +1673,226 @@ export const jobSignatures = pgTable(
 
 export type JobSignature = typeof jobSignatures.$inferSelect
 export type NewJobSignature = typeof jobSignatures.$inferInsert
+
+// ── Phase 7: Invoicing and Payments ────────────────────────────────────────
+
+export const paymentMethods = pgTable(
+  'payment_methods',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    name: text('name').notNull(),
+    isSystem: boolean('is_system').default(false),
+    isActive: boolean('is_active').default(true),
+    sortOrder: integer('sort_order').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('payment_methods_tenant_id_unique').on(t.tenantId, t.id),
+    pgPolicy('payment_methods_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type PaymentMethod = typeof paymentMethods.$inferSelect
+export type NewPaymentMethod = typeof paymentMethods.$inferInsert
+
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    invoiceNo: integer('invoice_no').notNull(),
+    jobId: text('job_id').notNull(),
+    customerId: text('customer_id').notNull(),
+    contactId: text('contact_id'),
+    serviceLocationId: text('service_location_id'),
+    invoiceDate: date('invoice_date').notNull().default(sql`CURRENT_DATE`),
+    dueDate: date('due_date'),
+    paymentTermsDays: integer('payment_terms_days').default(30),
+    notes: text('notes'),
+    internalNotes: text('internal_notes'),
+    paymentLinkUrl: text('payment_link_url'),
+    sentBy: text('sent_by'),
+    sentOn: timestamp('sent_on'),
+    emailOpenedAt: timestamp('email_opened_at'),
+    total: numeric('total').notNull(),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('invoices_tenant_invoice_no_unique').on(t.tenantId, t.invoiceNo),
+    unique('invoices_tenant_id_unique').on(t.tenantId, t.id),
+    index('invoices_job_id_idx').on(t.jobId),
+    index('invoices_customer_id_idx').on(t.customerId),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.contactId],
+      foreignColumns: [contacts.tenantId, contacts.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.serviceLocationId],
+      foreignColumns: [serviceLocations.tenantId, serviceLocations.id],
+    }).onDelete('set null'),
+    pgPolicy('invoices_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Invoice = typeof invoices.$inferSelect
+export type NewInvoice = typeof invoices.$inferInsert
+
+export const invoiceLineItems = pgTable(
+  'invoice_line_items',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    invoiceId: text('invoice_id').notNull(),
+    type: lineItemType('type'),
+    refId: text('ref_id'),
+    title: text('title'),
+    description: text('description'),
+    qty: numeric('qty'),
+    rate: numeric('rate'),
+    cost: numeric('cost'),
+    taxItemId: text('tax_item_id').references(() => taxItems.id, {
+      onDelete: 'set null',
+    }),
+    sortOrder: integer('sort_order'),
+    groupId: text('group_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('invoice_line_items_tenant_id_unique').on(t.tenantId, t.id),
+    foreignKey({
+      columns: [t.tenantId, t.invoiceId],
+      foreignColumns: [invoices.tenantId, invoices.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.taxItemId],
+      foreignColumns: [taxItems.tenantId, taxItems.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.groupId],
+      foreignColumns: [lineItemGroups.tenantId, lineItemGroups.id],
+    }).onDelete('set null'),
+    pgPolicy('invoice_line_items_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect
+export type NewInvoiceLineItem = typeof invoiceLineItems.$inferInsert
+
+export const payments = pgTable(
+  'payments',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    paymentNo: integer('payment_no').notNull(),
+    jobId: text('job_id'),
+    customerId: text('customer_id').notNull(),
+    method: text('method').notNull(),
+    checkRefNo: text('check_ref_no'),
+    receivedBy: text('received_by'),
+    receivedOn: date('received_on'),
+    memo: text('memo'),
+    amount: numeric('amount').notNull(),
+    stripeEventId: text('stripe_event_id'),
+    last4: text('last4'),
+    expiry: text('expiry'),
+    transactionToken: text('transaction_token'),
+    authCode: text('auth_code'),
+    billingAddress: text('billing_address'),
+    squarePaymentId: text('square_payment_id'),
+    enteredAt: timestamp('entered_at').defaultNow(),
+    enteredByUserId: text('entered_by_user_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    unique('payments_tenant_payment_no_unique').on(t.tenantId, t.paymentNo),
+    unique('payments_tenant_id_unique').on(t.tenantId, t.id),
+    unique('payments_stripe_event_id_unique').on(t.stripeEventId),
+    index('payments_job_id_idx').on(t.jobId),
+    index('payments_customer_id_idx').on(t.customerId),
+    foreignKey({
+      columns: [t.tenantId, t.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }).onDelete('cascade'),
+    pgPolicy('payments_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type Payment = typeof payments.$inferSelect
+export type NewPayment = typeof payments.$inferInsert
+
+export const paymentAllocations = pgTable(
+  'payment_allocations',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    paymentId: text('payment_id').notNull(),
+    invoiceId: text('invoice_id').notNull(),
+    amountApplied: numeric('amount_applied').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (t) => [
+    unique('payment_allocations_tenant_payment_invoice_unique').on(
+      t.tenantId,
+      t.paymentId,
+      t.invoiceId,
+    ),
+    unique('payment_allocations_tenant_id_unique').on(t.tenantId, t.id),
+    index('payment_allocations_payment_id_idx').on(t.paymentId),
+    index('payment_allocations_invoice_id_idx').on(t.invoiceId),
+    foreignKey({
+      columns: [t.tenantId, t.paymentId],
+      foreignColumns: [payments.tenantId, payments.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.tenantId, t.invoiceId],
+      foreignColumns: [invoices.tenantId, invoices.id],
+    }).onDelete('cascade'),
+    pgPolicy('payment_allocations_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type PaymentAllocation = typeof paymentAllocations.$inferSelect
+export type NewPaymentAllocation = typeof paymentAllocations.$inferInsert

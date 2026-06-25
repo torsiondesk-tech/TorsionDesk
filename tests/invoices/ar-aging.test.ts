@@ -29,9 +29,7 @@ let nextRows = [
 vi.mock('@/db/with-tenant', () => ({
   withTenant: vi.fn(async (_orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
     const tx = {
-      execute: vi.fn(async () => ({
-        rows: nextRows,
-      })),
+      execute: vi.fn(async () => nextRows),
     }
     return fn(tx)
   }),
