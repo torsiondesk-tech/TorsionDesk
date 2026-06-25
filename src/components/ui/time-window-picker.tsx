@@ -105,12 +105,21 @@ export function TimeWindowPicker({
   error,
   className,
 }: TimeWindowPickerProps) {
+  const handleStartChange = (val: string) => {
+    onStartChange(val)
+    if (!endValue) onEndChange(fmtHM(parseHM(endValue).h24, parseHM(endValue).m))
+  }
+  const handleEndChange = (val: string) => {
+    onEndChange(val)
+    if (!startValue) onStartChange(fmtHM(parseHM(startValue).h24, parseHM(startValue).m))
+  }
+
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex flex-wrap items-end gap-3">
-        <TimeDropdowns value={startValue} onChange={onStartChange} label="Start" />
+        <TimeDropdowns value={startValue} onChange={handleStartChange} label="Start" />
         <span className="mb-2 text-sm text-muted-foreground">→</span>
-        <TimeDropdowns value={endValue} onChange={onEndChange} label="End" />
+        <TimeDropdowns value={endValue} onChange={handleEndChange} label="End" />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}

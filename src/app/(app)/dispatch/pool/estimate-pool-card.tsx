@@ -9,7 +9,7 @@ import type { WeekEstimate } from '../actions'
 
 function formatWindow(start: Date | string | null, end: Date | string | null): string {
   if (!start && !end) return ''
-  const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' })
   const toDate = (d: Date | string | null): Date | null => {
     if (!d) return null
     return d instanceof Date ? d : new Date(d)
