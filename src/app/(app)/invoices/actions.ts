@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { eq, and, sql, desc, inArray } from 'drizzle-orm'
+import { eq, and, sql, desc, inArray, ne } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import type { Tx } from '@/db/with-tenant'
@@ -331,7 +331,7 @@ export async function listInvoicesAction(
         createdAt: invoices.createdAt,
       })
       .from(invoices)
-      .where(eq(invoices.tenantId, orgId))
+      .where(and(eq(invoices.tenantId, orgId), ne(invoices.status, 'void')))
       .orderBy(desc(invoices.invoiceNo))
       .limit(10000)
 
@@ -368,7 +368,7 @@ export async function listInvoicesAction(
         const total = Number(r.total)
         if (filter === 'paid') return balance <= 0
         if (filter === 'unpaid') return balance > 0 && !(r.dueDate && new Date(r.dueDate) < today)
-        if (filter === 'past_due') return balance > 0 && r.dueDate && new Date(r.dueDate) < today
+        if (filter === 'past_due' || filter === 'pastDue') return balance > 0 && r.dueDate && new Date(r.dueDate) < today
         if (filter === 'partial') return balance > 0 && balance < total
         return true
       })
@@ -504,6 +504,7 @@ export async function countInvoicesByStatus(orgId: string): Promise<{
           ) AS balance
         FROM invoices i
         WHERE i.tenant_id = current_setting('app.current_tenant_id', true)
+          AND i.status != 'void'
       ) sub
     `)
     const r = (rows as unknown as Record<string, string>[])[0] ?? {}

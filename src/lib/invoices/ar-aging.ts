@@ -35,6 +35,7 @@ export async function computeArAging(orgId: string): Promise<ArAgingResult> {
         LEFT JOIN payment_allocations pa
           ON pa.invoice_id = i.id AND pa.tenant_id = i.tenant_id
         WHERE i.tenant_id = current_setting('app.current_tenant_id', true)
+          AND i.status != 'void'
         GROUP BY i.id, i.total, i.due_date
       ) sub
       WHERE inv_balance > 0

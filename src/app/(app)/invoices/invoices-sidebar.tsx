@@ -35,7 +35,7 @@ const STATUS_FOLDERS: Folder[] = [
   { key: 'unpaid', label: 'Unpaid', icon: Clock },
   { key: 'partial', label: 'Partially Paid', icon: AlertCircle },
   { key: 'paid', label: 'Paid in Full', icon: CheckCircle },
-  { key: 'past_due', label: 'Past Due', icon: AlertTriangle },
+  { key: 'pastDue', label: 'Past Due', icon: AlertTriangle },
 ]
 
 const BUCKETS = [
