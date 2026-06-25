@@ -67,12 +67,17 @@ function toDateTimeLocalValue(d: Date | string | null): string | null {
   return `${y}-${m}-${day}T${h}:${min}`
 }
 
-/** Extract HH:MM for a `type="time"` input from a full Date/string. */
+/** Extract HH:MM for a `type="time"` input from a full Date/string.
+ *
+ * Arrival window timestamps are stored as UTC clock-time (Z suffix on write).
+ * Extract UTC digits so the form shows the same digits the user typed, regardless
+ * of the server's local timezone.
+ */
 function toTimeInputValue(d: Date | string | null): string | null {
   if (!d) return null
   const date = new Date(d)
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
+  const h = String(date.getUTCHours()).padStart(2, '0')
+  const min = String(date.getUTCMinutes()).padStart(2, '0')
   return `${h}:${min}`
 }
 

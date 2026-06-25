@@ -66,12 +66,14 @@ export function JobSummary({
     ? new Date(job.arrivalWindowStart).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: 'UTC',
       })
     : null
   const arrivalEnd = job.arrivalWindowEnd
     ? new Date(job.arrivalWindowEnd).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: 'UTC',
       })
     : null
   const arrivalWindow =
@@ -80,10 +82,10 @@ export function JobSummary({
       : arrivalStart || arrivalEnd || '—'
 
   const startDate = job.startDate
-    ? new Date(job.startDate).toLocaleDateString()
+    ? new Date(job.startDate).toLocaleDateString(undefined, { timeZone: 'UTC' })
     : '—'
   const endDate = job.endDate
-    ? new Date(job.endDate).toLocaleDateString()
+    ? new Date(job.endDate).toLocaleDateString(undefined, { timeZone: 'UTC' })
     : null
 
   const lineTotal = (li: (typeof job.lineItems)[0]) =>

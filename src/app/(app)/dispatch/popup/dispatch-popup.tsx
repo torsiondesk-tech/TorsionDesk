@@ -154,15 +154,15 @@ function fmtDate(d: Date | string | null): string {
   if (!d) return '—'
   const date = d instanceof Date ? d : new Date(d)
   if (isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
 function fmtTime24(d: Date | string | null): string {
   if (!d) return ''
   const date = d instanceof Date ? d : new Date(d)
   if (isNaN(date.getTime())) return ''
-  const h = String(date.getHours()).padStart(2, '0')
-  const m = String(date.getMinutes()).padStart(2, '0')
+  const h = String(date.getUTCHours()).padStart(2, '0')
+  const m = String(date.getUTCMinutes()).padStart(2, '0')
   return `${h}:${m}`
 }
 
@@ -170,7 +170,7 @@ function fmtTime12(d: Date | string | null): string {
   if (!d) return ''
   const date = d instanceof Date ? d : new Date(d)
   if (isNaN(date.getTime())) return ''
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'UTC' })
 }
 
 function formatWindow(start: Date | string | null, end: Date | string | null): string {
@@ -1117,13 +1117,8 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                                   arrivalWindowEnd: draftWindowEnd || null,
                                 })
                                 if (r.success) {
-                                  const toDateTime = (t: string | null) => {
-                                    if (!t) return null
-                                    const [h, m] = t.split(':').map(Number)
-                                    const d = new Date()
-                                    d.setHours(h, m, 0, 0)
-                                    return d
-                                  }
+                                  const toDateTime = (t: string | null) =>
+                                    t ? new Date(`1970-01-01T${t}:00Z`) : null
                                   setLocalJob((j) => ({
                                     ...j!,
                                     arrivalWindowStart: toDateTime(draftWindowStart),
