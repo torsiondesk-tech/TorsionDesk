@@ -473,7 +473,7 @@ export interface OpenInvoiceRow {
   jobNo: number | null
 }
 
-const openInvoiceBalanceSubquery = sql<string>`
+const openInvoiceBalanceExpr = sql<string>`
   ${invoices.total}::numeric - COALESCE(
     (SELECT SUM(${paymentAllocations.amountApplied})::numeric
      FROM ${paymentAllocations}
@@ -481,7 +481,8 @@ const openInvoiceBalanceSubquery = sql<string>`
        AND ${paymentAllocations.tenantId} = ${invoices.tenantId}),
     0
   )
-`.as('balance')
+`
+const openInvoiceBalanceSubquery = openInvoiceBalanceExpr.as('balance')
 
 export async function listOpenInvoicesForCustomerAction(
   orgId: string,
@@ -506,7 +507,7 @@ export async function listOpenInvoicesForCustomerAction(
         and(
           eq(invoices.tenantId, orgId),
           eq(invoices.customerId, customerId),
-          sql`${openInvoiceBalanceSubquery} > 0`,
+          sql`${openInvoiceBalanceExpr} > 0`,
         ),
       )
       .orderBy(desc(invoices.invoiceNo))
