@@ -17,7 +17,7 @@
 | 4 | Dispatch Board | A dispatcher schedules and dispatches jobs on a live week-view board and closes-and-invoices in one click | DISP-01 through DISP-07 |
 | 5 | Technician Mobile PWA | In Progress: 5/6 plans complete — offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments | TECH-01 through TECH-14 |
 | 6 | Estimates | Sales can run estimates through their own pipeline and convert a won estimate into a job in one action | EST-01 through EST-09 |
-| 7 | Invoicing and Payments | A job becomes a tracked invoice; payments record via Stripe, office entry, and Square from the PWA into one ledger with live AR aging | INV-01 through INV-14 |
+| 7 | Invoicing and Payments | In progress: 4/5 plans complete — invoice detail, receive payment, payment view, payment-methods settings | INV-01 through INV-14 |
 | 8 | Communications and Notifications | The system auto-emails and texts the right people on job, estimate, invoice, and payment events | COMM-01 through COMM-09 |
 | 9 | Reports | The owner sees revenue, AR, day sheets, and tax totals by period and exports them | RPT-01 through RPT-09 |
 | 10 | Data Migration | The full Service Fusion history — customers, catalog, and job records — is imported for cutover | MIGR-01 through MIGR-03 |
@@ -33,7 +33,7 @@
 - [x] **Phase 4: Dispatch Board** - Live week-view scheduling grid with job pool, popup actions, and one-click Close & Invoice (completed 2026-06-15)
 - [x] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments (completed 2026-06-21)
 - [x] **Phase 6: Estimates** - Separate estimate module with its own pipeline, dashboard, templates, and convert-to-job (completed 2026-06-24)
-- [~] **Phase 7: Invoicing and Payments** - Invoices from jobs, dual-processor payment ledger, and live AR aging dashboard (in progress: 3/5 plans)
+- [~] **Phase 7: Invoicing and Payments** - Invoices from jobs, dual-processor payment ledger, and live AR aging dashboard (in progress: 4/5 plans)
 - [ ] **Phase 8: Communications and Notifications** - Event-triggered email (Resend) and SMS (Twilio) automations with per-trigger settings
 - [ ] **Phase 9: Reports** - Sales, AR, day sheet, job activity, and sales-tax reports with CSV/PDF export
 - [ ] **Phase 10: Data Migration** - CSV import of Service Fusion customers, catalog, and historical jobs for cutover
@@ -321,13 +321,13 @@ Plans:
   6. Deposits can be recorded against a job before an invoice exists and appear on the resulting invoice.
   7. Every payment has a view page showing transaction details, audit line, and invoice allocations.
 
-**Plans:** 3/5 plans complete
+**Plans:** 4/5 plans complete
 
 Plans:
 - [x] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers (nextInvoiceNo, nextPaymentNo, computeInvoiceTotals, invoiceStatusBadgeVariant, computeArAging) + pnpm add stripe square + [BLOCKING] schema applied to Supabase
 - [x] 07-02-PLAN.md — Wave 1: Canonical server actions (createInvoiceFromJobAction, listInvoicesAction, recordPaymentAction, processSquarePaymentAction, generateStripePaymentLinkAction, sendInvoiceAction stub, voidPaymentAction, seedDefaultPaymentMethodsAction) + Stripe webhook /api/webhooks/stripe + Settings payment-methods tab activated + Square CDN URL fix
 - [x] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
-- [ ] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new Receive a Payment + /payments/[id] view page + /settings/payment-methods CRUD
+- [x] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new Receive a Payment + /payments/[id] view page + /settings/payment-methods CRUD
 - [ ] 07-05-PLAN.md — Wave 4: Invoice PDF route (/api/invoices/[id]/pdf, Node.js runtime) + InvoicePdfDocument + wire dispatch popup Close & Invoice + wire job detail Create Invoice button + fix To Be Invoiced sidebar bucket
 
 **UI hint:** yes
@@ -390,7 +390,7 @@ Plans:
 | 4. Dispatch Board | 6/6 | Completed | 2026-06-15 |
 | 5. Technician Mobile PWA | 6/6 | Completed | 2026-06-21 |
 | 6. Estimates | 5/5 | Completed | 2026-06-24 |
-| 7. Invoicing and Payments | 3/5 | In progress | 2026-06-25 |
+| 7. Invoicing and Payments | 4/5 | In progress | 2026-06-25 |
 | 8. Communications and Notifications | 0/0 | Not started | - |
 | 9. Reports | 0/0 | Not started | - |
 | 10. Data Migration | 0/0 | Not started | - |

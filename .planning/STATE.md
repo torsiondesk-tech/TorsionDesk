@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 07
-last_updated: "2026-06-25T10:15:00.000Z"
+last_updated: "2026-06-25T11:20:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 46
-  completed_plans: 35
-  percent: 76
+  completed_plans: 36
+  percent: 78
 ---
 
 # TorsionDesk — Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 - Requirements: INV-01 through INV-14
 - Depends on: Phase 3 (completed), Phase 6 (completed)
 - Cross-phase note: `createInvoiceFromJobAction`, `sendInvoiceAction`, and Square payment posting must be callable from the PWA and share the same canonical ledger as office flows.
-- Progress: 07-03 complete — /invoices dashboard live with AR aging sidebar, TanStack table, and enabled nav item (INV-02, INV-03).
+- Progress: 07-04 complete — /invoices/[id] live with payment history and Stripe link, /payments/new live with over-application guard, /payments/[id] payment view live, /settings/payment-methods admin CRUD live (INV-04, INV-05, INV-06, INV-09, INV-11, INV-12, INV-14, SET-08).
 
 ## Phase 4 Plans
 
@@ -59,13 +59,13 @@ Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
 Phase 5  [██████████] Completed  ← 2026-06-21
 Phase 6  [██████████] Completed  ← 2026-06-24
-Phase 7  [██████    ] Executing    ← current (3/5 plans)
+Phase 7  [███████   ] Executing    ← current (4/5 plans)
 Phase 8  [          ] Not started
 Phase 9  [          ] Not started
 Phase 10 [          ] Not started
 ```
 
-6 / 11 phases complete · 73 / 109 requirements delivered
+6 / 11 phases complete · 81 / 109 requirements delivered
 
 ## Completed Phases
 
@@ -146,7 +146,7 @@ Phase 10 [          ] Not started
 - [x] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers + pnpm add stripe square + [BLOCKING] schema push to Supabase
 - [x] 07-02-PLAN.md — Wave 1: Canonical server actions + Stripe webhook + Settings payment-methods tab + Square CDN URL fix
 - [x] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
-- [ ] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new + /payments/[id] + /settings/payment-methods CRUD
+- [x] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new + /payments/[id] + /settings/payment-methods CRUD
 - [ ] 07-05-PLAN.md — Wave 4: Invoice PDF route + wire dispatch popup Close & Invoice + wire job detail Create Invoice button
 
 ## Key Decisions Made
@@ -212,8 +212,8 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 07-03 (Invoicing and Payments Wave 2) completed 2026-06-25.
-**Next action:** Execute 07-04 to continue Invoicing and Payments Wave 3 (invoice detail page, /payments/new, /payments/[id], Settings payment-methods CRUD).
+**Last action:** Phase 07-04 (Invoicing and Payments Wave 3) completed 2026-06-25.
+**Next action:** Execute 07-05 to continue Invoicing and Payments Wave 4 (invoice PDF route, dispatch popup Close & Invoice, job detail Create Invoice button, To Be Invoiced bucket fix).
 **Resume files:**
 
 - `.planning/ROADMAP.md` — Phase 7 requirements (INV-01–INV-08, PAY-01–PAY-06)
@@ -221,4 +221,4 @@ Key takeaways:
 
 ---
 *State initialized: 2026-06-10*
-*Updated: 2026-06-25 — Phase 07-03 complete, ready for 07-04*
+*Updated: 2026-06-25 — Phase 07-04 complete, ready for 07-05*
