@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { logger } from '@/lib/logger'
 import type { CachedInvoice } from '@/app/(tech)/lib/dexie'
+import type { InvoiceRow } from '@/app/(app)/invoices/actions'
 
 export interface SendCommunicationInput {
   kind: 'estimate' | 'invoice'
@@ -157,13 +158,32 @@ export async function listTechInvoicesAction(
   }
 
   try {
-    const mod = (await import('@/app/(app)/invoices/actions')) as {
-      listInvoicesAction?: (orgId: string) => Promise<{ rows: CachedInvoice[] }>
+    const { listInvoicesAction } = (await import('@/app/(app)/invoices/actions')) as {
+      listInvoicesAction: (orgId: string) => Promise<{ rows: InvoiceRow[] }>
     }
-    if (typeof mod.listInvoicesAction !== 'function') {
+    if (typeof listInvoicesAction !== 'function') {
       return { rows: [], error: 'Invoices are not available yet.' }
     }
-    return mod.listInvoicesAction(orgId)
+    const { rows } = await listInvoicesAction(orgId)
+    return {
+      rows: rows.map(
+        (r): CachedInvoice => ({
+          id: r.id,
+          tenantId: r.tenantId,
+          jobId: r.jobId,
+          customerId: r.customerId,
+          customerName: r.customerName,
+          invoiceNo: r.invoiceNo,
+          status: r.status,
+          total: r.total,
+          balance: Math.round(parseFloat(r.balance) * 100),
+          issuedAt: r.invoiceDate,
+          dueAt: r.dueDate,
+          paidAt: r.balance === '0.00' ? new Date().toISOString() : null,
+          notes: null,
+        }),
+      ),
+    }
   } catch (err) {
     const message = extractErrorMessage(err)
     if (isPhaseMissing(err)) {

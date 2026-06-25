@@ -36,6 +36,7 @@ const jobStore = new Map<
 const paymentStore = new Map<
   string,
   {
+    id: string
     tenantId: string
     jobId: string | null
     customerId: string
@@ -77,6 +78,7 @@ function resetMocks() {
   })
 
   paymentStore.set('pay_deposit_1', {
+    id: 'pay_deposit_1',
     tenantId: ORG_A,
     jobId: 'job_with_deposit',
     customerId: 'cust_1',

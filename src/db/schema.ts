@@ -1708,6 +1708,7 @@ export const invoices = pgTable(
     id: text('id').primaryKey().default(sql`gen_random_uuid()`),
     tenantId: text('tenant_id').notNull(),
     invoiceNo: integer('invoice_no').notNull(),
+    status: text('status').notNull().default('active'),
     jobId: text('job_id').notNull(),
     customerId: text('customer_id').notNull(),
     contactId: text('contact_id'),
