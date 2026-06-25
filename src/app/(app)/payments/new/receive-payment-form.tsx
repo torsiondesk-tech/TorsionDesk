@@ -325,6 +325,7 @@ export function ReceivePaymentForm({
                     <thead className="border-b bg-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">Invoice#</th>
+                        <th className="px-3 py-2 font-medium">Customer</th>
                         <th className="px-3 py-2 font-medium">Invoice Date</th>
                         <th className="px-3 py-2 text-right font-medium">Total</th>
                         <th className="px-3 py-2 text-right font-medium">Balance</th>
@@ -335,6 +336,7 @@ export function ReceivePaymentForm({
                       {openInvoices.map((inv) => (
                         <tr key={inv.id}>
                           <td className="px-3 py-2 font-medium">{`INV-${inv.invoiceNo}`}</td>
+                          <td className="px-3 py-2">{inv.customerName ?? '—'}</td>
                           <td className="px-3 py-2">{inv.invoiceDate ?? '—'}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {fmtMoney(inv.total)}
