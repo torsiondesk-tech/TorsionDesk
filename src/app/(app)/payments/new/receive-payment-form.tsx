@@ -98,7 +98,7 @@ export function ReceivePaymentForm({
     setAllocations(newAllocs)
   }, [paymentAmount, openInvoices, defaultInvoiceId])
 
-  const { totalOutstanding, totalApplied, owedAfterPayment, isOverApplied } = useMemo(() => {
+  const { totalOutstanding, totalApplied, owedAfterPayment, isOverApplied, isOverPayment } = useMemo(() => {
     const outstanding = openInvoices.reduce((sum, inv) => sum + toCents(inv.balance), 0) / 100
     const applied = Object.values(allocations).reduce((sum, v) => sum + toCents(v), 0) / 100
     const amount = toCents(paymentAmount) / 100
@@ -107,23 +107,26 @@ export function ReceivePaymentForm({
       totalApplied: applied,
       owedAfterPayment: Math.max(0, outstanding - applied),
       isOverApplied: applied > amount + 0.001,
+      isOverPayment: amount > outstanding + 0.001,
     }
   }, [openInvoices, allocations, paymentAmount])
 
   useEffect(() => {
     if (isOverApplied) {
       setError("Total to Be Applied can't exceed the Amount of Payment. Adjust the per-invoice amounts.")
+    } else if (isOverPayment) {
+      setError(`Amount of payment (${fmtMoney(paymentAmount)}) exceeds the total outstanding balance (${fmtMoney(totalOutstanding)}).`)
     } else {
       setError(null)
     }
-  }, [isOverApplied])
+  }, [isOverApplied, isOverPayment, paymentAmount, totalOutstanding])
 
   const handleAllocationChange = (invoiceId: string, value: string) => {
     setAllocations((prev) => ({ ...prev, [invoiceId]: value }))
   }
 
   const handleSubmit = () => {
-    if (isOverApplied) return
+    if (isOverApplied || isOverPayment) return
     const payload = {
       customerId,
       methodId: selectedMethodId,
@@ -182,6 +185,7 @@ export function ReceivePaymentForm({
     selectedMethodId &&
     toCents(paymentAmount) > 0 &&
     !isOverApplied &&
+    !isOverPayment &&
     !isSquareMethod
 
   if (isDeposit) {
