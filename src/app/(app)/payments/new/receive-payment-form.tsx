@@ -78,12 +78,25 @@ export function ReceivePaymentForm({
   const selectedMethod = paymentMethods.find((m) => m.id === selectedMethodId)
 
   useEffect(() => {
-    const initial: Record<string, string> = {}
-    for (const inv of openInvoices) {
-      initial[inv.id] = defaultInvoiceId === inv.id ? inv.balance : '0.00'
+    const cents = toCents(paymentAmount)
+    if (cents <= 0) {
+      const reset: Record<string, string> = {}
+      for (const inv of openInvoices) {
+        reset[inv.id] = defaultInvoiceId === inv.id ? inv.balance : '0.00'
+      }
+      setAllocations(reset)
+      return
     }
-    setAllocations(initial)
-  }, [openInvoices, defaultInvoiceId])
+    let remaining = cents
+    const newAllocs: Record<string, string> = {}
+    for (const inv of openInvoices) {
+      const balanceCents = toCents(inv.balance)
+      const apply = Math.min(balanceCents, remaining)
+      newAllocs[inv.id] = (apply / 100).toFixed(2)
+      remaining = Math.max(0, remaining - apply)
+    }
+    setAllocations(newAllocs)
+  }, [paymentAmount, openInvoices, defaultInvoiceId])
 
   const { totalOutstanding, totalApplied, owedAfterPayment, isOverApplied } = useMemo(() => {
     const outstanding = openInvoices.reduce((sum, inv) => sum + toCents(inv.balance), 0) / 100
