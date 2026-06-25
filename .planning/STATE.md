@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 07
-last_updated: "2026-06-24T00:00:00.000Z"
+last_updated: "2026-06-25T09:15:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 6
-  total_plans: 41
-  completed_plans: 32
-  percent: 55
+  total_plans: 46
+  completed_plans: 33
+  percent: 72
 ---
 
 # TorsionDesk — Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Phase 7: Invoicing and Payments**
 
-- Status: Not started
+- Status: Executing
 - Goal: Office and field can create invoices from completed jobs, collect payment via Stripe (online) and Square (on-site), maintain a single canonical ledger, and send paid receipts to customers.
-- Requirements: INV-01 through INV-08, PAY-01 through PAY-06
+- Requirements: INV-01 through INV-14
 - Depends on: Phase 3 (completed), Phase 6 (completed)
 - Cross-phase note: `createInvoiceFromJobAction`, `sendInvoiceAction`, and Square payment posting must be callable from the PWA and share the same canonical ledger as office flows.
 
@@ -58,13 +58,13 @@ Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
 Phase 5  [██████████] Completed  ← 2026-06-21
 Phase 6  [██████████] Completed  ← 2026-06-24
-Phase 7  [          ] Not started  ← current
+Phase 7  [██        ] Executing    ← current (1/5 plans)
 Phase 8  [          ] Not started
 Phase 9  [          ] Not started
 Phase 10 [          ] Not started
 ```
 
-6 / 11 phases complete · 63 / 109 requirements delivered
+6 / 11 phases complete · 71 / 109 requirements delivered
 
 ## Completed Phases
 
@@ -140,6 +140,14 @@ Phase 10 [          ] Not started
   Full estimates pipeline: dashboard with status-folder sidebar (Draft/Sent/Won/Lost/Expired) + tag filters, two-panel estimate form with grouped catalog line items, task/reminder CRUD, StarPicker rating, PDF generation via @react-pdf/renderer (/api/estimates/[id]/pdf), estimate email/SMS send, one-click convert-to-job, Settings estimate templates tab. `createEstimateAction`, `convertEstimateToJobAction`, and `sendEstimateAction` are PWA-callable server actions (offline-queued wrappers already stubbed in Phase 5). Customer name links to customer detail page. Reminder presets derived from scheduled on-site date/time.
 - Requirements delivered: EST-01, EST-02, EST-03, EST-04, EST-05, EST-06, EST-07, EST-08, EST-09
 
+## Phase 7 Plans
+
+- [x] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers + pnpm add stripe square + [BLOCKING] schema push to Supabase
+- [ ] 07-02-PLAN.md — Wave 1: Canonical server actions + Stripe webhook + Settings payment-methods tab + Square CDN URL fix
+- [ ] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
+- [ ] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new + /payments/[id] + /settings/payment-methods CRUD
+- [ ] 07-05-PLAN.md — Wave 4: Invoice PDF route + wire dispatch popup Close & Invoice + wire job detail Create Invoice button
+
 ## Key Decisions Made
 
 (see .planning/PROJECT.md Key Decisions section)
@@ -203,8 +211,8 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 6 (Estimates) completed and merged to main 2026-06-24.
-**Next action:** Run `/gsd-plan-phase 7` to plan Invoicing and Payments.
+**Last action:** Phase 07-01 (Invoicing and Payments Wave 0) completed 2026-06-25.
+**Next action:** Run `/gsd-execute-phase 7` or plan 07-02 to continue Invoicing and Payments Wave 1 (canonical server actions, Stripe webhook, payment methods settings).
 **Resume files:**
 
 - `.planning/ROADMAP.md` — Phase 7 requirements (INV-01–INV-08, PAY-01–PAY-06)
