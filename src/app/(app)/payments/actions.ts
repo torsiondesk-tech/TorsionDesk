@@ -292,10 +292,15 @@ export async function voidPaymentAction(
 
   try {
     await withTenant(orgId, async (tx) => {
+      // Remove allocations so invoice balances recompute correctly (WR-10)
       await tx
         .delete(paymentAllocations)
         .where(and(eq(paymentAllocations.tenantId, orgId), eq(paymentAllocations.paymentId, paymentId)))
-      await tx.delete(payments).where(and(eq(payments.tenantId, orgId), eq(payments.id, paymentId)))
+      // Soft-void the payment row (preserves audit trail — do NOT hard-delete)
+      await tx
+        .update(payments)
+        .set({ status: 'void', updatedAt: new Date() })
+        .where(and(eq(payments.tenantId, orgId), eq(payments.id, paymentId)))
     })
 
     revalidatePath('/payments')
@@ -356,7 +361,7 @@ export async function getPaymentAction(
       })
       .from(payments)
       .leftJoin(customers, and(eq(customers.tenantId, payments.tenantId), eq(customers.id, payments.customerId)))
-      .where(and(eq(payments.tenantId, orgId), eq(payments.id, id)))
+      .where(and(eq(payments.tenantId, orgId), eq(payments.id, id), ne(payments.status, 'void')))
       .limit(1)
 
     if (!payment) return null
@@ -528,7 +533,7 @@ export interface PaymentMethodActionState {
 
 function requireAdmin() {
   return auth().then(({ orgRole }) => {
-    if (orgRole !== 'admin') {
+    if (orgRole !== 'org:admin') {
       throw new Error('Admin access required.')
     }
   })

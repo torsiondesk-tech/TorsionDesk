@@ -41,9 +41,10 @@ export type PaymentMethodRow = {
 interface PaymentMethodsListProps {
   orgId: string
   initialMethods: PaymentMethodRow[]
+  isAdmin: boolean
 }
 
-export function PaymentMethodsList({ orgId, initialMethods }: PaymentMethodsListProps) {
+export function PaymentMethodsList({ orgId, initialMethods, isAdmin }: PaymentMethodsListProps) {
   const router = useRouter()
   const [methods, setMethods] = useState(initialMethods)
   const [pending, startTransition] = useTransition()
@@ -143,58 +144,62 @@ export function PaymentMethodsList({ orgId, initialMethods }: PaymentMethodsList
   return (
     <TooltipProvider delay={0}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger render={<Button />}>
-              <Plus className="mr-2 size-4" />
-              Add Payment Method
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Add Payment Method</DialogTitle>
-                <DialogDescription>
-                  e.g. Cash, Check, Zelle, Venmo, ACH, or Wire.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label htmlFor="add-name">Name</Label>
-                  <Input
-                    id="add-name"
-                    value={addName}
-                    onChange={(e) => setAddName(e.target.value)}
-                    placeholder="e.g. Cash"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleCreate()
-                    }}
-                  />
+        {/* Add button — admin only */}
+        {isAdmin && (
+          <div className="flex items-center justify-between">
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger render={<Button />}>
+                <Plus className="mr-2 size-4" />
+                Add Payment Method
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Add Payment Method</DialogTitle>
+                  <DialogDescription>
+                    e.g. Cash, Check, Zelle, Venmo, ACH, or Wire.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="add-name">Name</Label>
+                    <Input
+                      id="add-name"
+                      value={addName}
+                      onChange={(e) => setAddName(e.target.value)}
+                      placeholder="e.g. Cash"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCreate()
+                      }}
+                    />
+                  </div>
+                  {actionError && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {actionError}
+                    </p>
+                  )}
                 </div>
-                {actionError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {actionError}
-                  </p>
-                )}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreate} disabled={pending || !addName.trim()}>
-                  {pending ? 'Adding…' : 'Add'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                  <Button onClick={handleCreate} disabled={pending || !addName.trim()}>
+                    {pending ? 'Adding…' : 'Add'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
 
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
             <p className="text-sm text-muted-foreground">
-              No payment methods yet. Add cash, check, Zelle, Venmo, or a card processor to start
-              recording payments.
+              No payment methods yet.{isAdmin ? ' Add cash, check, Zelle, Venmo, or a card processor to start recording payments.' : ' Contact an admin to configure payment methods.'}
             </p>
-            <Button variant="outline" className="mt-4" onClick={() => setIsAddOpen(true)}>
-              <Plus className="mr-2 size-4" />
-              Add Payment Method
-            </Button>
+            {isAdmin && (
+              <Button variant="outline" className="mt-4" onClick={() => setIsAddOpen(true)}>
+                <Plus className="mr-2 size-4" />
+                Add Payment Method
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-lg border">
@@ -203,7 +208,9 @@ export function PaymentMethodsList({ orgId, initialMethods }: PaymentMethodsList
                 <tr>
                   <th className="px-4 py-2 text-left font-semibold">Name</th>
                   <th className="px-4 py-2 text-left font-semibold">Status</th>
-                  <th className="px-4 py-2 text-right font-semibold">Actions</th>
+                  {isAdmin && (
+                    <th className="px-4 py-2 text-right font-semibold">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -220,75 +227,83 @@ export function PaymentMethodsList({ orgId, initialMethods }: PaymentMethodsList
                       </div>
                     </td>
                     <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id={`active-${method.id}`}
-                          checked={method.isActive}
-                          disabled={method.isSystem || pending}
-                          onCheckedChange={() => handleToggleActive(method)}
-                        />
-                        <Label htmlFor={`active-${method.id}`} className="text-sm font-normal">
+                      {isAdmin ? (
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`active-${method.id}`}
+                            checked={method.isActive}
+                            disabled={method.isSystem || pending}
+                            onCheckedChange={() => handleToggleActive(method)}
+                          />
+                          <Label htmlFor={`active-${method.id}`} className="text-sm font-normal">
+                            {method.isActive ? 'Active' : 'Inactive'}
+                          </Label>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
                           {method.isActive ? 'Active' : 'Inactive'}
-                        </Label>
-                      </div>
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        {method.isSystem ? (
-                          <>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <span className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground"
-                                    aria-label="Built-in method"
-                                  />
-                                }
+                    {isAdmin && (
+                      <td className="px-4 py-2 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          {method.isSystem ? (
+                            <>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <span className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground"
+                                      aria-label="Built-in method"
+                                    />
+                                  }
+                                >
+                                  <Lock className="size-4" />
+                                </TooltipTrigger>
+                                <TooltipContent>Built-in method — can&apos;t be removed</TooltipContent>
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Move up"
+                                disabled={pending || index === 0}
+                                onClick={() => handleReorder(method.id, 'up')}
                               >
-                                <Lock className="size-4" />
-                              </TooltipTrigger>
-                              <TooltipContent>Built-in method — can&apos;t be removed</TooltipContent>
-                            </Tooltip>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Move up"
-                              disabled={pending || index === 0}
-                              onClick={() => handleReorder(method.id, 'up')}
-                            >
-                              <ArrowUp className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Move down"
-                              disabled={pending || index === methods.length - 1}
-                              onClick={() => handleReorder(method.id, 'down')}
-                            >
-                              <ArrowDown className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Edit payment method"
-                              onClick={() => startEdit(method)}
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Delete payment method"
-                              onClick={() => setDeleting(method)}
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+                                <ArrowUp className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Move down"
+                                disabled={pending || index === methods.length - 1}
+                                onClick={() => handleReorder(method.id, 'down')}
+                              >
+                                <ArrowDown className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Edit payment method"
+                                onClick={() => startEdit(method)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Delete payment method"
+                                onClick={() => setDeleting(method)}
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -296,7 +311,7 @@ export function PaymentMethodsList({ orgId, initialMethods }: PaymentMethodsList
           </div>
         )}
 
-        {/* Edit Dialog */}
+        {/* Edit Dialog — only reachable by admin */}
         <Dialog
           open={!!editing}
           onOpenChange={(open) => {
@@ -345,7 +360,7 @@ export function PaymentMethodsList({ orgId, initialMethods }: PaymentMethodsList
           </DialogContent>
         </Dialog>
 
-        {/* Delete Dialog */}
+        {/* Delete Dialog — only reachable by admin */}
         <Dialog
           open={!!deleting}
           onOpenChange={(open) => {

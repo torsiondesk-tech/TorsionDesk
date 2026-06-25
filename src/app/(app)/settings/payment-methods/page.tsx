@@ -8,13 +8,15 @@ import { PaymentMethodsList } from './payment-methods-list'
  *
  * Server component: reads all payment methods for the active tenant,
  * then renders the client list with add/edit/delete/reorder dialogs.
+ * Admin controls are gated behind isAdmin (orgRole === 'org:admin').
  */
 export default async function PaymentMethodsPage() {
-  const { orgId } = await auth()
+  const { orgId, orgRole } = await auth()
   if (!orgId) {
     redirect('/sign-in')
   }
 
+  const isAdmin = orgRole === 'org:admin'
   const methods = await listPaymentMethodsAction(orgId)
 
   return (
@@ -26,7 +28,7 @@ export default async function PaymentMethodsPage() {
         </p>
       </div>
 
-      <PaymentMethodsList orgId={orgId} initialMethods={methods.methods} />
+      <PaymentMethodsList orgId={orgId} initialMethods={methods.methods} isAdmin={isAdmin} />
     </div>
   )
 }
