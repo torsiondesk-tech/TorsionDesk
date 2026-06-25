@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { withTenant } from '@/db/with-tenant'
 import { payments, paymentAllocations, invoices, customers, customerEvents } from '@/db/schema'
 import { nextPaymentNo } from '@/lib/invoices/invoice-number'
@@ -52,12 +52,17 @@ function extractPaymentInfo(event: Stripe.Event): PaymentInfo | null {
   return null
 }
 
+function toCents(value: string | number | null | undefined): number {
+  return Math.round(parseFloat(String(value ?? '0')) * 100)
+}
+
 async function recordStripePayment(
   tenantId: string,
   info: PaymentInfo,
   event: Stripe.Event,
 ): Promise<void> {
   await withTenant(tenantId, async (tx) => {
+    // Guard 1: dedup by exact stripe event id (handles literal event replays)
     const existing = await tx
       .select({ id: payments.id })
       .from(payments)
@@ -66,6 +71,26 @@ async function recordStripePayment(
 
     if (existing.length > 0) {
       return
+    }
+
+    // Guard 2: cross-event-type dedup by payment_intent id (CR-02 / T-07-20)
+    // payment_intent.succeeded and checkout.session.completed share the same
+    // payment_intent id; deduping by stripeEventId alone misses this case.
+    if (info.stripePaymentIntentId) {
+      const existingByToken = await tx
+        .select({ id: payments.id })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.tenantId, tenantId),
+            eq(payments.transactionToken, info.stripePaymentIntentId),
+          ),
+        )
+        .limit(1)
+
+      if (existingByToken.length > 0) {
+        return
+      }
     }
 
     let customerId = info.customerId
@@ -99,12 +124,32 @@ async function recordStripePayment(
       .returning()
 
     if (info.invoiceId) {
-      await tx.insert(paymentAllocations).values({
-        tenantId,
-        paymentId: payment.id,
-        invoiceId: info.invoiceId,
-        amountApplied: amountDollars,
-      })
+      // Cap allocation at invoice open balance (T-07-19)
+      const [invRow] = await tx
+        .select({ total: invoices.total })
+        .from(invoices)
+        .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, info.invoiceId)))
+        .limit(1)
+
+      let allocCents = info.amountCents
+      if (invRow) {
+        const [sumRow] = await tx
+          .select({ sum: sql<string>`COALESCE(SUM(${paymentAllocations.amountApplied}), '0')`.as('sum') })
+          .from(paymentAllocations)
+          .where(and(eq(paymentAllocations.tenantId, tenantId), eq(paymentAllocations.invoiceId, info.invoiceId)))
+        const alreadyAppliedCents = toCents(sumRow?.sum ?? '0')
+        const openBalanceCents = toCents(invRow.total) - alreadyAppliedCents
+        allocCents = Math.min(info.amountCents, Math.max(0, openBalanceCents))
+      }
+
+      if (allocCents > 0) {
+        await tx.insert(paymentAllocations).values({
+          tenantId,
+          paymentId: payment.id,
+          invoiceId: info.invoiceId,
+          amountApplied: (allocCents / 100).toFixed(2),
+        })
+      }
     }
 
     await tx.insert(customerEvents).values({
@@ -120,7 +165,8 @@ async function recordStripePayment(
 
 export async function handleStripeWebhook(req: Request): Promise<Response> {
   const secret = getStripeSecret()
-  if (secret === undefined) {
+  // Fix: use truthy check so empty string (missing env var) returns 500
+  if (!secret) {
     logger.error('handleStripeWebhook', new Error('STRIPE_WEBHOOK_SECRET is not set'))
     return new Response('Webhook secret not configured.', { status: 500 })
   }
