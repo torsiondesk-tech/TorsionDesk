@@ -319,6 +319,7 @@ export interface PaymentDetail {
   customerId: string
   customerName: string | null
   method: string
+  methodName: string | null
   amount: string
   checkRefNo: string | null
   receivedOn: string | null
@@ -350,6 +351,7 @@ export async function getPaymentAction(
         customerId: payments.customerId,
         customerName: customers.name,
         method: payments.method,
+        methodName: paymentMethods.name,
         amount: payments.amount,
         checkRefNo: payments.checkRefNo,
         receivedOn: payments.receivedOn,
@@ -361,6 +363,7 @@ export async function getPaymentAction(
       })
       .from(payments)
       .leftJoin(customers, and(eq(customers.tenantId, payments.tenantId), eq(customers.id, payments.customerId)))
+      .leftJoin(paymentMethods, and(eq(paymentMethods.tenantId, payments.tenantId), eq(paymentMethods.id, payments.method)))
       .where(and(eq(payments.tenantId, orgId), eq(payments.id, id), ne(payments.status, 'void')))
       .limit(1)
 
@@ -390,6 +393,7 @@ export async function getPaymentAction(
       customerId: payment.customerId,
       customerName: payment.customerName ?? null,
       method: payment.method,
+      methodName: payment.methodName ?? null,
       amount: String(payment.amount),
       checkRefNo: payment.checkRefNo ?? null,
       receivedOn: toDateString(payment.receivedOn),

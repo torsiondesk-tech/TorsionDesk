@@ -75,7 +75,7 @@ export default async function PaymentDetailPage({ params }: PaymentDetailPagePro
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Method</dt>
                   <dd>
-                    <Badge variant="outline">{payment.method}</Badge>
+                    <Badge variant="outline">{payment.methodName ?? payment.method}</Badge>
                   </dd>
                 </div>
                 <div className="flex justify-between">
