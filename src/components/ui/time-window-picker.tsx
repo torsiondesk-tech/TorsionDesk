@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface TimeWindowPickerProps {
@@ -42,6 +43,8 @@ function parseHM(val: string): { h24: number; m: string } {
 function fmtHM(h24: number, m: string) {
   return `${String(h24).padStart(2, '0')}:${m}`
 }
+
+const DEFAULT_TIME = fmtHM(8, '00') // '08:00'
 
 const selectCls =
   'rounded-md border border-input bg-background px-2 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
@@ -105,13 +108,20 @@ export function TimeWindowPicker({
   error,
   className,
 }: TimeWindowPickerProps) {
+  // When the picker mounts with one side null (e.g. DB has end but no start),
+  // sync the empty side to the displayed default so saves always write both.
+  useEffect(() => {
+    if (endValue && !startValue) onStartChange(DEFAULT_TIME)
+    else if (startValue && !endValue) onEndChange(DEFAULT_TIME)
+  }, [startValue, endValue, onStartChange, onEndChange])
+
   const handleStartChange = (val: string) => {
     onStartChange(val)
-    if (!endValue) onEndChange(fmtHM(parseHM(endValue).h24, parseHM(endValue).m))
+    if (!endValue) onEndChange(DEFAULT_TIME)
   }
   const handleEndChange = (val: string) => {
     onEndChange(val)
-    if (!startValue) onStartChange(fmtHM(parseHM(startValue).h24, parseHM(startValue).m))
+    if (!startValue) onStartChange(DEFAULT_TIME)
   }
 
   return (
