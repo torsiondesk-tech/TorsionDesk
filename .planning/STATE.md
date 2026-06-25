@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 07
-last_updated: "2026-06-25T09:15:00.000Z"
+last_updated: "2026-06-25T09:45:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 46
-  completed_plans: 33
-  percent: 72
+  completed_plans: 34
+  percent: 74
 ---
 
 # TorsionDesk — Project State
@@ -58,7 +58,7 @@ Phase 3  [██████████] Completed  ← 2026-06-15
 Phase 4  [██████████] Completed  ← 2026-06-15
 Phase 5  [██████████] Completed  ← 2026-06-21
 Phase 6  [██████████] Completed  ← 2026-06-24
-Phase 7  [██        ] Executing    ← current (1/5 plans)
+Phase 7  [████      ] Executing    ← current (2/5 plans)
 Phase 8  [          ] Not started
 Phase 9  [          ] Not started
 Phase 10 [          ] Not started
@@ -143,7 +143,7 @@ Phase 10 [          ] Not started
 ## Phase 7 Plans
 
 - [x] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers + pnpm add stripe square + [BLOCKING] schema push to Supabase
-- [ ] 07-02-PLAN.md — Wave 1: Canonical server actions + Stripe webhook + Settings payment-methods tab + Square CDN URL fix
+- [x] 07-02-PLAN.md — Wave 1: Canonical server actions + Stripe webhook + Settings payment-methods tab + Square CDN URL fix
 - [ ] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
 - [ ] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new + /payments/[id] + /settings/payment-methods CRUD
 - [ ] 07-05-PLAN.md — Wave 4: Invoice PDF route + wire dispatch popup Close & Invoice + wire job detail Create Invoice button
@@ -211,8 +211,8 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 07-01 (Invoicing and Payments Wave 0) completed 2026-06-25.
-**Next action:** Run `/gsd-execute-phase 7` or plan 07-02 to continue Invoicing and Payments Wave 1 (canonical server actions, Stripe webhook, payment methods settings).
+**Last action:** Phase 07-02 (Invoicing and Payments Wave 1) completed 2026-06-25.
+**Next action:** Plan and execute 07-03 to continue Invoicing and Payments Wave 2 (invoices dashboard, enable Invoices nav).
 **Resume files:**
 
 - `.planning/ROADMAP.md` — Phase 7 requirements (INV-01–INV-08, PAY-01–PAY-06)

@@ -33,7 +33,7 @@
 - [x] **Phase 4: Dispatch Board** - Live week-view scheduling grid with job pool, popup actions, and one-click Close & Invoice (completed 2026-06-15)
 - [x] **Phase 5: Technician Mobile PWA** - Offline-first tech app for status, photos, signature, notes, on-site spec lookup, estimates, invoices, and on-site Square payments (completed 2026-06-21)
 - [x] **Phase 6: Estimates** - Separate estimate module with its own pipeline, dashboard, templates, and convert-to-job (completed 2026-06-24)
-- [~] **Phase 7: Invoicing and Payments** - Invoices from jobs, dual-processor payment ledger, and live AR aging dashboard (in progress: 1/5 plans)
+- [~] **Phase 7: Invoicing and Payments** - Invoices from jobs, dual-processor payment ledger, and live AR aging dashboard (in progress: 2/5 plans)
 - [ ] **Phase 8: Communications and Notifications** - Event-triggered email (Resend) and SMS (Twilio) automations with per-trigger settings
 - [ ] **Phase 9: Reports** - Sales, AR, day sheet, job activity, and sales-tax reports with CSV/PDF export
 - [ ] **Phase 10: Data Migration** - CSV import of Service Fusion customers, catalog, and historical jobs for cutover
