@@ -61,7 +61,10 @@ function extractErrorMessage(err: unknown): string {
 function combineDateTime(date: string | null | undefined, time: string | null | undefined): Date | null {
   if (!time || time.trim() === '') return null
   if (!date || date.trim() === '') return null
-  const combined = new Date(`${date}T${time}`)
+  // Append 'Z' to force UTC interpretation so postgres-js doesn't shift the
+  // stored value by the server's UTC offset on the way in, then shift it back
+  // on the way out (double-shift bug on non-UTC machines / local dev).
+  const combined = new Date(`${date}T${time}:00Z`)
   if (isNaN(combined.getTime())) return null
   return combined
 }
@@ -524,8 +527,8 @@ export async function createJob(
             // Explicit local-midnight constructor preserves the intended calendar
             // date when the server serializes it to Postgres (matches the rules in
             // CLAUDE.md for calendar-date columns).
-            startDate: data.startDate ? new Date(`${data.startDate}T00:00:00`) : null,
-            endDate: data.endDate ? new Date(`${data.endDate}T00:00:00`) : null,
+            startDate: data.startDate ? new Date(`${data.startDate}T00:00:00Z`) : null,
+            endDate: data.endDate ? new Date(`${data.endDate}T00:00:00Z`) : null,
             arrivalWindowStart: combineDateTime(data.startDate, data.arrivalWindowStart),
             arrivalWindowEnd: combineDateTime(data.startDate, data.arrivalWindowEnd),
             estimatedDuration: data.estimatedDuration,
@@ -845,8 +848,8 @@ export async function updateJob(
         billingType: data.billingType,
         priority: data.priority,
         // Explicit local-midnight constructor preserves the intended calendar date.
-        startDate: data.startDate ? new Date(`${data.startDate}T00:00:00`) : null,
-        endDate: data.endDate ? new Date(`${data.endDate}T00:00:00`) : null,
+        startDate: data.startDate ? new Date(`${data.startDate}T00:00:00Z`) : null,
+        endDate: data.endDate ? new Date(`${data.endDate}T00:00:00Z`) : null,
         arrivalWindowStart: combineDateTime(data.startDate, data.arrivalWindowStart),
         arrivalWindowEnd: combineDateTime(data.startDate, data.arrivalWindowEnd),
         estimatedDuration: data.estimatedDuration,

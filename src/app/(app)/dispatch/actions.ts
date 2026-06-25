@@ -475,13 +475,8 @@ export async function updateJobArrivalWindow(
   const { orgId, error } = await validateOrgId()
   if (error) return { error }
 
-  const toDateTime = (t: string | null): Date | null => {
-    if (!t) return null
-    const [h, m] = t.split(':').map(Number)
-    const d = new Date()
-    d.setHours(h, m, 0, 0)
-    return d
-  }
+  const toDateTime = (t: string | null): Date | null =>
+    t ? new Date(`1970-01-01T${t}:00Z`) : null
 
   try {
     await withTenant(orgId, async (tx) => {
@@ -1221,13 +1216,8 @@ export async function updateEstimateArrivalWindow(
   const { orgId } = await auth()
   if (!orgId) return { error: 'Unauthorized' }
 
-  const toDateTime = (t: string | null): Date | null => {
-    if (!t) return null
-    const [h, m] = t.split(':').map(Number)
-    const d = new Date()
-    d.setHours(h, m, 0, 0)
-    return d
-  }
+  const toDateTime = (t: string | null): Date | null =>
+    t ? new Date(`1970-01-01T${t}:00Z`) : null
 
   try {
     await withTenant(orgId, async (tx) => {
