@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -336,7 +337,13 @@ export function ReceivePaymentForm({
                       {openInvoices.map((inv) => (
                         <tr key={inv.id}>
                           <td className="px-3 py-2 font-medium">{`INV-${inv.invoiceNo}`}</td>
-                          <td className="px-3 py-2">{inv.customerName ?? '—'}</td>
+                          <td className="px-3 py-2">
+                            {inv.customerName ? (
+                              <Link href={`/customers/${customerId}`} className="hover:underline">
+                                {inv.customerName}
+                              </Link>
+                            ) : '—'}
+                          </td>
                           <td className="px-3 py-2">{inv.invoiceDate ?? '—'}</td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {fmtMoney(inv.total)}
