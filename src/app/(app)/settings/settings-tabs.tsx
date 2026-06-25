@@ -36,7 +36,7 @@ const TABS: SettingsTab[] = [
   { label: 'Templates', href: '/settings/templates' },
   { label: 'Email', phase: 8 },
   { label: 'SMS', phase: 8 },
-  { label: 'Payment Methods', phase: 7 },
+  { label: 'Payment Methods', href: '/settings/payment-methods' },
   { label: 'Tax Items', href: '/settings/tax-items' },
   { label: 'Lookup Lists', href: '/settings/lookup-lists' },
   { label: 'Job Status Colors', href: '/settings/status-colors' },
