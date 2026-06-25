@@ -7,7 +7,6 @@ export interface TimeWindowPickerProps {
   endValue: string
   onStartChange: (val: string) => void
   onEndChange: (val: string) => void
-  /** Renders a hidden <input name={startName}> so FormData parents work without extra wiring. */
   startName?: string
   endName?: string
   startId?: string
@@ -16,55 +15,78 @@ export interface TimeWindowPickerProps {
   className?: string
 }
 
-// 7 AM – 8 PM in 24h
-const HOURS_24 = Array.from({ length: 14 }, (_, i) => i + 7)
+const HOURS_12 = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 const MINUTES = ['00', '15', '30', '45']
 
-function hourLabel(h: number) {
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${h12} ${ampm}`
+function to12h(h24: number): { h12: number; ampm: 'AM' | 'PM' } {
+  if (h24 === 0) return { h12: 12, ampm: 'AM' }
+  if (h24 < 12) return { h12: h24, ampm: 'AM' }
+  if (h24 === 12) return { h12: 12, ampm: 'PM' }
+  return { h12: h24 - 12, ampm: 'PM' }
 }
 
-function parseHM(val: string): { h: number; m: string } {
-  if (!val) return { h: 8, m: '00' }
+function to24h(h12: number, ampm: 'AM' | 'PM'): number {
+  if (ampm === 'AM') return h12 === 12 ? 0 : h12
+  return h12 === 12 ? 12 : h12 + 12
+}
+
+function parseHM(val: string): { h24: number; m: string } {
+  if (!val) return { h24: 8, m: '00' }
   const [hStr, mStr] = val.split(':')
-  const h = Math.max(7, Math.min(20, parseInt(hStr, 10) || 8))
+  const h24 = parseInt(hStr, 10) || 8
   const mNum = parseInt(mStr, 10) || 0
   const mSnap = String(Math.round(mNum / 15) * 15 % 60).padStart(2, '0')
-  return { h, m: MINUTES.includes(mSnap) ? mSnap : '00' }
+  return { h24, m: MINUTES.includes(mSnap) ? mSnap : '00' }
 }
 
-function fmtHM(h: number, m: string) {
-  return `${String(h).padStart(2, '0')}:${m}`
+function fmtHM(h24: number, m: string) {
+  return `${String(h24).padStart(2, '0')}:${m}`
 }
 
 const selectCls =
   'rounded-md border border-input bg-background px-2 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
 
-function TimeDropdowns({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
-  const { h, m } = parseHM(value)
+function TimeDropdowns({
+  value,
+  onChange,
+  label,
+}: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+}) {
+  const { h24, m } = parseHM(value)
+  const { h12, ampm } = to12h(h24)
+
   return (
     <div className="flex flex-col gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="flex items-center gap-1">
         <select
-          value={h}
-          onChange={(e) => onChange(fmtHM(parseInt(e.target.value), m))}
+          value={h12}
+          onChange={(e) => onChange(fmtHM(to24h(parseInt(e.target.value), ampm), m))}
           className={selectCls}
         >
-          {HOURS_24.map((hour) => (
-            <option key={hour} value={hour}>{hourLabel(hour)}</option>
+          {HOURS_12.map((h) => (
+            <option key={h} value={h}>{h}</option>
           ))}
         </select>
         <select
           value={m}
-          onChange={(e) => onChange(fmtHM(h, e.target.value))}
+          onChange={(e) => onChange(fmtHM(h24, e.target.value))}
           className={selectCls}
         >
           {MINUTES.map((min) => (
             <option key={min} value={min}>:{min}</option>
           ))}
+        </select>
+        <select
+          value={ampm}
+          onChange={(e) => onChange(fmtHM(to24h(h12, e.target.value as 'AM' | 'PM'), m))}
+          className={selectCls}
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
         </select>
       </div>
     </div>
