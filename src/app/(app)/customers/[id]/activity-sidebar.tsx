@@ -93,8 +93,8 @@ export function ActivitySidebar({ events }: ActivitySidebarProps) {
                     )}
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-xs font-medium">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 break-words text-xs font-medium">
                         {e.title ?? KIND_LABEL[e.kind] ?? e.kind}
                       </span>
                       <span className="shrink-0 text-[10px] text-muted-foreground">

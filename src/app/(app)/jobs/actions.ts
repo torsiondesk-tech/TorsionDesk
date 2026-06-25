@@ -938,12 +938,17 @@ export async function updateJob(
       )
     }
 
-    // Activity event
+    // Activity event — fetch jobNo for a human-readable title
+    const [jobMeta] = await tx
+      .select({ jobNo: jobs.jobNo })
+      .from(jobs)
+      .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, data.id)))
+      .limit(1)
     await tx.insert(customerEvents).values({
       tenantId: orgId,
       customerId: data.customerId,
       kind: 'job',
-      title: `Updated job #JOB-${data.id}`,
+      title: `Updated job #JOB-${jobMeta?.jobNo ?? data.id}`,
       refId: data.id,
     })
   })

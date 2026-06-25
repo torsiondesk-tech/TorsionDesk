@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { eq, and } from 'drizzle-orm'
 import { withTenant } from '@/db/with-tenant'
 import { jobs, jobStatusHistory, customerEvents } from '@/db/schema'
-import { ALLOWED_TRANSITIONS, isLegalTransition, dispatchSideEffects } from './transitions'
+import { ALLOWED_TRANSITIONS, isLegalTransition, dispatchSideEffects, statusLabel } from './transitions'
 import type { JobStatusValue } from './transitions'
 
 /**
@@ -75,7 +75,7 @@ export async function transitionJobStatus(
       tenantId: orgId,
       customerId: job.customerId,
       kind: 'job',
-      title: `Status: ${from} → ${toStatus}`,
+      title: `Status: ${statusLabel(from)} → ${statusLabel(toStatus)}`,
       refId: jobId,
     })
 
