@@ -993,6 +993,30 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
       groups,
     )
 
+    const serviceLocationRow = estimate.serviceLocationId
+      ? (
+          await tx
+            .select({
+              id: serviceLocations.id,
+              name: serviceLocations.name,
+              addressLine1: serviceLocations.addressLine1,
+              addressLine2: serviceLocations.addressLine2,
+              city: serviceLocations.city,
+              state: serviceLocations.state,
+              postalCode: serviceLocations.postalCode,
+              gated: serviceLocations.gated,
+            })
+            .from(serviceLocations)
+            .where(
+              and(
+                eq(serviceLocations.tenantId, orgId),
+                eq(serviceLocations.id, estimate.serviceLocationId),
+              ),
+            )
+            .limit(1)
+        )[0] ?? null
+      : null
+
     return {
       estimate,
       lineItems,
@@ -1004,6 +1028,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
       totals,
       convertedJobs,
       contact,
+      serviceLocation: serviceLocationRow,
     }
   })
 }

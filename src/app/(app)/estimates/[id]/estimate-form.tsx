@@ -81,6 +81,7 @@ interface EstimateFormProps {
   referenceData: ReferenceData
   estimateTemplates: EstimateTemplate[]
   role?: string | null
+  onSuccess?: () => void
 }
 
 const ESTIMATE_STATUSES = [
@@ -122,6 +123,7 @@ export function EstimateForm({
   referenceData,
   estimateTemplates,
   role,
+  onSuccess,
 }: EstimateFormProps) {
   const router = useRouter()
   const [saving, setSaving] = React.useState(false)
@@ -837,6 +839,7 @@ export function EstimateForm({
         }
         toast.success('Estimate saved')
         router.refresh()
+        onSuccess?.()
       }
     } finally {
       setSaving(false)
