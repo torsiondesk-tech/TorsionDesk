@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +37,17 @@ export default async function PaymentDetailPage({ params }: PaymentDetailPagePro
   const { id } = await params
   const payment = await getPaymentAction(orgId, id)
   if (!payment) notFound()
+
+  let enteredByName: string | null = null
+  if (payment.enteredByUserId && payment.enteredByUserId !== 'stripe_webhook') {
+    try {
+      const clerk = await clerkClient()
+      const user = await clerk.users.getUser(payment.enteredByUserId)
+      enteredByName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.emailAddresses[0]?.emailAddress || null
+    } catch {
+      // leave null — fall back to raw ID
+    }
+  }
 
   return (
     <div className="animate-in fade-in-0 duration-300 space-y-6">
@@ -115,7 +126,7 @@ export default async function PaymentDetailPage({ params }: PaymentDetailPagePro
           </Card>
 
           <p className="text-sm text-muted-foreground">
-            Entered {fmtDateTime(payment.enteredAt)} by {payment.enteredByUserId ?? '—'}
+            Entered {fmtDateTime(payment.enteredAt)} by {enteredByName ?? payment.enteredByUserId ?? '—'}
           </p>
         </div>
 
