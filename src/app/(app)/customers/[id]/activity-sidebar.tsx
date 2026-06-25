@@ -97,10 +97,20 @@ export function ActivitySidebar({ events }: ActivitySidebarProps) {
                       <span className="min-w-0 break-words text-xs font-medium">
                         {e.title ?? KIND_LABEL[e.kind] ?? e.kind}
                       </span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground">
-                        {e.occurredAt
-                          ? new Date(e.occurredAt).toLocaleDateString()
-                          : ''}
+                      <span className="shrink-0 text-right text-[10px] text-muted-foreground">
+                        {e.occurredAt ? (
+                          <>
+                            <span className="block">
+                              {new Date(e.occurredAt).toLocaleDateString()}
+                            </span>
+                            <span className="block">
+                              {new Date(e.occurredAt).toLocaleTimeString([], {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </>
+                        ) : null}
                       </span>
                     </div>
                     {e.body && (
