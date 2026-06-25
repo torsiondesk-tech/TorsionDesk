@@ -28,11 +28,9 @@ export default function ErrorBoundary({
           An unexpected error occurred while loading this page. Try refreshing or
           contact support if the problem persists.
         </p>
-        {process.env.NODE_ENV === 'development' && (
-          <pre className="mt-2 max-w-md overflow-auto rounded-lg bg-muted p-3 text-left text-xs text-muted-foreground">
-            {error.message}
-          </pre>
-        )}
+        <pre className="mt-2 max-w-md overflow-auto rounded-lg bg-muted p-3 text-left text-xs text-muted-foreground">
+          {error.message || error.digest || 'No details available'}
+        </pre>
       </div>
       <div className="flex gap-3">
         <Button onClick={reset} variant="outline">
