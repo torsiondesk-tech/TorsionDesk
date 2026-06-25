@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -176,12 +175,15 @@ export function ReceivePaymentForm({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Link href={defaultJobId ? `/jobs/${defaultJobId}` : '/invoices'}>
-            <Button variant="ghost" size="sm" className="gap-1">
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1"
+            onClick={() => router.push(defaultJobId ? `/jobs/${defaultJobId}` : '/invoices')}
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </Button>
         </div>
         <h1 className="text-3xl font-semibold">Record Deposit</h1>
         <DepositForm />
@@ -292,11 +294,9 @@ export function ReceivePaymentForm({
                   <p className="text-sm text-muted-foreground">
                     This customer has no open invoices to apply a payment to.
                   </p>
-                  <Link href="/invoices">
-                    <Button variant="outline" size="sm">
-                      Back to Invoices
-                    </Button>
-                  </Link>
+                  <Button variant="outline" size="sm" onClick={() => router.push('/invoices')}>
+                    Back to Invoices
+                  </Button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">

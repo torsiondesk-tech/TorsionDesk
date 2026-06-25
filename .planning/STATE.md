@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 08
-last_updated: "2026-06-25T19:17:00.000Z"
+status: Ready to execute
+last_updated: "2026-06-25T19:00:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 46
-  completed_plans: 33
-  percent: 64
+  total_plans: 47
+  completed_plans: 35
+  percent: 74
 ---
 
 # TorsionDesk — Project State
@@ -145,9 +145,9 @@ Phase 10 [          ] Not started
 
 - Status: Completed
 - Completed: 2026-06-25
-- Plans executed: 5 / 5 (07-01 through 07-05)
+- Plans executed: 6 / 6 (07-01 through 07-06)
 - Notes: |
-  Full invoicing and payments pipeline: AR aging dashboard with live counts, invoice detail with payment history and Stripe payment link, receive payment and payment view pages, payment-method settings CRUD, invoice PDF generation with optional work order, dispatch popup Close & Invoice and Deposits wiring, job detail Create Invoice button with invoice cross-link, and To Be Invoiced bucket corrected to exclude already-invoiced completed jobs. Stripe webhook posts to the canonical ledger deduped by event.id; Square on-site payments share the same ledger.
+  Full invoicing and payments pipeline: AR aging dashboard with live counts, invoice detail with payment history and Stripe payment link, receive payment and payment view pages, payment-method settings CRUD, invoice PDF generation with optional work order, dispatch popup Close & Invoice and Deposits wiring, job detail Create Invoice button with invoice cross-link, and To Be Invoiced bucket corrected to exclude already-invoiced completed jobs. Stripe webhook posts to the canonical ledger deduped by event.id; Square on-site payments share the same ledger. Gap closure (07-06): payment allocations server-validated (customer-match + balance-cap), Stripe cross-event dedup by transactionToken, soft-void payments, voided invoice filtering, Past Due badge fixed, admin-gated payment-method UI, wiring defects resolved.
 
 - Requirements delivered: INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08, INV-09, INV-10, INV-11, INV-12, INV-13, INV-14
 
@@ -158,6 +158,7 @@ Phase 10 [          ] Not started
 - [x] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
 - [x] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new + /payments/[id] + /settings/payment-methods CRUD
 - [x] 07-05-PLAN.md — Wave 4: Invoice PDF route (/api/invoices/[id]/pdf with optional workOrder), InvoicePdfDocument component, dispatch popup Close & Invoice + Deposits buttons, job detail Create Invoice button and invoice cross-link, To Be Invoiced bucket excludes already-invoiced completed jobs
+- [x] 07-06-PLAN.md — Wave 5 (Gap Closure): payments.status soft-void column, server-validated allocations (customer-match + balance-cap), Stripe cross-event dedup by transactionToken, voided invoice filtering in list/counts/aging, Past Due badge fix, admin-gated payment-method UI, wiring defects
 
 ## Key Decisions Made
 
@@ -222,12 +223,12 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 07-05 (Invoicing and Payments Wave 4) completed 2026-06-25.
+**Last action:** Phase 07-06 (Invoicing and Payments Gap Closure) completed 2026-06-25. Ledger integrity hardened: cross-customer allocation rejection, balance-capped allocations, Stripe cross-event dedup, soft-void payments, voided invoice filtering, Past Due badge fix, wiring defects resolved.
 **Next action:** Plan and execute Phase 08 — Communications and Notifications (COMM-01 through COMM-09). Shared `sendCustomerCommunicationAction` should power estimate/invoice sends from both office modules and the Phase 5 PWA.
 **Resume files:**
 
 - `.planning/ROADMAP.md` — Phase 8 requirements (COMM-01–COMM-09)
-- `.planning/phases/07-invoicing-and-payments/07-05-SUMMARY.md` — Wave 4 summary
+- `.planning/phases/07-invoicing-and-payments/07-06-SUMMARY.md` — Gap closure summary
 
 ---
 *State initialized: 2026-06-10*

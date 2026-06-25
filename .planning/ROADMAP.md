@@ -329,7 +329,7 @@ Plans:
 - [x] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
 - [x] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new Receive a Payment + /payments/[id] view page + /settings/payment-methods CRUD
 - [x] 07-05-PLAN.md — Wave 4: Invoice PDF route (/api/invoices/[id]/pdf, Node.js runtime) + InvoicePdfDocument + wire dispatch popup Close & Invoice + wire job detail Create Invoice button + fix To Be Invoiced sidebar bucket
-- [ ] 07-06-PLAN.md — Wave 5 (gap closure): server-validate payment allocations (customer-match + balance cap), Stripe cross-event-type dedup, filter voided invoices from list/counts/AR aging, Past Due badge fix, dispatch deposit customerId, soft-void payments + admin-gated payment methods, Base UI button/copy fixes
+- [x] 07-06-PLAN.md — Wave 5 (gap closure): server-validate payment allocations (customer-match + balance cap), Stripe cross-event-type dedup, filter voided invoices from list/counts/AR aging, Past Due badge fix, dispatch deposit customerId, soft-void payments + admin-gated payment methods, Base UI button/copy fixes
 
 **UI hint:** yes
 
