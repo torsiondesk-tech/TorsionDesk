@@ -321,7 +321,7 @@ Plans:
   6. Deposits can be recorded against a job before an invoice exists and appear on the resulting invoice.
   7. Every payment has a view page showing transaction details, audit line, and invoice allocations.
 
-**Plans:** 5/5 plans complete
+**Plans:** 5/5 plans complete + 1 gap-closure plan (07-06)
 
 Plans:
 - [x] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers (nextInvoiceNo, nextPaymentNo, computeInvoiceTotals, invoiceStatusBadgeVariant, computeArAging) + pnpm add stripe square + [BLOCKING] schema applied to Supabase
@@ -329,6 +329,7 @@ Plans:
 - [x] 07-03-PLAN.md — Wave 2: Invoices dashboard (AR aging sidebar + TanStack table) + enable Invoices nav
 - [x] 07-04-PLAN.md — Wave 3: Invoice detail page + /payments/new Receive a Payment + /payments/[id] view page + /settings/payment-methods CRUD
 - [x] 07-05-PLAN.md — Wave 4: Invoice PDF route (/api/invoices/[id]/pdf, Node.js runtime) + InvoicePdfDocument + wire dispatch popup Close & Invoice + wire job detail Create Invoice button + fix To Be Invoiced sidebar bucket
+- [ ] 07-06-PLAN.md — Wave 5 (gap closure): server-validate payment allocations (customer-match + balance cap), Stripe cross-event-type dedup, filter voided invoices from list/counts/AR aging, Past Due badge fix, dispatch deposit customerId, soft-void payments + admin-gated payment methods, Base UI button/copy fixes
 
 **UI hint:** yes
 

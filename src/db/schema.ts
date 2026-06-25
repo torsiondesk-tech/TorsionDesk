@@ -1828,6 +1828,7 @@ export const payments = pgTable(
     authCode: text('auth_code'),
     billingAddress: text('billing_address'),
     squarePaymentId: text('square_payment_id'),
+    status: text('status').notNull().default('active'),
     enteredAt: timestamp('entered_at').defaultNow(),
     enteredByUserId: text('entered_by_user_id'),
     createdAt: timestamp('created_at').defaultNow(),
