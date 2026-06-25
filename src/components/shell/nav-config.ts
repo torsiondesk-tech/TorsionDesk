@@ -28,7 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'customers', label: 'Customers', href: '/customers', icon: Users, enabled: true },
   { key: 'estimates', label: 'Estimates', href: '/estimates', icon: FileText, enabled: true },
   { key: 'catalog', label: 'Catalog', href: '/catalog', icon: Package, enabled: true },
-  { key: 'invoicing', label: 'Invoicing', href: '/invoicing', icon: Receipt, enabled: false },
+  { key: 'invoicing', label: 'Invoicing', href: '/invoices', icon: Receipt, enabled: true },
   { key: 'reports', label: 'Reports', href: '/reports', icon: BarChart3, enabled: false },
   { key: 'settings', label: 'Settings', href: '/settings', icon: Settings, enabled: true },
   { key: 'field_view', label: 'Field View', href: '/tech/jobs', icon: Smartphone, enabled: true },

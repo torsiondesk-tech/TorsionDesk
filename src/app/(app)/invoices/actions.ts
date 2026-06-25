@@ -34,16 +34,15 @@ function extractErrorMessage(err: unknown): string {
 export interface InvoiceRow {
   id: string
   tenantId: string
-  invoiceNo: string
+  invoiceNo: number
   customerId: string
   customerName: string | null
   jobId: string
+  jobNo: number | null
   invoiceDate: string | null
   dueDate: string | null
-  total: number | null
+  total: string
   balance: string
-  totalStr: string
-  balanceStr: string
   paymentLinkUrl: string | null
   status: string
   createdAt: string | null
@@ -318,6 +317,12 @@ export async function listInvoicesAction(
              AND ${customers.id} = ${invoices.customerId})
         `.as('customer_name'),
         jobId: invoices.jobId,
+        jobNo: sql<number | null>`
+          (SELECT ${jobs.jobNo}
+           FROM ${jobs}
+           WHERE ${jobs.tenantId} = ${invoices.tenantId}
+             AND ${jobs.id} = ${invoices.jobId})
+        `.as('job_no'),
         invoiceDate: invoices.invoiceDate,
         dueDate: invoices.dueDate,
         total: invoices.total,
@@ -338,16 +343,15 @@ export async function listInvoicesAction(
       return {
         id: r.id,
         tenantId: r.tenantId,
-        invoiceNo: String(r.invoiceNo),
+        invoiceNo: r.invoiceNo,
         customerId: r.customerId,
         customerName: r.customerName ?? null,
         jobId: r.jobId,
+        jobNo: r.jobNo ?? null,
         invoiceDate: toDateString(r.invoiceDate),
         dueDate: toDateString(r.dueDate),
-        total: totalCents,
+        total: (totalCents / 100).toFixed(2),
         balance: (balanceCents / 100).toFixed(2),
-        totalStr: (totalCents / 100).toFixed(2),
-        balanceStr: (balanceCents / 100).toFixed(2),
         paymentLinkUrl: r.paymentLinkUrl ?? null,
         status,
         createdAt:
@@ -361,11 +365,11 @@ export async function listInvoicesAction(
       const today = new Date()
       filtered = filtered.filter((r) => {
         const balance = Number(r.balance)
-        const total = r.total ?? 0
+        const total = Number(r.total)
         if (filter === 'paid') return balance <= 0
         if (filter === 'unpaid') return balance > 0 && !(r.dueDate && new Date(r.dueDate) < today)
         if (filter === 'past_due') return balance > 0 && r.dueDate && new Date(r.dueDate) < today
-        if (filter === 'partial') return balance > 0 && balance * 100 < total
+        if (filter === 'partial') return balance > 0 && balance < total
         return true
       })
     }
