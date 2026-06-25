@@ -37,17 +37,29 @@ export default async function ReceivePaymentPage({ searchParams }: ReceivePaymen
   const { customerId, invoiceId, jobId, type } = await searchParams
   if (!customerId) redirect('/invoices')
 
-  const [openInvoicesResult, methodsResult, jobNo] = await Promise.all([
-    listOpenInvoicesForCustomerAction(orgId, customerId),
-    listPaymentMethodsAction(orgId).then(async (m) => {
-      if (m.methods.length === 0) {
-        await seedDefaultPaymentMethodsAction(orgId)
-        return listPaymentMethodsAction(orgId)
-      }
-      return m
-    }),
-    jobId ? getJobNo(orgId, jobId) : Promise.resolve(null),
-  ])
+  let openInvoicesResult: Awaited<ReturnType<typeof listOpenInvoicesForCustomerAction>>
+  let methodsResult: Awaited<ReturnType<typeof listPaymentMethodsAction>>
+  let jobNo: number | null
+  try {
+    ;[openInvoicesResult, methodsResult, jobNo] = await Promise.all([
+      listOpenInvoicesForCustomerAction(orgId, customerId),
+      listPaymentMethodsAction(orgId).then(async (m) => {
+        if (m.methods.length === 0) {
+          await seedDefaultPaymentMethodsAction(orgId)
+          return listPaymentMethodsAction(orgId)
+        }
+        return m
+      }),
+      jobId ? getJobNo(orgId, jobId) : Promise.resolve(null),
+    ])
+  } catch (err) {
+    return (
+      <div className="p-8 font-mono text-sm">
+        <p className="font-bold text-destructive">Server error (debug — will be removed):</p>
+        <pre className="mt-2 whitespace-pre-wrap text-xs">{err instanceof Error ? `${err.name}: ${err.message}\n${err.stack}` : String(err)}</pre>
+      </div>
+    )
+  }
 
   return (
     <ReceivePaymentForm

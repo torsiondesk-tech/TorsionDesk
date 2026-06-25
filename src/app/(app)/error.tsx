@@ -29,7 +29,9 @@ export default function ErrorBoundary({
           contact support if the problem persists.
         </p>
         <pre className="mt-2 max-w-md overflow-auto rounded-lg bg-muted p-3 text-left text-xs text-muted-foreground">
-          {error.message || error.digest || 'No details available'}
+          {error.digest ? `digest: ${error.digest}\n` : ''}
+          {error.cause ? `cause: ${String(error.cause)}\n` : ''}
+          {error.message}
         </pre>
       </div>
       <div className="flex gap-3">
