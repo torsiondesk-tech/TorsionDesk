@@ -167,7 +167,7 @@ export function InvoiceDetailShell({ invoice, customer, jobNo }: InvoiceDetailSh
         </p>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
         {/* Left: line items */}
         <div className="space-y-6">
           <Card>
