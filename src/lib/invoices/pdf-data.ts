@@ -13,6 +13,7 @@ import {
   jobSignatures,
   paymentAllocations,
   payments,
+  paymentMethods,
 } from '@/db/schema'
 
 const SIGNATURE_BUCKET = 'tenant-assets'
@@ -188,6 +189,7 @@ export async function getInvoiceForPdf(
         paymentNo: payments.paymentNo,
         receivedOn: payments.receivedOn,
         method: payments.method,
+        methodName: paymentMethods.name,
         amountApplied: paymentAllocations.amountApplied,
       })
       .from(paymentAllocations)
@@ -195,6 +197,7 @@ export async function getInvoiceForPdf(
         payments,
         and(eq(payments.tenantId, paymentAllocations.tenantId), eq(payments.id, paymentAllocations.paymentId)),
       )
+      .leftJoin(paymentMethods, and(eq(paymentMethods.tenantId, payments.tenantId), eq(paymentMethods.id, payments.method)))
       .where(and(eq(paymentAllocations.tenantId, orgId), eq(paymentAllocations.invoiceId, id)))
       .orderBy(sql`${paymentAllocations.createdAt} DESC`)
 
@@ -250,7 +253,7 @@ export async function getInvoiceForPdf(
       payments: paymentRows.map((p) => ({
         paymentNo: p.paymentNo,
         receivedOn: toDateString(p.receivedOn),
-        method: p.method,
+        method: p.methodName ?? p.method,
         amountApplied: String(p.amountApplied),
       })),
     }
