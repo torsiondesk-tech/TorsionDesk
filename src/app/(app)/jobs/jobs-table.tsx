@@ -46,7 +46,7 @@ function priorityLabel(priority: string | null) {
 
 function formatDate(d: Date | null) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString()
+  return new Date(d).toLocaleDateString(undefined, { timeZone: 'UTC' })
 }
 
 const columns: ColumnDef<JobRow>[] = [

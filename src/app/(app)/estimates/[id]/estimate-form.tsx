@@ -105,8 +105,8 @@ function toDateInputValue(d: Date | string | null | undefined): string {
 function toTimeInputValue(d: Date | string | null | undefined): string {
   if (!d) return ''
   const date = new Date(d)
-  const h = String(date.getHours()).padStart(2, '0')
-  const m = String(date.getMinutes()).padStart(2, '0')
+  const h = String(date.getUTCHours()).padStart(2, '0')
+  const m = String(date.getUTCMinutes()).padStart(2, '0')
   return `${h}:${m}`
 }
 

@@ -1089,7 +1089,7 @@ export function CustomerDetailForm({
                         </td>
                         <td className="px-4 py-2 text-muted-foreground">
                           {job.startDate
-                            ? new Date(job.startDate).toLocaleDateString()
+                            ? new Date(job.startDate).toLocaleDateString(undefined, { timeZone: 'UTC' })
                             : '—'}
                         </td>
                       </tr>

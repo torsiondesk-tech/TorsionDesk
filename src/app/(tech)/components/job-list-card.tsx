@@ -13,7 +13,7 @@ interface JobListCardProps {
 }
 
 function formatTime(d: Date): string {
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
 }
 
 function arrivalWindow(job: JobRow): string {
@@ -91,7 +91,7 @@ export function JobListCard({ job }: JobListCardProps) {
             {job.startDate && (
               <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Calendar className="size-3.5 shrink-0" />
-                {job.startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                {job.startDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}
               </span>
             )}
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">

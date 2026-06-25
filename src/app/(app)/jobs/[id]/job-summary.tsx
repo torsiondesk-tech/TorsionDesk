@@ -411,7 +411,7 @@ export function JobSummary({
                   <Repeat className="size-3.5 text-muted-foreground" />
                   {job.repeatFrequency ?? 'Repeating'}
                   {job.repeatEndDate &&
-                    ` until ${new Date(job.repeatEndDate).toLocaleDateString()}`}
+                    ` until ${new Date(job.repeatEndDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}`}
                 </div>
               </div>
             )}
