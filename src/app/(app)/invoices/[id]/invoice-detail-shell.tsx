@@ -36,6 +36,8 @@ import { toast } from 'sonner'
 import {
   deleteInvoiceAction,
   generateStripePaymentLinkAction,
+  listLocationsAction,
+  searchCustomersAction,
   sendInvoiceAction,
   updateInvoiceAction,
   type getInvoiceAction,
@@ -54,6 +56,16 @@ interface JobDetails {
   startDate: string | null
   poNumber: string | null
   description: string | null
+}
+
+type CustomerOption = { id: string; name: string }
+type LocationOption = {
+  id: string
+  name: string | null
+  addressLine1: string | null
+  city: string | null
+  state: string | null
+  postalCode: string | null
 }
 
 interface InvoiceDetailShellProps {
@@ -130,6 +142,17 @@ export function InvoiceDetailShell({
   const [paymentLinkUrl, setPaymentLinkUrl] = useState(invoice.paymentLinkUrl)
   const [generatingLink, setGeneratingLink] = useState(false)
 
+  // Change Bill To Account dialog
+  const [custDialogOpen, setCustDialogOpen] = useState(false)
+  const [custSearch, setCustSearch] = useState('')
+  const [custResults, setCustResults] = useState<CustomerOption[]>([])
+  const [custLoading, setCustLoading] = useState(false)
+
+  // Change Address dialog
+  const [addrDialogOpen, setAddrDialogOpen] = useState(false)
+  const [locations, setLocations] = useState<LocationOption[]>([])
+  const [addrLoading, setAddrLoading] = useState(false)
+
   // Edit form state — reset to current invoice values when entering edit mode
   const [editDate, setEditDate] = useState(invoice.invoiceDate ?? '')
   const [editTerms, setEditTerms] = useState(String(invoice.paymentTermsDays ?? 30))
@@ -154,6 +177,57 @@ export function InvoiceDetailShell({
     setEditSentBy(invoice.sentBy ?? '')
     setEditSentOn(invoice.sentOn ?? '')
     setMode('edit')
+  }
+
+  const openCustDialog = async () => {
+    setCustSearch('')
+    setCustResults([])
+    setCustLoading(true)
+    setCustDialogOpen(true)
+    const results = await searchCustomersAction(invoice.tenantId, '')
+    setCustResults(results)
+    setCustLoading(false)
+  }
+
+  const handleCustSearch = async (q: string) => {
+    setCustSearch(q)
+    setCustLoading(true)
+    const results = await searchCustomersAction(invoice.tenantId, q)
+    setCustResults(results)
+    setCustLoading(false)
+  }
+
+  const handleCustSelect = async (customerId: string) => {
+    const result = await updateInvoiceAction(invoice.tenantId, invoice.id, { customerId })
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success('Bill To account updated.')
+      setCustDialogOpen(false)
+      router.refresh()
+    }
+  }
+
+  const openAddrDialog = async () => {
+    setLocations([])
+    setAddrLoading(true)
+    setAddrDialogOpen(true)
+    const locs = await listLocationsAction(invoice.tenantId, invoice.customerId)
+    setLocations(locs)
+    setAddrLoading(false)
+  }
+
+  const handleLocSelect = async (locationId: string) => {
+    const result = await updateInvoiceAction(invoice.tenantId, invoice.id, {
+      serviceLocationId: locationId,
+    })
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success('Service location updated.')
+      setAddrDialogOpen(false)
+      router.refresh()
+    }
   }
 
   const handleSave = async () => {
@@ -410,7 +484,10 @@ export function InvoiceDetailShell({
             <p key={i} className="text-muted-foreground">{line}</p>
           ))}
           {mode === 'edit' && (
-            <button className="mt-2 text-xs text-blue-600 hover:underline">
+            <button
+              onClick={openCustDialog}
+              className="mt-2 text-xs text-blue-600 hover:underline"
+            >
               Change Bill To Account
             </button>
           )}
@@ -429,7 +506,12 @@ export function InvoiceDetailShell({
             <p className="text-muted-foreground">—</p>
           )}
           {mode === 'edit' && (
-            <button className="mt-2 text-xs text-blue-600 hover:underline">Change Address</button>
+            <button
+              onClick={openAddrDialog}
+              className="mt-2 text-xs text-blue-600 hover:underline"
+            >
+              Change Address
+            </button>
           )}
         </div>
 
@@ -690,6 +772,86 @@ export function InvoiceDetailShell({
           </Button>
         </div>
       )}
+
+      {/* ── Change Bill To Account dialog ── */}
+      <Dialog open={custDialogOpen} onOpenChange={(open) => { if (!open) setCustDialogOpen(false) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Bill To Account</DialogTitle>
+            <DialogDescription>Search for the customer to bill this invoice to.</DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Search customers…"
+            value={custSearch}
+            onChange={(e) => handleCustSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="max-h-64 overflow-y-auto divide-y rounded border mt-1">
+            {custLoading ? (
+              <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
+                <Loader2 className="size-4 animate-spin mr-2" />
+                Searching…
+              </div>
+            ) : custResults.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No customers found.</p>
+            ) : (
+              custResults.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => handleCustSelect(c.id)}
+                  className="flex w-full items-center px-3 py-2.5 text-sm hover:bg-muted text-left"
+                >
+                  {c.name}
+                </button>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustDialogOpen(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Change Address dialog ── */}
+      <Dialog open={addrDialogOpen} onOpenChange={(open) => { if (!open) setAddrDialogOpen(false) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Service Location</DialogTitle>
+            <DialogDescription>
+              Select the service location for this invoice.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-64 overflow-y-auto divide-y rounded border">
+            {addrLoading ? (
+              <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
+                <Loader2 className="size-4 animate-spin mr-2" />
+                Loading locations…
+              </div>
+            ) : locations.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No service locations found for this customer.
+              </p>
+            ) : (
+              locations.map((loc) => {
+                const addrLine = [loc.addressLine1, [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', ')].filter(Boolean).join(', ')
+                return (
+                  <button
+                    key={loc.id}
+                    onClick={() => handleLocSelect(loc.id)}
+                    className="flex w-full flex-col items-start px-3 py-2.5 text-sm hover:bg-muted text-left"
+                  >
+                    {loc.name && <span className="font-medium">{loc.name}</span>}
+                    <span className="text-muted-foreground">{addrLine || '—'}</span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddrDialogOpen(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

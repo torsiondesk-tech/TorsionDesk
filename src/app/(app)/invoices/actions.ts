@@ -16,6 +16,7 @@ import {
   customers,
   customerEvents,
   jobStatusHistory,
+  serviceLocations,
 } from '@/db/schema'
 import { nextInvoiceNo } from '@/lib/invoices/invoice-number'
 import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
@@ -557,6 +558,8 @@ export async function updateInvoiceAction(
     notes?: string | null
     sentBy?: string | null
     sentOn?: string | null
+    customerId?: string
+    serviceLocationId?: string | null
   },
 ): Promise<{ error?: string }> {
   const { userId } = await auth()
@@ -568,6 +571,8 @@ export async function updateInvoiceAction(
         .update(invoices)
         .set({
           ...(data.invoiceDate && { invoiceDate: data.invoiceDate }),
+          ...(data.customerId && { customerId: data.customerId }),
+          ...(data.serviceLocationId !== undefined && { serviceLocationId: data.serviceLocationId }),
           paymentTermsDays: data.paymentTermsDays ?? null,
           notes: data.notes ?? null,
           sentBy: data.sentBy ?? null,
@@ -662,4 +667,58 @@ export async function generateStripePaymentLinkAction(
     logger.error('generateStripePaymentLinkAction', err)
     return { error: extractErrorMessage(err) || 'Could not generate payment link.' }
   }
+}
+
+export async function searchCustomersAction(
+  orgId: string,
+  q: string,
+): Promise<Array<{ id: string; name: string }>> {
+  return withTenant(orgId, async (tx) => {
+    return tx
+      .select({ id: customers.id, name: customers.name })
+      .from(customers)
+      .where(
+        and(
+          eq(customers.tenantId, orgId),
+          eq(customers.active, true),
+          q.trim() ? sql`${customers.name} ILIKE ${`%${q.trim()}%`}` : undefined,
+        ),
+      )
+      .orderBy(customers.name)
+      .limit(20)
+  })
+}
+
+export async function listLocationsAction(
+  orgId: string,
+  customerId: string,
+): Promise<
+  Array<{
+    id: string
+    name: string | null
+    addressLine1: string | null
+    city: string | null
+    state: string | null
+    postalCode: string | null
+  }>
+> {
+  return withTenant(orgId, async (tx) => {
+    return tx
+      .select({
+        id: serviceLocations.id,
+        name: serviceLocations.name,
+        addressLine1: serviceLocations.addressLine1,
+        city: serviceLocations.city,
+        state: serviceLocations.state,
+        postalCode: serviceLocations.postalCode,
+      })
+      .from(serviceLocations)
+      .where(
+        and(
+          eq(serviceLocations.tenantId, orgId),
+          eq(serviceLocations.customerId, customerId),
+        ),
+      )
+      .orderBy(serviceLocations.addressLine1)
+  })
 }
