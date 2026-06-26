@@ -14,6 +14,7 @@ import {
   jobs,
   jobLineItems,
   customers,
+  contacts,
   customerEvents,
   jobStatusHistory,
   serviceLocations,
@@ -559,6 +560,7 @@ export async function updateInvoiceAction(
     sentBy?: string | null
     sentOn?: string | null
     customerId?: string
+    contactId?: string | null
     serviceLocationId?: string | null
   },
 ): Promise<{ error?: string }> {
@@ -572,6 +574,7 @@ export async function updateInvoiceAction(
         .set({
           ...(data.invoiceDate && { invoiceDate: data.invoiceDate }),
           ...(data.customerId && { customerId: data.customerId }),
+          ...(data.contactId !== undefined && { contactId: data.contactId }),
           ...(data.serviceLocationId !== undefined && { serviceLocationId: data.serviceLocationId }),
           paymentTermsDays: data.paymentTermsDays ?? null,
           notes: data.notes ?? null,
@@ -669,23 +672,21 @@ export async function generateStripePaymentLinkAction(
   }
 }
 
-export async function searchCustomersAction(
+export async function listContactsAction(
   orgId: string,
-  q: string,
-): Promise<Array<{ id: string; name: string }>> {
+  customerId: string,
+): Promise<Array<{ id: string; firstName: string; lastName: string | null; billingContact: boolean | null }>> {
   return withTenant(orgId, async (tx) => {
     return tx
-      .select({ id: customers.id, name: customers.name })
-      .from(customers)
-      .where(
-        and(
-          eq(customers.tenantId, orgId),
-          eq(customers.active, true),
-          q.trim() ? sql`${customers.name} ILIKE ${`%${q.trim()}%`}` : undefined,
-        ),
-      )
-      .orderBy(customers.name)
-      .limit(20)
+      .select({
+        id: contacts.id,
+        firstName: contacts.firstName,
+        lastName: contacts.lastName,
+        billingContact: contacts.billingContact,
+      })
+      .from(contacts)
+      .where(and(eq(contacts.tenantId, orgId), eq(contacts.customerId, customerId)))
+      .orderBy(contacts.firstName)
   })
 }
 

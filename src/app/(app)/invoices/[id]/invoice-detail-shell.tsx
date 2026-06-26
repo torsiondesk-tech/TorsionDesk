@@ -36,8 +36,8 @@ import { toast } from 'sonner'
 import {
   deleteInvoiceAction,
   generateStripePaymentLinkAction,
+  listContactsAction,
   listLocationsAction,
-  searchCustomersAction,
   sendInvoiceAction,
   updateInvoiceAction,
   type getInvoiceAction,
@@ -58,7 +58,7 @@ interface JobDetails {
   description: string | null
 }
 
-type CustomerOption = { id: string; name: string }
+type ContactOption = { id: string; firstName: string; lastName: string | null; billingContact: boolean | null }
 type LocationOption = {
   id: string
   name: string | null
@@ -144,8 +144,8 @@ export function InvoiceDetailShell({
 
   // Change Bill To Account dialog
   const [custDialogOpen, setCustDialogOpen] = useState(false)
-  const [custSearch, setCustSearch] = useState('')
-  const [custResults, setCustResults] = useState<CustomerOption[]>([])
+  const [custContacts, setCustContacts] = useState<ContactOption[]>([])
+  const [custAddresses, setCustAddresses] = useState<LocationOption[]>([])
   const [custLoading, setCustLoading] = useState(false)
 
   // Change Address dialog
@@ -180,29 +180,38 @@ export function InvoiceDetailShell({
   }
 
   const openCustDialog = async () => {
-    setCustSearch('')
-    setCustResults([])
+    setCustContacts([])
+    setCustAddresses([])
     setCustLoading(true)
     setCustDialogOpen(true)
-    const results = await searchCustomersAction(invoice.tenantId, '')
-    setCustResults(results)
+    const [contactRows, locationRows] = await Promise.all([
+      listContactsAction(invoice.tenantId, invoice.customerId),
+      listLocationsAction(invoice.tenantId, invoice.customerId),
+    ])
+    setCustContacts(contactRows)
+    setCustAddresses(locationRows)
     setCustLoading(false)
   }
 
-  const handleCustSearch = async (q: string) => {
-    setCustSearch(q)
-    setCustLoading(true)
-    const results = await searchCustomersAction(invoice.tenantId, q)
-    setCustResults(results)
-    setCustLoading(false)
-  }
-
-  const handleCustSelect = async (customerId: string) => {
-    const result = await updateInvoiceAction(invoice.tenantId, invoice.id, { customerId })
+  const handleContactSelect = async (contactId: string) => {
+    const result = await updateInvoiceAction(invoice.tenantId, invoice.id, { contactId })
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success('Bill To account updated.')
+      toast.success('Billing contact updated.')
+      setCustDialogOpen(false)
+      router.refresh()
+    }
+  }
+
+  const handleBillToAddressSelect = async (locationId: string) => {
+    const result = await updateInvoiceAction(invoice.tenantId, invoice.id, {
+      serviceLocationId: locationId,
+    })
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success('Billing address updated.')
       setCustDialogOpen(false)
       router.refresh()
     }
@@ -778,34 +787,74 @@ export function InvoiceDetailShell({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Change Bill To Account</DialogTitle>
-            <DialogDescription>Search for the customer to bill this invoice to.</DialogDescription>
+            <DialogDescription>
+              Select a contact or address from this customer.
+            </DialogDescription>
           </DialogHeader>
-          <Input
-            placeholder="Search customers…"
-            value={custSearch}
-            onChange={(e) => handleCustSearch(e.target.value)}
-            autoFocus
-          />
-          <div className="max-h-64 overflow-y-auto divide-y rounded border mt-1">
-            {custLoading ? (
-              <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
-                <Loader2 className="size-4 animate-spin mr-2" />
-                Searching…
+
+          {custLoading ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+              <Loader2 className="size-4 animate-spin mr-2" />
+              Loading…
+            </div>
+          ) : (
+            <div className="max-h-80 overflow-y-auto space-y-3">
+              {/* Contacts */}
+              <div>
+                <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Contacts
+                </p>
+                <div className="divide-y rounded border">
+                  {custContacts.length === 0 ? (
+                    <p className="px-3 py-2.5 text-sm text-muted-foreground">No contacts on file.</p>
+                  ) : (
+                    custContacts.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => handleContactSelect(c.id)}
+                        className="flex w-full items-center justify-between px-3 py-2.5 text-sm hover:bg-muted text-left"
+                      >
+                        <span>{[c.firstName, c.lastName].filter(Boolean).join(' ')}</span>
+                        {c.billingContact && (
+                          <span className="text-xs text-muted-foreground">Billing</span>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
-            ) : custResults.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No customers found.</p>
-            ) : (
-              custResults.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => handleCustSelect(c.id)}
-                  className="flex w-full items-center px-3 py-2.5 text-sm hover:bg-muted text-left"
-                >
-                  {c.name}
-                </button>
-              ))
-            )}
-          </div>
+
+              {/* Addresses */}
+              <div>
+                <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Addresses
+                </p>
+                <div className="divide-y rounded border">
+                  {custAddresses.length === 0 ? (
+                    <p className="px-3 py-2.5 text-sm text-muted-foreground">No addresses on file.</p>
+                  ) : (
+                    custAddresses.map((loc) => {
+                      const addrLine = [
+                        loc.addressLine1,
+                        [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', '),
+                      ].filter(Boolean).join(', ')
+                      return (
+                        <button
+                          key={loc.id}
+                          onClick={() => handleBillToAddressSelect(loc.id)}
+                          className="flex w-full flex-col items-start px-3 py-2.5 text-sm hover:bg-muted text-left"
+                        >
+                          {loc.name && <span className="font-medium">{loc.name}</span>}
+                          <span className="text-muted-foreground">{addrLine || '—'}</span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setCustDialogOpen(false)}>Cancel</Button>
           </DialogFooter>
