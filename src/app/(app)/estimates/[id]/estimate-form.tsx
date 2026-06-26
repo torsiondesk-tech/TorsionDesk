@@ -553,8 +553,8 @@ export function EstimateForm({
       const result = await createContactForJob(customerId, {
         firstName: newContactFirstName.trim(),
         lastName: newContactLastName.trim() || null,
-        phone: newContactPhone || null,
-        email: newContactEmail.trim() || null,
+        phones: newContactPhone ? [{ number: newContactPhone, ext: null, type: 'cell', isPrimary: true }] : [],
+        emails: newContactEmail.trim() ? [{ address: newContactEmail.trim(), type: 'work', isPrimary: true }] : [],
       })
       if (result.error) {
         setContactError(result.error)

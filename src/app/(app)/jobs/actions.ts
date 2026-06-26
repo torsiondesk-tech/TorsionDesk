@@ -1272,8 +1272,13 @@ export async function createContactForJob(
   input: {
     firstName: string
     lastName?: string | null
-    phone?: string | null
-    email?: string | null
+    jobTitle?: string | null
+    billingContact?: boolean
+    bookingContact?: boolean
+    birthday?: string | null
+    anniversary?: string | null
+    phones?: Array<{ number: string; ext?: string | null; type: string; isPrimary: boolean }>
+    emails?: Array<{ address: string; type: string; isPrimary: boolean }>
   },
 ): Promise<{ id: string; error?: string }> {
   const { orgId } = await auth()
@@ -1295,25 +1300,34 @@ export async function createContactForJob(
           customerId,
           firstName: input.firstName,
           lastName: input.lastName ?? null,
+          jobTitle: input.jobTitle ?? null,
+          billingContact: input.billingContact ?? false,
+          bookingContact: input.bookingContact ?? false,
+          birthday: input.birthday ?? null,
+          anniversary: input.anniversary ?? null,
         })
         .returning({ id: contacts.id })
 
-      if (input.phone) {
+      for (const p of input.phones ?? []) {
+        const normalized = normalizePhone(p.number)
+        if (!normalized) continue
         await tx.insert(contactPhones).values({
           tenantId: orgId,
           contactId: newContact.id,
-          number: normalizePhone(input.phone)!,
-          type: 'cell',
-          isPrimary: true,
+          number: normalized,
+          ext: p.ext || null,
+          type: p.type as 'cell' | 'home' | 'work',
+          isPrimary: p.isPrimary,
         })
       }
-      if (input.email) {
+      for (const e of input.emails ?? []) {
+        if (!e.address.trim()) continue
         await tx.insert(contactEmails).values({
           tenantId: orgId,
           contactId: newContact.id,
-          address: input.email,
-          type: 'work',
-          isPrimary: true,
+          address: e.address.trim(),
+          type: e.type as 'work' | 'personal',
+          isPrimary: e.isPrimary,
         })
       }
 

@@ -182,6 +182,35 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   const [newContactLastName, setNewContactLastName] = useState('')
   const [newContactPhone, setNewContactPhone] = useState('')
   const [newContactEmail, setNewContactEmail] = useState('')
+  const [newContactDialogOpen, setNewContactDialogOpen] = useState(false)
+  const [savingNewContactDialog, setSavingNewContactDialog] = useState(false)
+  const [newContactDialogError, setNewContactDialogError] = useState<string | null>(null)
+
+  interface NewContactFormState {
+    firstName: string
+    lastName: string
+    jobTitle: string
+    billingContact: boolean
+    bookingContact: boolean
+    birthday: string
+    anniversary: string
+    phones: Array<{ number: string; ext: string; type: string; isPrimary: boolean }>
+    emails: Array<{ address: string; type: string; isPrimary: boolean }>
+  }
+
+  const emptyNewContactForm = (): NewContactFormState => ({
+    firstName: '',
+    lastName: '',
+    jobTitle: '',
+    billingContact: false,
+    bookingContact: false,
+    birthday: '',
+    anniversary: '',
+    phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
+    emails: [{ address: '', type: 'work', isPrimary: true }],
+  })
+
+  const [newContactForm, setNewContactForm] = useState<NewContactFormState>(emptyNewContactForm)
   const [locationMode, setLocationMode] = useState<'existing' | 'new' | 'edit'>(
     initial?.serviceLocationId || defaults?.locationId ? 'existing' : 'new'
   )
@@ -744,8 +773,8 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
       const result = await createContactForJob(customerId, {
         firstName: newContactFirstName.trim(),
         lastName: newContactLastName.trim() || null,
-        phone: newContactPhone || null,
-        email: newContactEmail.trim() || null,
+        phones: newContactPhone ? [{ number: newContactPhone, ext: null, type: 'cell', isPrimary: true }] : [],
+        emails: newContactEmail.trim() ? [{ address: newContactEmail.trim(), type: 'work', isPrimary: true }] : [],
       })
       if (result.error) {
         setContactError(result.error)
@@ -764,6 +793,46 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
       setContactError(err instanceof Error ? err.message : String(err))
     } finally {
       setSavingContact(false)
+    }
+  }
+
+  const handleSaveNewContactDialog = async () => {
+    if (!customerId) return
+    if (!newContactForm.firstName.trim() && !newContactForm.lastName.trim()) {
+      setNewContactDialogError('First or last name is required.')
+      return
+    }
+    setSavingNewContactDialog(true)
+    setNewContactDialogError(null)
+    try {
+      const result = await createContactForJob(customerId, {
+        firstName: newContactForm.firstName.trim(),
+        lastName: newContactForm.lastName.trim() || null,
+        jobTitle: newContactForm.jobTitle.trim() || null,
+        billingContact: newContactForm.billingContact,
+        bookingContact: newContactForm.bookingContact,
+        birthday: newContactForm.birthday || null,
+        anniversary: newContactForm.anniversary || null,
+        phones: newContactForm.phones
+          .filter((p) => p.number.trim())
+          .map((p) => ({ number: p.number, ext: p.ext || null, type: p.type, isPrimary: p.isPrimary })),
+        emails: newContactForm.emails
+          .filter((e) => e.address.trim())
+          .map((e) => ({ address: e.address, type: e.type, isPrimary: e.isPrimary })),
+      })
+      if (result.error) {
+        setNewContactDialogError(result.error)
+        return
+      }
+      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
+      setContacts(refreshed)
+      setPrimaryContactId(refreshedPrimary)
+      setContactId(result.id)
+      setNewContactDialogOpen(false)
+    } catch (err) {
+      setNewContactDialogError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingNewContactDialog(false)
     }
   }
 
@@ -918,7 +987,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-4">
               <Label htmlFor="contactId">Contact</Label>
-              {customerMode === 'new' || contactMode === 'new' ? (
+              {customerMode === 'new' ? (
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <Input
@@ -950,37 +1019,6 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     placeholder="Email (optional)"
                     type="email"
                   />
-                  {contactMode === 'new' && customerMode === 'existing' && (
-                    <div className="flex flex-wrap items-center gap-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setContactMode('existing')
-                          setNewContactFirstName('')
-                          setNewContactLastName('')
-                          setNewContactPhone('')
-                          setNewContactEmail('')
-                          setContactEdit(null)
-                          setContactError(null)
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        ← Use existing contact
-                      </button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={savingContact}
-                        onClick={handleSaveNewContact}
-                      >
-                        {savingContact ? 'Saving…' : 'Save Contact'}
-                      </Button>
-                    </div>
-                  )}
-                  {contactError && (
-                    <p className="text-xs text-destructive">{contactError}</p>
-                  )}
-                  {contactMode === 'new' && <input type="hidden" name="contactId" value="" />}
                 </div>
               ) : !customerId ? (
                 <div className="flex items-center gap-2">
@@ -1071,9 +1109,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           variant="outline"
                           onClick={() => {
                             setContactPickerOpen(false)
-                            setContactMode('new')
-                            setContactId(undefined)
-                            setContactEdit(null)
+                            setNewContactForm(emptyNewContactForm())
+                            setNewContactDialogError(null)
+                            setNewContactDialogOpen(true)
                           }}
                           className="mr-auto"
                         >
@@ -1094,6 +1132,221 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           }}
                         >
                           Select
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* Add New Contact dialog */}
+                  <Dialog open={newContactDialogOpen} onOpenChange={setNewContactDialogOpen}>
+                    <DialogContent className="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Add New Contact</DialogTitle>
+                        <DialogDescription>Create a new contact for this customer.</DialogDescription>
+                      </DialogHeader>
+                      <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-1">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">First Name</Label>
+                            <Input
+                              value={newContactForm.firstName}
+                              onChange={(e) => setNewContactForm((f) => ({ ...f, firstName: capitalizeWords(e.target.value) }))}
+                              autoCapitalize="words"
+                              placeholder="First name"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Last Name</Label>
+                            <Input
+                              value={newContactForm.lastName}
+                              onChange={(e) => setNewContactForm((f) => ({ ...f, lastName: capitalizeWords(e.target.value) }))}
+                              autoCapitalize="words"
+                              placeholder="Last name"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Job Title</Label>
+                          <Input
+                            value={newContactForm.jobTitle}
+                            onChange={(e) => setNewContactForm((f) => ({ ...f, jobTitle: e.target.value }))}
+                            placeholder="e.g. Property Manager"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap gap-5">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="ncd-billing"
+                              checked={newContactForm.billingContact}
+                              onCheckedChange={(c) => setNewContactForm((f) => ({ ...f, billingContact: c === true }))}
+                            />
+                            <Label htmlFor="ncd-billing" className="cursor-pointer text-sm">Billing Contact</Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="ncd-booking"
+                              checked={newContactForm.bookingContact}
+                              onCheckedChange={(c) => setNewContactForm((f) => ({ ...f, bookingContact: c === true }))}
+                            />
+                            <Label htmlFor="ncd-booking" className="cursor-pointer text-sm">Booking Contact</Label>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Birthday</Label>
+                            <Input
+                              type="date"
+                              value={newContactForm.birthday}
+                              onChange={(e) => setNewContactForm((f) => ({ ...f, birthday: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Anniversary</Label>
+                            <Input
+                              type="date"
+                              value={newContactForm.anniversary}
+                              onChange={(e) => setNewContactForm((f) => ({ ...f, anniversary: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Phone Numbers</div>
+                          {newContactForm.phones.map((phone, pi) => (
+                            <div key={pi} className="flex items-center gap-2">
+                              <Select
+                                value={phone.type}
+                                onValueChange={(val) => setNewContactForm((f) => {
+                                  const phones = [...f.phones]
+                                  phones[pi] = { ...phones[pi], type: val ?? phones[pi].type }
+                                  return { ...f, phones }
+                                })}
+                              >
+                                <SelectTrigger className="h-9 w-[88px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="cell">Cell</SelectItem>
+                                  <SelectItem value="home">Home</SelectItem>
+                                  <SelectItem value="work">Work</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                placeholder="555-0100"
+                                value={formatPhone(phone.number)}
+                                onChange={(e) => setNewContactForm((f) => {
+                                  const phones = [...f.phones]
+                                  phones[pi] = { ...phones[pi], number: e.target.value.replace(/\D/g, '') }
+                                  return { ...f, phones }
+                                })}
+                                className="flex-1"
+                              />
+                              <Input
+                                placeholder="Ext"
+                                value={phone.ext}
+                                onChange={(e) => setNewContactForm((f) => {
+                                  const phones = [...f.phones]
+                                  phones[pi] = { ...phones[pi], ext: e.target.value.replace(/\D/g, '') }
+                                  return { ...f, phones }
+                                })}
+                                className="w-16"
+                              />
+                              {newContactForm.phones.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-destructive"
+                                  onClick={() => setNewContactForm((f) => ({ ...f, phones: f.phones.filter((_, i) => i !== pi) }))}
+                                >
+                                  <X className="size-3" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <div className="space-y-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setNewContactForm((f) => ({
+                                ...f,
+                                phones: [...f.phones, { number: '', ext: '', type: 'cell', isPrimary: false }],
+                              }))}
+                            >
+                              <Plus className="mr-1 size-3" />
+                              Add phone
+                            </Button>
+                            <p className="text-xs text-muted-foreground pl-1">By providing a cell number, you agree to allow text communication.</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Email Addresses</div>
+                          {newContactForm.emails.map((email, ei) => (
+                            <div key={ei} className="flex items-center gap-2">
+                              <Select
+                                value={email.type}
+                                onValueChange={(val) => setNewContactForm((f) => {
+                                  const emails = [...f.emails]
+                                  emails[ei] = { ...emails[ei], type: val ?? emails[ei].type }
+                                  return { ...f, emails }
+                                })}
+                              >
+                                <SelectTrigger className="h-9 w-[100px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="work">Work</SelectItem>
+                                  <SelectItem value="personal">Personal</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                type="email"
+                                placeholder="name@company.com"
+                                value={email.address}
+                                onChange={(e) => setNewContactForm((f) => {
+                                  const emails = [...f.emails]
+                                  emails[ei] = { ...emails[ei], address: e.target.value }
+                                  return { ...f, emails }
+                                })}
+                                className="flex-1"
+                              />
+                              {newContactForm.emails.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-destructive"
+                                  onClick={() => setNewContactForm((f) => ({ ...f, emails: f.emails.filter((_, i) => i !== ei) }))}
+                                >
+                                  <X className="size-3" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setNewContactForm((f) => ({
+                              ...f,
+                              emails: [...f.emails, { address: '', type: 'work', isPrimary: false }],
+                            }))}
+                          >
+                            <Plus className="mr-1 size-3" />
+                            Add email
+                          </Button>
+                        </div>
+
+                        {newContactDialogError && (
+                          <p className="text-sm text-destructive">{newContactDialogError}</p>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setNewContactDialogOpen(false)}>Cancel</Button>
+                        <Button type="button" onClick={handleSaveNewContactDialog} disabled={savingNewContactDialog}>
+                          {savingNewContactDialog ? 'Saving…' : 'Save'}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
