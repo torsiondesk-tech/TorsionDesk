@@ -67,6 +67,9 @@ export interface InvoiceDetail {
   notes: string | null
   internalNotes: string | null
   paymentLinkUrl: string | null
+  sentBy: string | null
+  sentOn: string | null
+  emailOpenedAt: string | null
   total: string
   balance: string
   status: string
@@ -407,6 +410,9 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         notes: invoices.notes,
         internalNotes: invoices.internalNotes,
         paymentLinkUrl: invoices.paymentLinkUrl,
+        sentBy: invoices.sentBy,
+        sentOn: invoices.sentOn,
+        emailOpenedAt: invoices.emailOpenedAt,
         total: invoices.total,
         balance: balanceSubquery,
         createdAt: invoices.createdAt,
@@ -462,6 +468,9 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       notes: invoice.notes ?? null,
       internalNotes: invoice.internalNotes ?? null,
       paymentLinkUrl: invoice.paymentLinkUrl ?? null,
+      sentBy: invoice.sentBy ?? null,
+      sentOn: invoice.sentOn instanceof Date ? invoice.sentOn.toISOString().slice(0, 10) : null,
+      emailOpenedAt: invoice.emailOpenedAt instanceof Date ? invoice.emailOpenedAt.toISOString().slice(0, 10) : null,
       total: (totalCents / 100).toFixed(2),
       balance: (balanceCents / 100).toFixed(2),
       status: invoiceStatusLabel(balanceCents, totalCents, due),
@@ -537,6 +546,44 @@ export async function sendInvoiceAction(
 ): Promise<{ success: boolean }> {
   console.log('sendInvoiceAction called — stub, Phase 8 will implement Resend send')
   return { success: true }
+}
+
+export async function updateInvoiceAction(
+  orgId: string,
+  invoiceId: string,
+  data: {
+    invoiceDate?: string
+    paymentTermsDays?: number | null
+    notes?: string | null
+    sentBy?: string | null
+    sentOn?: string | null
+  },
+): Promise<{ error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { error: 'Not authenticated.' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(invoices)
+        .set({
+          ...(data.invoiceDate && { invoiceDate: data.invoiceDate }),
+          paymentTermsDays: data.paymentTermsDays ?? null,
+          notes: data.notes ?? null,
+          sentBy: data.sentBy ?? null,
+          sentOn: data.sentOn ? new Date(data.sentOn) : null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoiceId)))
+    })
+
+    revalidatePath(`/invoices/${invoiceId}`)
+    revalidatePath('/invoices')
+    return {}
+  } catch (err) {
+    logger.error('updateInvoiceAction', err)
+    return { error: extractErrorMessage(err) || 'Could not update invoice.' }
+  }
 }
 
 export async function deleteInvoiceAction(orgId: string, invoiceId: string): Promise<{ error?: string }> {

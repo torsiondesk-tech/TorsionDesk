@@ -1,9 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
+import { and, eq } from 'drizzle-orm'
 import { getCustomerById } from '@/lib/customers'
 import { withTenant } from '@/db/with-tenant'
-import { jobs } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { jobs, serviceLocations } from '@/db/schema'
 import { getInvoiceAction } from '../actions'
 import { InvoiceDetailShell } from './invoice-detail-shell'
 
@@ -11,14 +11,42 @@ interface InvoiceDetailPageProps {
   params: Promise<{ id: string }>
 }
 
-async function getJobNo(orgId: string, jobId: string): Promise<number | null> {
+async function getServiceLocation(orgId: string, locationId: string | null) {
+  if (!locationId) return null
   return withTenant(orgId, async (tx) => {
-    const rows = await tx
-      .select({ jobNo: jobs.jobNo })
+    const [row] = await tx
+      .select({
+        addressLine1: serviceLocations.addressLine1,
+        city: serviceLocations.city,
+        state: serviceLocations.state,
+        postalCode: serviceLocations.postalCode,
+      })
+      .from(serviceLocations)
+      .where(and(eq(serviceLocations.tenantId, orgId), eq(serviceLocations.id, locationId)))
+      .limit(1)
+    return row ?? null
+  })
+}
+
+async function getJobDetails(orgId: string, jobId: string) {
+  return withTenant(orgId, async (tx) => {
+    const [row] = await tx
+      .select({
+        jobNo: jobs.jobNo,
+        startDate: jobs.startDate,
+        poNumber: jobs.poNumber,
+        description: jobs.description,
+      })
       .from(jobs)
       .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, jobId)))
       .limit(1)
-    return rows[0]?.jobNo ?? null
+    if (!row) return null
+    return {
+      jobNo: row.jobNo,
+      startDate: row.startDate instanceof Date ? row.startDate.toISOString().slice(0, 10) : null,
+      poNumber: row.poNumber ?? null,
+      description: row.description ?? null,
+    }
   })
 }
 
@@ -30,14 +58,20 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
   const invoice = await getInvoiceAction(orgId, id)
   if (!invoice) notFound()
 
-  const [customer, jobNo] = await Promise.all([
+  const [customer, serviceLocation, jobDetails] = await Promise.all([
     getCustomerById(orgId, invoice.customerId),
-    getJobNo(orgId, invoice.jobId),
+    getServiceLocation(orgId, invoice.serviceLocationId),
+    getJobDetails(orgId, invoice.jobId),
   ])
 
   return (
-    <div className="animate-in fade-in-0 duration-300 space-y-6">
-      <InvoiceDetailShell invoice={invoice} customer={customer} jobNo={jobNo ?? undefined} />
+    <div className="animate-in fade-in-0 duration-300">
+      <InvoiceDetailShell
+        invoice={invoice}
+        customer={customer}
+        serviceLocation={serviceLocation}
+        jobDetails={jobDetails}
+      />
     </div>
   )
 }
