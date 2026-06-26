@@ -221,6 +221,10 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   // Enum selects (controlled so labels display correctly before popup opens)
   const [priority, setPriority] = useState(initial?.priority ?? 'normal')
   const [billingType, setBillingType] = useState(initial?.billingType ?? 'single_invoice')
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? '')
+  const [jobSourceId, setJobSourceId] = useState(initial?.jobSourceId ?? '')
+  const [assignedAgentId, setAssignedAgentId] = useState(initial?.assignedAgentId ?? '')
+  const [repeatFrequency, setRepeatFrequency] = useState(initial?.repeatFrequency ?? '')
 
   // Customer + dependent selects
   const [customerId, setCustomerId] = useState<string | undefined>(
@@ -1652,16 +1656,13 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="categoryId">Job Category</Label>
-              <Select name="categoryId" defaultValue={initial?.categoryId ?? ''}>
+              <Select name="categoryId" value={categoryId} onValueChange={(v) => { if (v !== undefined) setCategoryId(v ?? '') }}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category…">
-                    {(() => {
-                      if (!initial?.categoryId) return null
-                      const all = [...topCategories, ...childCategories]
-                      const match = all.find((c) => c.id === initial.categoryId)
-                      return match?.name ?? null
-                    })()}
-                  </SelectValue>
+                  <span className="flex flex-1 text-left text-sm">
+                    {categoryId
+                      ? (referenceData.jobCategories.find((c) => c.id === categoryId)?.name ?? categoryId)
+                      : <span className="text-muted-foreground">Select category…</span>}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select category…</SelectItem>
@@ -1708,14 +1709,13 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="jobSourceId">Job Source</Label>
-              <Select name="jobSourceId" defaultValue={initial?.jobSourceId ?? ''}>
+              <Select name="jobSourceId" value={jobSourceId} onValueChange={(v) => { if (v !== undefined) setJobSourceId(v ?? '') }}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select source…">
-                    {(() => {
-                      if (!initial?.jobSourceId) return null
-                      return referenceData.jobSources.find((s) => s.id === initial.jobSourceId)?.name ?? null
-                    })()}
-                  </SelectValue>
+                  <span className="flex flex-1 text-left text-sm">
+                    {jobSourceId
+                      ? (referenceData.jobSources.find((s) => s.id === jobSourceId)?.name ?? jobSourceId)
+                      : <span className="text-muted-foreground">Select source…</span>}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select source…</SelectItem>
@@ -1730,9 +1730,13 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="assignedAgentId">Agent / Rep</Label>
-              <Select name="assignedAgentId" defaultValue={initial?.assignedAgentId ?? ''}>
+              <Select name="assignedAgentId" value={assignedAgentId} onValueChange={(v) => { if (v !== undefined) setAssignedAgentId(v ?? '') }}>
                 <SelectTrigger id="assignedAgentId" className="w-full">
-                  <SelectValue placeholder="Select rep…" />
+                  <span className="flex flex-1 text-left text-sm">
+                    {assignedAgentId
+                      ? (referenceData.salesReps.find((r) => r.id === assignedAgentId)?.name ?? assignedAgentId)
+                      : <span className="text-muted-foreground">Select rep…</span>}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Select rep…</SelectItem>
@@ -1957,9 +1961,13 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
               <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
                 <div className="space-y-2">
                   <Label htmlFor="repeatFrequency">Frequency</Label>
-                  <Select name="repeatFrequency" defaultValue={initial?.repeatFrequency ?? ''}>
+                  <Select name="repeatFrequency" value={repeatFrequency} onValueChange={(v) => { if (v) setRepeatFrequency(v) }}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select frequency…" />
+                      <span className="flex flex-1 text-left text-sm">
+                        {repeatFrequency
+                          ? ({ daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' }[repeatFrequency] ?? repeatFrequency)
+                          : <span className="text-muted-foreground">Select frequency…</span>}
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="daily">Daily</SelectItem>
