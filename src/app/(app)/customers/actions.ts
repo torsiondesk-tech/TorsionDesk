@@ -447,6 +447,7 @@ const updateCustomerDetailSchema = z.object({
           .array(
             z.object({
               number: z.string().min(1).max(50),
+              ext: z.string().max(20).nullable().optional(),
               type: z.string().max(20),
               isPrimary: z.boolean(),
             }),
@@ -574,6 +575,7 @@ export async function updateCustomerDetail(
               tenantId: orgId,
               contactId: cid,
               number: p.number!,
+              ext: p.ext ?? null,
               type: p.type as 'cell' | 'home' | 'work',
               isPrimary: p.isPrimary,
             })),
@@ -632,6 +634,7 @@ export async function updateCustomerDetail(
               tenantId: orgId,
               contactId: newContact.id,
               number: p.number!,
+              ext: p.ext ?? null,
               type: p.type as 'cell' | 'home' | 'work',
               isPrimary: p.isPrimary,
             })),

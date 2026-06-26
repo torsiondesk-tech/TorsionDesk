@@ -98,6 +98,7 @@ const lineItemGroupSchema = z.object({
 const phoneSchema = z.object({
   id: z.string().optional(),
   number: z.string().min(1),
+  ext: z.string().max(20).optional(),
   type: z.enum(['cell', 'home', 'work']).default('cell'),
   isPrimary: z.boolean().default(false),
 })
@@ -791,6 +792,7 @@ export async function updateEstimateAction(
               tenantId: orgId,
               contactId: d.contactId!,
               number: p.number!,
+              ext: p.ext ?? null,
               type: p.type,
               isPrimary: p.isPrimary,
             })),
@@ -1676,7 +1678,7 @@ export async function searchServicesAction(
 
 export async function getCustomerContacts(
   customerId: string,
-): Promise<{ contacts: Array<{ id: string; firstName: string; lastName: string | null }>; primaryContactId: string | null }> {
+): Promise<{ contacts: Array<{ id: string; firstName: string; lastName: string | null; phone: string | null }>; primaryContactId: string | null }> {
   return jobsGetCustomerContacts(customerId)
 }
 

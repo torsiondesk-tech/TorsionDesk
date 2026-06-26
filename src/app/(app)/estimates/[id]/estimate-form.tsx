@@ -175,7 +175,7 @@ export function EstimateForm({
   const [assigneeUserIds, setAssigneeUserIds] = React.useState<string[]>(initial?.assigneeUserIds ?? [])
 
   // ── Dependent selects ──
-  const [contacts, setContacts] = React.useState<Array<{ id: string; firstName: string; lastName: string | null }>>([])
+  const [contacts, setContacts] = React.useState<Array<{ id: string; firstName: string; lastName: string | null; phone: string | null }>>([])
   const [locations, setLocations] = React.useState<
     Array<{
       id: string
@@ -195,6 +195,8 @@ export function EstimateForm({
 
   // ── Inline contact/location creation/editing ──
   const [contactMode, setContactMode] = React.useState<'existing' | 'new'>('existing')
+  const [contactPickerOpen, setContactPickerOpen] = React.useState(false)
+  const [contactPickerSelected, setContactPickerSelected] = React.useState<string>('')
   const [locationMode, setLocationMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
   interface LocationAddrState extends Partial<ParsedAddress> {
     addressLine2?: string
@@ -215,7 +217,7 @@ export function EstimateForm({
     firstName: string
     lastName: string
     jobTitle: string
-    phones: Array<{ id?: string; number: string; type: string; isPrimary: boolean }>
+    phones: Array<{ id?: string; number: string; ext: string; type: string; isPrimary: boolean }>
     emails: Array<{ id?: string; address: string; type: string; isPrimary: boolean }>
     smsConsent: boolean
     billingContact: boolean
@@ -227,7 +229,7 @@ export function EstimateForm({
     firstName: '',
     lastName: '',
     jobTitle: '',
-    phones: [{ number: '', type: 'cell', isPrimary: true }],
+    phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
     emails: [{ address: '', type: 'work', isPrimary: true }],
     smsConsent: false,
     billingContact: false,
@@ -247,10 +249,11 @@ export function EstimateForm({
             ? c.phones.map((p) => ({
                 id: p.id,
                 number: p.number,
+                ext: (p as { ext?: string | null }).ext ?? '',
                 type: p.type,
                 isPrimary: p.isPrimary ?? false,
               }))
-            : [{ number: '', type: 'cell', isPrimary: true }],
+            : [{ number: '', ext: '', type: 'cell', isPrimary: true }],
         emails:
           c.emails.length > 0
             ? c.emails.map((e) => ({
@@ -285,10 +288,11 @@ export function EstimateForm({
                 ? detail.phones.map((p) => ({
                     id: p.id,
                     number: p.number,
+                    ext: p.ext ?? '',
                     type: p.type,
                     isPrimary: p.isPrimary ?? false,
                   }))
-                : [{ number: '', type: 'cell', isPrimary: true }],
+                : [{ number: '', ext: '', type: 'cell', isPrimary: true }],
             emails:
               detail.emails.length > 0
                 ? detail.emails.map((e) => ({
@@ -324,7 +328,7 @@ export function EstimateForm({
 
   const updateContactPhone = (
     pi: number,
-    field: 'number' | 'type' | 'isPrimary',
+    field: 'number' | 'ext' | 'type' | 'isPrimary',
     value: string | boolean,
   ) => {
     setContactEdit((prev) => {
@@ -340,7 +344,7 @@ export function EstimateForm({
       if (!prev) return prev
       return {
         ...prev,
-        phones: [...prev.phones, { number: '', type: 'cell', isPrimary: false }],
+        phones: [...prev.phones, { number: '', ext: '', type: 'cell', isPrimary: false }],
       }
     })
   }
@@ -1230,47 +1234,116 @@ export function EstimateForm({
                   </div>
                 ) : (
                   <>
-                    <Select
-                      value={contactId ?? ''}
-                      onValueChange={(val) => {
-                        const v = val ?? ''
-                        if (v === '__new__') {
-                          setContactMode('new')
-                          setContactId(null)
-                          setContactEdit(null)
-                        } else if (v === '') {
-                          setContactId(null)
-                          setContactEdit(null)
-                        } else {
-                          setContactId(v)
-                        }
-                      }}
-                      disabled={!customerId}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select contact…">
-                          {contactId
-                            ? (() => {
+                    <input type="hidden" name="contactId" value={contactId ?? ''} />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!customerId}
+                        onClick={() => {
+                          setContactPickerSelected(contactId ?? '')
+                          setContactPickerOpen(true)
+                        }}
+                      >
+                        Select Contact
+                      </Button>
+                      {contactId && (
+                        <span className="text-sm font-medium">
+                          {contactEdit
+                            ? `${contactEdit.firstName}${contactEdit.lastName ? ' ' + contactEdit.lastName : ''}`
+                            : (() => {
                                 const c = contacts.find((c) => c.id === contactId)
-                                if (c) return `${c.firstName} ${c.lastName ?? ''}`.trim()
-                                if (contactEdit) return `${contactEdit.firstName} ${contactEdit.lastName}`.trim()
-                                if (contactsLoading) return 'Loading…'
-                                return contactId
-                              })()
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Select contact…</SelectItem>
-                        {contacts.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.firstName} {c.lastName}
-                            {c.id === primaryContactId ? ' (Primary)' : ''}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="__new__">+ Create new contact…</SelectItem>
-                      </SelectContent>
-                    </Select>
+                                return c ? `${c.firstName}${c.lastName ? ' ' + c.lastName : ''}` : contactsLoading ? 'Loading…' : ''
+                              })()}
+                        </span>
+                      )}
+                    </div>
+
+                    <Dialog open={contactPickerOpen} onOpenChange={setContactPickerOpen}>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Select Contact</DialogTitle>
+                          <DialogDescription>Choose a contact for this estimate or add a new one.</DialogDescription>
+                        </DialogHeader>
+                        <div className="max-h-64 overflow-y-auto">
+                          {contacts.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-muted-foreground">
+                              {contactsLoading ? 'Loading…' : 'No contacts for this customer.'}
+                            </p>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="w-8 py-2" />
+                                  <th className="py-2 text-left font-semibold">Contact Name</th>
+                                  <th className="py-2 text-left font-semibold">Phone</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {contacts.map((c) => {
+                                  const label = `${c.firstName}${c.lastName ? ' ' + c.lastName : ''}`
+                                  return (
+                                    <tr
+                                      key={c.id}
+                                      className="cursor-pointer hover:bg-muted/50"
+                                      onClick={() => setContactPickerSelected(c.id)}
+                                    >
+                                      <td className="py-2 pr-2">
+                                        <input
+                                          type="radio"
+                                          name="estContactPickerRadio"
+                                          checked={contactPickerSelected === c.id}
+                                          onChange={() => setContactPickerSelected(c.id)}
+                                          className="accent-primary"
+                                        />
+                                      </td>
+                                      <td className="py-2 pr-4 font-medium text-amber-700">
+                                        {label}{c.id === primaryContactId ? ' (Primary)' : ''}
+                                      </td>
+                                      <td className="py-2 text-muted-foreground">
+                                        {c.phone ? formatPhone(c.phone) : '—'}
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                        <DialogFooter className="flex-row gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setContactPickerOpen(false)
+                              setContactMode('new')
+                              setContactId(null)
+                              setContactEdit(null)
+                            }}
+                            className="mr-auto"
+                          >
+                            Add New Contact
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setContactPickerOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              if (contactPickerSelected) setContactId(contactPickerSelected)
+                              setContactPickerOpen(false)
+                            }}
+                          >
+                            Select
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
 
                     {contactId && customerId && (
                       <div className="flex items-center gap-2 pt-0.5">
@@ -1343,7 +1416,13 @@ export function EstimateForm({
                                 onChange={(e) =>
                                   updateContactPhone(pi, 'number', e.target.value.replace(/\D/g, ''))
                                 }
-                                className="max-w-[180px]"
+                                className="max-w-[160px]"
+                              />
+                              <Input
+                                placeholder="Ext"
+                                value={phone.ext}
+                                onChange={(e) => updateContactPhone(pi, 'ext', e.target.value.replace(/\D/g, ''))}
+                                className="w-16"
                               />
                               <Select
                                 value={phone.type}

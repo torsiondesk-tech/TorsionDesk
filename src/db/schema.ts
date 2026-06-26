@@ -187,6 +187,7 @@ export const contactPhones = pgTable(
       .notNull()
       .references(() => contacts.id, { onDelete: 'cascade' }),
     number: text('number').notNull(),
+    ext: text('ext'),
     type: phoneType('type').notNull().default('cell'),
     isPrimary: boolean('is_primary').default(false),
     createdAt: timestamp('created_at').defaultNow(),

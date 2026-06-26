@@ -459,7 +459,7 @@ export interface CreateContactInput {
   jobTitle?: string
   birthday?: string | null
   anniversary?: string | null
-  phones: Array<{ number: string; type: string; isPrimary: boolean }>
+  phones: Array<{ number: string; ext?: string | null; type: string; isPrimary: boolean }>
   emails: Array<{ address: string; type: string; isPrimary: boolean }>
 }
 
@@ -518,6 +518,7 @@ export async function createContact(
           tenantId: orgId,
           contactId: contact.id,
           number: p.number!,
+          ext: p.ext ?? null,
           type: p.type as 'cell' | 'home' | 'work',
           isPrimary: p.isPrimary,
         })),

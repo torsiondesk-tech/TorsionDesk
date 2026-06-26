@@ -67,7 +67,7 @@ interface ContactFormState {
   smsConsent: boolean
   billingContact: boolean
   bookingContact: boolean
-  phones: Array<{ number: string; type: string; isPrimary: boolean }>
+  phones: Array<{ number: string; ext: string; type: string; isPrimary: boolean }>
   emails: Array<{ address: string; type: string; isPrimary: boolean }>
 }
 
@@ -131,6 +131,7 @@ interface CustomerDetailFormProps {
     phones: Array<{
       id: string
       number: string
+      ext: string | null
       type: string
       isPrimary: boolean | null
     }>
@@ -220,7 +221,7 @@ export function CustomerDetailForm({
     smsConsent: false,
     billingContact: false,
     bookingContact: false,
-    phones: [{ number: '', type: 'cell', isPrimary: true }],
+    phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
     emails: [{ address: '', type: 'work', isPrimary: true }],
   })
 
@@ -240,10 +241,11 @@ export function CustomerDetailForm({
         c.phones.length > 0
           ? c.phones.map((p) => ({
               number: p.number,
+              ext: p.ext ?? '',
               type: p.type,
               isPrimary: p.isPrimary ?? false,
             }))
-          : [{ number: '', type: 'cell', isPrimary: true }],
+          : [{ number: '', ext: '', type: 'cell', isPrimary: true }],
       emails:
         c.emails.length > 0
           ? c.emails.map((e) => ({
@@ -333,7 +335,7 @@ export function CustomerDetailForm({
   const updateContactPhone = (
     ci: number,
     pi: number,
-    field: 'number' | 'type' | 'isPrimary',
+    field: 'number' | 'ext' | 'type' | 'isPrimary',
     value: string | boolean,
   ) => {
     setContactsState((prev) => {
@@ -352,7 +354,7 @@ export function CustomerDetailForm({
         ...next[ci],
         phones: [
           ...next[ci].phones,
-          { number: '', type: 'cell', isPrimary: false },
+          { number: '', ext: '', type: 'cell', isPrimary: false },
         ],
       }
       return next
@@ -751,7 +753,13 @@ export function CustomerDetailForm({
                                     e.target.value.replace(/\D/g, ''),
                                   )
                                 }
-                                className="max-w-[200px]"
+                                className="max-w-[175px]"
+                              />
+                              <Input
+                                placeholder="Ext"
+                                value={phone.ext}
+                                onChange={(e) => updateContactPhone(ci, pi, 'ext', e.target.value.replace(/\D/g, ''))}
+                                className="w-16"
                               />
                               <Select
                                 value={phone.type}

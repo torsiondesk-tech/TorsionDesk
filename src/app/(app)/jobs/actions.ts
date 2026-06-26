@@ -147,6 +147,7 @@ const createJobSchema = z.object({
 const phoneSchema = z.object({
   id: z.string().optional(),
   number: z.string().min(1),
+  ext: z.string().max(20).optional(),
   type: z.enum(['cell', 'home', 'work']).default('cell'),
   isPrimary: z.boolean().default(false),
 })
@@ -808,6 +809,7 @@ export async function updateJob(
             tenantId: orgId,
             contactId: data.contactId!,
             number: p.number!,
+            ext: p.ext ?? null,
             type: p.type,
             isPrimary: p.isPrimary,
           })),
@@ -1104,11 +1106,11 @@ export async function deleteJobLineItem(
 
 export async function getCustomerContacts(
   customerId: string,
-): Promise<{ contacts: Array<{ id: string; firstName: string; lastName: string | null }>; primaryContactId: string | null }> {
+): Promise<{ contacts: Array<{ id: string; firstName: string; lastName: string | null; phone: string | null }>; primaryContactId: string | null }> {
   const { orgId } = await auth()
   if (!orgId) return { contacts: [], primaryContactId: null }
 
-  const { contacts, customers } = await import('@/db/schema')
+  const { contacts, contactPhones, customers } = await import('@/db/schema')
   const { withTenant: wt } = await import('@/db/with-tenant')
   return wt(orgId, async (tx) => {
     const [contactRows, customerRow] = await Promise.all([
@@ -1123,7 +1125,26 @@ export async function getCustomerContacts(
         .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
         .limit(1),
     ])
-    return { contacts: contactRows, primaryContactId: customerRow[0]?.primaryContactId ?? null }
+
+    const contactsWithPhone = await Promise.all(
+      contactRows.map(async (c) => {
+        const phones = await tx
+          .select({ number: contactPhones.number })
+          .from(contactPhones)
+          .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, c.id), eq(contactPhones.isPrimary, true)))
+          .limit(1)
+        const fallback = phones.length === 0
+          ? await tx
+              .select({ number: contactPhones.number })
+              .from(contactPhones)
+              .where(and(eq(contactPhones.tenantId, orgId), eq(contactPhones.contactId, c.id)))
+              .limit(1)
+          : phones
+        return { ...c, phone: fallback[0]?.number ?? null }
+      }),
+    )
+
+    return { contacts: contactsWithPhone, primaryContactId: customerRow[0]?.primaryContactId ?? null }
   })
 }
 
@@ -1140,6 +1161,7 @@ export interface ContactDetail {
   phones: Array<{
     id?: string
     number: string
+    ext?: string | null
     type: string
     isPrimary: boolean | null
   }>
@@ -1192,6 +1214,7 @@ export async function getCustomerContactDetail(
       phones: phones.map((p) => ({
         id: p.id,
         number: p.number,
+        ext: p.ext,
         type: p.type,
         isPrimary: p.isPrimary,
       })),
