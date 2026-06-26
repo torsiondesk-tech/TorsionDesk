@@ -198,6 +198,12 @@ const createJobSchema = z.object({
   repeatEndDate: emptyToNull,
   notesForTechs: emptyToUndefined,
   completionNotes: emptyToUndefined,
+  paymentTermsDays: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+    z.number().int().min(0).nullable().optional(),
+  ),
+  jobPaymentMethod: emptyToNull,
+  checkRefNo: emptyToNull,
   tagIds: z.array(z.string()).default([]),
   assigneeUserIds: z.array(z.string()).default([]),
   lineItems: z.string().default('[]'),
@@ -397,6 +403,9 @@ export async function createJob(
     repeatEndDate: formData.get('repeatEndDate'),
     notesForTechs: formData.get('notesForTechs'),
     completionNotes: formData.get('completionNotes'),
+    paymentTermsDays: formData.get('paymentTermsDays'),
+    jobPaymentMethod: formData.get('jobPaymentMethod'),
+    checkRefNo: formData.get('checkRefNo'),
     tagIds,
     assigneeUserIds,
     lineItems: formData.get('lineItems'),
@@ -586,6 +595,9 @@ export async function createJob(
             repeatEndDate: data.repeatEndDate ? new Date(data.repeatEndDate) : null,
             notesForTechs: data.notesForTechs,
             completionNotes: data.completionNotes,
+            paymentTermsDays: data.paymentTermsDays ?? null,
+            jobPaymentMethod: data.jobPaymentMethod ?? null,
+            checkRefNo: data.checkRefNo ?? null,
           })
           .returning({ id: jobs.id })
 
@@ -920,6 +932,9 @@ export async function updateJob(
         repeatEndDate: data.repeatEndDate ? new Date(data.repeatEndDate) : null,
         notesForTechs: data.notesForTechs,
         completionNotes: data.completionNotes,
+        paymentTermsDays: data.paymentTermsDays ?? null,
+        jobPaymentMethod: data.jobPaymentMethod ?? null,
+        checkRefNo: data.checkRefNo ?? null,
         updatedAt: new Date(),
       })
       .where(and(eq(jobs.tenantId, orgId), eq(jobs.id, data.id)))

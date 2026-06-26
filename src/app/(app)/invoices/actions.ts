@@ -18,6 +18,7 @@ import {
   customerEvents,
   jobStatusHistory,
   serviceLocations,
+  tenants,
 } from '@/db/schema'
 import { nextInvoiceNo } from '@/lib/invoices/invoice-number'
 import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
@@ -168,8 +169,21 @@ export async function createInvoiceFromJobAction(
             : ((job as unknown as Record<string, string | undefined>).total ?? '0.00')
 
         const invoiceDate = toISODate(new Date())
-        const paymentTermsDays = 30
-        const dueDate = toISODate(new Date(Date.now() + paymentTermsDays * 24 * 60 * 60 * 1000))
+
+        // Resolve payment terms: job-level → org default → 0 (Due on Receipt)
+        let paymentTermsDays: number = job.paymentTermsDays ?? 0
+        if (job.paymentTermsDays == null) {
+          const [tenantRow] = await tx
+            .select({ defaultPaymentTermsDays: tenants.defaultPaymentTermsDays })
+            .from(tenants)
+            .where(eq(tenants.id, orgId))
+            .limit(1)
+          paymentTermsDays = tenantRow?.defaultPaymentTermsDays ?? 0
+        }
+
+        const dueDate = paymentTermsDays > 0
+          ? toISODate(new Date(Date.now() + paymentTermsDays * 24 * 60 * 60 * 1000))
+          : invoiceDate
 
         // 3. Resolve invoice contact — prefer the customer's billing contact.
         let invoiceContactId = job.contactId ?? null

@@ -25,6 +25,7 @@ const profileSchema = z.object({
   // Storage object path/URL for the tenant logo (TENANT-02, D-12). Set by the
   // Company Profile tab after `uploadLogo`; absent on the onboarding write.
   logoUrl: z.string().optional(),
+  defaultPaymentTermsDays: z.number().int().min(0).optional(),
 })
 
 export type ProfileInput = z.infer<typeof profileSchema>

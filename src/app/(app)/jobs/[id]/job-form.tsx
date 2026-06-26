@@ -95,6 +95,9 @@ export interface JobFormData {
   repeatEndDate?: string | null
   notesForTechs?: string | null
   completionNotes?: string | null
+  paymentTermsDays?: number | null
+  jobPaymentMethod?: string | null
+  checkRefNo?: string | null
   tagIds?: string[]
   assigneeUserIds?: string[]
   lineItems?: JobFormLineItem[]
@@ -248,6 +251,12 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     initial?.requiresFollowUp ?? false,
   )
   const [isRepeating, setIsRepeating] = useState(initial?.isRepeating ?? false)
+
+  // Payment fields
+  const [paymentTermsDays, setPaymentTermsDays] = useState(
+    initial?.paymentTermsDays != null ? String(initial.paymentTermsDays) : '',
+  )
+  const [jobPaymentMethod, setJobPaymentMethod] = useState(initial?.jobPaymentMethod ?? '')
 
   // Enum selects (controlled so labels display correctly before popup opens)
   const [priority, setPriority] = useState(initial?.priority ?? 'normal')
@@ -2269,6 +2278,59 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                   <SelectItem value="single_invoice">Single Invoice</SelectItem>
                   <SelectItem value="progress_billing">Progress Billing</SelectItem>
                   <SelectItem value="no_charge">No Charge</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* ── Payment ── */}
+            <div className="space-y-2">
+              <Label htmlFor="jobPaymentMethod">Payment Method</Label>
+              <input type="hidden" name="jobPaymentMethod" value={jobPaymentMethod} />
+              <Select value={jobPaymentMethod} onValueChange={(v) => setJobPaymentMethod(v ?? '')}>
+                <SelectTrigger id="jobPaymentMethod" className="w-full">
+                  <span className="flex flex-1 text-left text-sm">
+                    {jobPaymentMethod || <span className="text-muted-foreground">Select…</span>}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">—</SelectItem>
+                  <SelectItem value="Direct Bill">Direct Bill</SelectItem>
+                  <SelectItem value="Credit Card">Credit Card</SelectItem>
+                  <SelectItem value="Check">Check</SelectItem>
+                  <SelectItem value="COD">COD</SelectItem>
+                  <SelectItem value="Financing">Financing</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="checkRefNo">Check / Ref #</Label>
+              <Input
+                id="checkRefNo"
+                name="checkRefNo"
+                defaultValue={initial?.checkRefNo ?? ''}
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentTermsDays">Terms</Label>
+              <input type="hidden" name="paymentTermsDays" value={paymentTermsDays} />
+              <Select value={paymentTermsDays} onValueChange={(v) => setPaymentTermsDays(v ?? '')}>
+                <SelectTrigger id="paymentTermsDays" className="w-full">
+                  <span className="flex flex-1 text-left text-sm">
+                    {paymentTermsDays === ''
+                      ? <span className="text-muted-foreground">Use org default</span>
+                      : ({ '0': 'Due on Receipt', '15': 'Net 15', '30': 'Net 30', '45': 'Net 45', '60': 'Net 60' }[paymentTermsDays] ?? `Net ${paymentTermsDays}`)}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Use org default</SelectItem>
+                  <SelectItem value="0">Due on Receipt</SelectItem>
+                  <SelectItem value="15">Net 15</SelectItem>
+                  <SelectItem value="30">Net 30</SelectItem>
+                  <SelectItem value="45">Net 45</SelectItem>
+                  <SelectItem value="60">Net 60</SelectItem>
                 </SelectContent>
               </Select>
             </div>

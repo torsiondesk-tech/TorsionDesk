@@ -157,7 +157,7 @@ export function InvoiceDetailShell({
 
   // Edit form state — reset to current invoice values when entering edit mode
   const [editDate, setEditDate] = useState(invoice.invoiceDate ?? '')
-  const [editTerms, setEditTerms] = useState(String(invoice.paymentTermsDays ?? 30))
+  const [editTerms, setEditTerms] = useState(String(invoice.paymentTermsDays ?? 0))
   const [editNotes, setEditNotes] = useState(invoice.notes ?? '')
   const [editSentBy, setEditSentBy] = useState(invoice.sentBy ?? '')
   const [editSentOn, setEditSentOn] = useState(invoice.sentOn ?? '')
@@ -174,7 +174,7 @@ export function InvoiceDetailShell({
 
   const enterEdit = () => {
     setEditDate(invoice.invoiceDate ?? '')
-    setEditTerms(String(invoice.paymentTermsDays ?? 30))
+    setEditTerms(String(invoice.paymentTermsDays ?? 0))
     setEditNotes(invoice.notes ?? '')
     setEditSentBy(invoice.sentBy ?? '')
     setEditSentOn(invoice.sentOn ?? '')

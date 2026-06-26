@@ -30,6 +30,10 @@ const companyProfileSchema = z.object({
   email: z
     .union([z.string().trim().max(255).email('Enter a valid email'), z.literal('')])
     .optional(),
+  defaultPaymentTermsDays: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? 0 : Number(v)),
+    z.number().int().min(0).default(0),
+  ),
 })
 
 export type ProfileActionState = { error?: string; success?: boolean }
@@ -49,17 +53,18 @@ export async function saveCompanyProfile(
     phone: formData.get('phone'),
     address: formData.get('address'),
     email: formData.get('email'),
+    defaultPaymentTermsDays: formData.get('defaultPaymentTermsDays'),
   })
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Please check your input.' }
   }
 
   // Normalize empty optional strings to undefined so we don't store "".
-  const { companyName, phone } = parsed.data
+  const { companyName, phone, defaultPaymentTermsDays } = parsed.data
   const address = parsed.data.address || undefined
   const email = parsed.data.email || undefined
 
-  await saveProfile({ companyName, phone, address, email })
+  await saveProfile({ companyName, phone, address, email, defaultPaymentTermsDays })
   revalidatePath('/settings/company-profile')
   return { success: true }
 }

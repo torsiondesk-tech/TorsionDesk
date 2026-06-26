@@ -146,6 +146,9 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
     repeatEndDate: toDateInputValue(job.repeatEndDate),
     notesForTechs: job.notesForTechs,
     completionNotes: job.completionNotes,
+    paymentTermsDays: job.paymentTermsDays ?? null,
+    jobPaymentMethod: job.jobPaymentMethod ?? null,
+    checkRefNo: job.checkRefNo ?? null,
     tagIds: job.tags.map((t) => t.id),
     assigneeUserIds: job.assignees.map((a) => a.userId),
     lineItems: job.lineItems.map((li) => ({

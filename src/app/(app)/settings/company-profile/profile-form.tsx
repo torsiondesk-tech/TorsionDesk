@@ -13,6 +13,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   saveCompanyProfile,
   uploadCompanyLogo,
   type ProfileActionState,
@@ -32,6 +39,14 @@ import { formatPhone } from '@/lib/utils'
  * stored object path. UI follows the global quality standard (shadcn primitives,
  * consistent spacing, clear hierarchy, CSS-variable colors, entrance animation).
  */
+const TERMS_OPTIONS = [
+  { value: '0',  label: 'Due on Receipt' },
+  { value: '15', label: 'Net 15' },
+  { value: '30', label: 'Net 30' },
+  { value: '45', label: 'Net 45' },
+  { value: '60', label: 'Net 60' },
+]
+
 type Initial = {
   companyName: string
   phone: string
@@ -39,6 +54,7 @@ type Initial = {
   email: string
   logoUrl: string
   logoSignedUrl: string
+  defaultPaymentTermsDays: number
 }
 
 const profileInitial: ProfileActionState = {}
@@ -53,6 +69,8 @@ export function CompanyProfileForm({ initial }: { initial: Initial }) {
     uploadCompanyLogo,
     logoInitial,
   )
+
+  const [defaultTerms, setDefaultTerms] = useState(String(initial.defaultPaymentTermsDays ?? 0))
 
   // Local object-URL preview of the chosen file (always renderable, even though
   // the bucket is private). Falls back to nothing until a file is picked.
@@ -116,6 +134,26 @@ export function CompanyProfileForm({ initial }: { initial: Initial }) {
                   autoComplete="email"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="defaultPaymentTermsDays">Default Payment Terms</Label>
+              <input type="hidden" name="defaultPaymentTermsDays" value={defaultTerms} />
+              <Select value={defaultTerms} onValueChange={(v) => { if (v) setDefaultTerms(v) }}>
+                <SelectTrigger id="defaultPaymentTermsDays" className="w-full">
+                  <SelectValue>
+                    {TERMS_OPTIONS.find((o) => o.value === defaultTerms)?.label ?? defaultTerms}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {TERMS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Applied to new jobs and invoices when no job-level terms are set.
+              </p>
             </div>
 
             {profileState.error ? (

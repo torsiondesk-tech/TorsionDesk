@@ -23,6 +23,7 @@ export default async function CompanyProfilePage() {
         email: profile?.email ?? '',
         logoUrl: profile?.logoUrl ?? '',
         logoSignedUrl: logoSignedUrl ?? '',
+        defaultPaymentTermsDays: profile?.defaultPaymentTermsDays ?? 0,
       }}
     />
   )

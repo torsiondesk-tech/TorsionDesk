@@ -37,6 +37,7 @@ export const tenants = pgTable(
     address: text('address'),
     email: text('email'),
     logoUrl: text('logo_url'),
+    defaultPaymentTermsDays: integer('default_payment_terms_days').default(0),
   },
   (t) => [
     pgPolicy('tenant_self_isolation', {
@@ -719,6 +720,9 @@ export const jobs = pgTable(
     isRepeating: boolean('is_repeating').default(false),
     repeatFrequency: text('repeat_frequency'),
     repeatEndDate: timestamp('repeat_end_date'),
+    paymentTermsDays: integer('payment_terms_days'),
+    jobPaymentMethod: text('job_payment_method'),
+    checkRefNo: text('check_ref_no'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },

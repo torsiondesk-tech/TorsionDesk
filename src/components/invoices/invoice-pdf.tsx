@@ -291,7 +291,7 @@ export function InvoicePdfDocument({ data, workOrder }: InvoicePdfDocumentProps)
             <Text style={styles.invoiceMeta}>Due Date: {dueDate}</Text>
             {data.paymentTermsDays != null && (
               <Text style={styles.invoiceMeta}>
-                Payment Terms: Net {data.paymentTermsDays} days
+                Payment Terms: {data.paymentTermsDays === 0 ? 'Due on Receipt' : `Net ${data.paymentTermsDays} days`}
               </Text>
             )}
           </View>
