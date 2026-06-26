@@ -62,6 +62,8 @@ export interface InvoiceDetail {
   customerId: string
   customerName: string | null
   contactId: string | null
+  contactFirstName: string | null
+  contactLastName: string | null
   serviceLocationId: string | null
   invoiceDate: string | null
   dueDate: string | null
@@ -420,6 +422,8 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         customerId: invoices.customerId,
         customerName: customers.name,
         contactId: invoices.contactId,
+        contactFirstName: contacts.firstName,
+        contactLastName: contacts.lastName,
         serviceLocationId: invoices.serviceLocationId,
         invoiceDate: invoices.invoiceDate,
         dueDate: invoices.dueDate,
@@ -436,6 +440,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       })
       .from(invoices)
       .leftJoin(customers, and(eq(customers.tenantId, invoices.tenantId), eq(customers.id, invoices.customerId)))
+      .leftJoin(contacts, and(eq(contacts.tenantId, invoices.tenantId), eq(contacts.id, invoices.contactId)))
       .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, id)))
       .limit(1)
 
@@ -478,6 +483,8 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       customerId: invoice.customerId,
       customerName: invoice.customerName ?? null,
       contactId: invoice.contactId ?? null,
+      contactFirstName: invoice.contactFirstName ?? null,
+      contactLastName: invoice.contactLastName ?? null,
       serviceLocationId: invoice.serviceLocationId ?? null,
       invoiceDate: toDateString(invoice.invoiceDate),
       dueDate: toDateString(invoice.dueDate),

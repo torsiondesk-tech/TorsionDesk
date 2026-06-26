@@ -491,6 +491,11 @@ export function InvoiceDetailShell({
           ) : (
             <p className="font-medium mb-1">{invoice.customerName ?? '—'}</p>
           )}
+          {(invoice.contactFirstName || invoice.contactLastName) && (
+            <p className="text-sm text-muted-foreground mb-1">
+              {[invoice.contactFirstName, invoice.contactLastName].filter(Boolean).join(' ')}
+            </p>
+          )}
           {addressLines.map((line, i) => (
             <p key={i} className="text-muted-foreground">{line}</p>
           ))}
