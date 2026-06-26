@@ -218,6 +218,10 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
   )
   const [isRepeating, setIsRepeating] = useState(initial?.isRepeating ?? false)
 
+  // Enum selects (controlled so labels display correctly before popup opens)
+  const [priority, setPriority] = useState(initial?.priority ?? 'normal')
+  const [billingType, setBillingType] = useState(initial?.billingType ?? 'single_invoice')
+
   // Customer + dependent selects
   const [customerId, setCustomerId] = useState<string | undefined>(
     initial?.customerId ?? defaults?.customerId ?? undefined,
@@ -1854,9 +1858,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
-              <Select name="priority" defaultValue={initial?.priority ?? 'normal'}>
+              <Select name="priority" value={priority} onValueChange={(v) => { if (v) setPriority(v) }}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select priority…" />
+                  <span className="flex flex-1 text-left text-sm">
+                    {{ low: 'Low', normal: 'Normal', high: 'High', emergency: 'Emergency' }[priority] ?? priority}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Low</SelectItem>
@@ -1917,9 +1923,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
             <div className="space-y-2">
               <Label htmlFor="billingType">Billing Type</Label>
-              <Select name="billingType" defaultValue={initial?.billingType ?? 'single_invoice'}>
+              <Select name="billingType" value={billingType} onValueChange={(v) => { if (v) setBillingType(v) }}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select billing type…" />
+                  <span className="flex flex-1 text-left text-sm">
+                    {{ single_invoice: 'Single Invoice', progress_billing: 'Progress Billing', no_charge: 'No Charge' }[billingType] ?? billingType}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="single_invoice">Single Invoice</SelectItem>
