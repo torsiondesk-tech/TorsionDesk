@@ -53,6 +53,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Mail,
+  MailOpen,
 } from 'lucide-react'
 
 export interface InvoiceRow {
@@ -68,6 +70,9 @@ export interface InvoiceRow {
   total: string
   balance: string
   paymentLinkUrl: string | null
+  paymentTermsDays: number | null
+  sentOn: string | null
+  emailOpenedAt: string | null
   createdAt: string | null
 }
 
@@ -87,6 +92,12 @@ function formatMoney(value: string | number | null) {
   const num = typeof value === 'string' ? parseFloat(value) : value
   if (!Number.isFinite(num)) return '—'
   return `$${num.toFixed(2)}`
+}
+
+function formatTerms(days: number | null): string {
+  if (days == null) return '—'
+  if (days === 0) return 'Due on Receipt'
+  return `Net ${days}`
 }
 
 const PAGE_SIZE = 10
@@ -197,16 +208,9 @@ export function InvoicesTable({ rows, orgId, status }: InvoicesTableProps) {
   const columns: ColumnDef<InvoiceRow>[] = useMemo(
     () => [
       {
-        accessorKey: 'invoiceNo',
-        header: 'Invoice #',
-        cell: ({ row }) => (
-          <Link
-            href={`/invoices/${row.original.id}`}
-            className="font-medium text-foreground hover:underline"
-          >
-            #INV-{row.original.invoiceNo}
-          </Link>
-        ),
+        accessorKey: 'invoiceDate',
+        header: 'Date',
+        cell: ({ row }) => formatDate(row.original.invoiceDate),
       },
       {
         accessorKey: 'customerName',
@@ -225,6 +229,18 @@ export function InvoicesTable({ rows, orgId, status }: InvoicesTableProps) {
         },
       },
       {
+        accessorKey: 'invoiceNo',
+        header: 'Invoice #',
+        cell: ({ row }) => (
+          <Link
+            href={`/invoices/${row.original.id}`}
+            className="font-medium text-foreground hover:underline"
+          >
+            #INV-{row.original.invoiceNo}
+          </Link>
+        ),
+      },
+      {
         accessorKey: 'jobNo',
         header: 'Job #',
         cell: ({ row }) => {
@@ -240,46 +256,41 @@ export function InvoicesTable({ rows, orgId, status }: InvoicesTableProps) {
         },
       },
       {
-        accessorKey: 'invoiceDate',
-        header: 'Invoice Date',
-        cell: ({ row }) => formatDate(row.original.invoiceDate),
+        id: 'poNumber',
+        header: 'PO #',
+        cell: () => <span className="text-muted-foreground">—</span>,
       },
       {
-        accessorKey: 'dueDate',
-        header: 'Due Date',
+        id: 'terms',
+        header: 'Terms',
+        cell: ({ row }) => formatTerms(row.original.paymentTermsDays),
+      },
+      {
+        id: 'sent',
+        header: 'Sent',
         cell: ({ row }) => {
-          const isPastDue =
-            row.original.dueDate &&
-            parseFloat(row.original.balance) > 0 &&
-            new Date(row.original.dueDate) < new Date()
-          return (
-            <span className={cn(isPastDue && 'text-destructive')}>
-              {formatDate(row.original.dueDate)}
-            </span>
-          )
-        },
-      },
-      {
-        accessorKey: 'total',
-        header: 'Total',
-        cell: ({ row }) => (
-          <div className="text-right tabular-nums">{formatMoney(row.original.total)}</div>
-        ),
-      },
-      {
-        accessorKey: 'balance',
-        header: 'Balance',
-        cell: ({ row }) => {
-          const balance = parseFloat(row.original.balance)
-          return (
-            <div className="text-right tabular-nums">
-              {balance === 0 ? (
-                <span className="text-muted-foreground">—</span>
-              ) : (
-                formatMoney(row.original.balance)
-              )}
-            </div>
-          )
+          const { sentOn, emailOpenedAt } = row.original
+          if (emailOpenedAt) {
+            return (
+              <span
+                title={`Opened ${formatDate(emailOpenedAt)}`}
+                className="flex items-center"
+              >
+                <MailOpen className="size-4 text-emerald-600" />
+              </span>
+            )
+          }
+          if (sentOn) {
+            return (
+              <span
+                title={`Sent ${formatDate(sentOn)}`}
+                className="flex items-center"
+              >
+                <Mail className="size-4 text-blue-500" />
+              </span>
+            )
+          }
+          return <span className="text-muted-foreground">—</span>
         },
       },
       {
@@ -292,6 +303,29 @@ export function InvoicesTable({ rows, orgId, status }: InvoicesTableProps) {
           const variant = invoiceStatusBadgeVariant(balance, total, due)
           const label = invoiceStatusLabel(balance, total, due)
           return <Badge variant={variant}>{label}</Badge>
+        },
+      },
+      {
+        accessorKey: 'total',
+        header: 'Total',
+        cell: ({ row }) => (
+          <div className="text-right tabular-nums">{formatMoney(row.original.total)}</div>
+        ),
+      },
+      {
+        accessorKey: 'balance',
+        header: 'Total Due',
+        cell: ({ row }) => {
+          const balance = parseFloat(row.original.balance)
+          return (
+            <div className="text-right tabular-nums">
+              {balance === 0 ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                formatMoney(row.original.balance)
+              )}
+            </div>
+          )
         },
       },
       {

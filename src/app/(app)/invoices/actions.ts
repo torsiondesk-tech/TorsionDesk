@@ -46,6 +46,9 @@ export interface InvoiceRow {
   balance: string
   paymentLinkUrl: string | null
   status: string
+  paymentTermsDays: number | null
+  sentOn: string | null
+  emailOpenedAt: string | null
   createdAt: string | null
 }
 
@@ -330,6 +333,9 @@ export async function listInvoicesAction(
         total: invoices.total,
         balance: balanceSubquery,
         paymentLinkUrl: invoices.paymentLinkUrl,
+        paymentTermsDays: invoices.paymentTermsDays,
+        sentOn: invoices.sentOn,
+        emailOpenedAt: invoices.emailOpenedAt,
         createdAt: invoices.createdAt,
       })
       .from(invoices)
@@ -356,6 +362,9 @@ export async function listInvoicesAction(
         balance: (balanceCents / 100).toFixed(2),
         paymentLinkUrl: r.paymentLinkUrl ?? null,
         status,
+        paymentTermsDays: r.paymentTermsDays ?? null,
+        sentOn: r.sentOn instanceof Date ? r.sentOn.toISOString() : null,
+        emailOpenedAt: r.emailOpenedAt instanceof Date ? r.emailOpenedAt.toISOString() : null,
         createdAt:
           typeof r.createdAt === 'string'
             ? r.createdAt
