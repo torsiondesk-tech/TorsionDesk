@@ -25,7 +25,11 @@ import {
   jobTasks,
   jobReminders,
   salesReps,
+  invoices,
+  invoiceLineItems,
 } from '@/db/schema'
+import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
+import type { Tx } from '@/db/with-tenant'
 import { listSalesReps as listSalesRepsFromSettings } from '@/lib/settings'
 import { nextJobNo } from '@/lib/jobs/job-number'
 import { nextAccountNo } from '@/lib/account-number'
@@ -76,6 +80,62 @@ const emptyToNull = z.preprocess(
   (val) => (val === '' || val === null || val === undefined ? null : val),
   z.string().nullable().optional(),
 )
+
+// Syncs invoice_line_items and invoice.total to match the current job line items.
+// No-op if the job has no linked invoice.
+async function syncInvoiceLineItems(tx: Tx, orgId: string, jobId: string): Promise<void> {
+  const [invoice] = await tx
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(and(eq(invoices.tenantId, orgId), eq(invoices.jobId, jobId)))
+    .limit(1)
+  if (!invoice) return
+
+  const items = (
+    await tx
+      .select()
+      .from(jobLineItems)
+      .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, jobId)))
+  ).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+
+  await tx
+    .delete(invoiceLineItems)
+    .where(and(eq(invoiceLineItems.tenantId, orgId), eq(invoiceLineItems.invoiceId, invoice.id)))
+
+  if (items.length > 0) {
+    await tx.insert(invoiceLineItems).values(
+      items.map((li) => ({
+        tenantId: orgId,
+        invoiceId: invoice.id,
+        type: li.type,
+        refId: li.refId ?? null,
+        title: li.title ?? null,
+        description: li.description ?? null,
+        qty: li.qty,
+        rate: li.rate,
+        cost: li.cost,
+        taxItemId: li.taxItemId ?? null,
+        sortOrder: li.sortOrder,
+        groupId: li.groupId ?? null,
+      })),
+    )
+  }
+
+  const totalsInput: InvoiceLineItemInput[] = items.map((li) => ({
+    type: li.type ?? 'service',
+    qty: li.qty,
+    rate: li.rate,
+    cost: li.cost,
+    taxRate: null,
+    groupId: li.groupId,
+  }))
+  const { invoiceTotal } = computeInvoiceTotals(totalsInput)
+
+  await tx
+    .update(invoices)
+    .set({ total: invoiceTotal, updatedAt: new Date() })
+    .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoice.id)))
+}
 
 // ── Action State Types ─────────────────────────────────────────────────────
 
@@ -907,6 +967,9 @@ export async function updateJob(
       )
     }
 
+    // Sync invoice line items and total if this job has an invoice
+    await syncInvoiceLineItems(tx, orgId, data.id)
+
     // Replace tags
     await tx
       .delete(jobTags)
@@ -1029,6 +1092,8 @@ export async function addJobLineItem(
       taxItemId: input.taxItemId ?? null,
       sortOrder: (maxOrder ?? -1) + 1,
     })
+
+    await syncInvoiceLineItems(tx, orgId, jobId)
   })
 
   revalidatePath(`/jobs/${jobId}`)
@@ -1073,6 +1138,8 @@ export async function updateJobLineItem(
           eq(jobLineItems.jobId, jobId),
         ),
       )
+
+    await syncInvoiceLineItems(tx, orgId, jobId)
   })
 
   revalidatePath(`/jobs/${jobId}`)
@@ -1096,6 +1163,8 @@ export async function deleteJobLineItem(
           eq(jobLineItems.jobId, jobId),
         ),
       )
+
+    await syncInvoiceLineItems(tx, orgId, jobId)
   })
 
   revalidatePath(`/jobs/${jobId}`)
