@@ -231,7 +231,7 @@ export function EstimateForm({
     jobTitle: '',
     phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
     emails: [{ address: '', type: 'work', isPrimary: true }],
-    smsConsent: false,
+    smsConsent: true,
     billingContact: false,
     bookingContact: false,
   })

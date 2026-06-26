@@ -123,7 +123,7 @@ const contactUpdateSchema = z.object({
     (arr) => (Array.isArray(arr) ? arr.filter((e) => (e as { address?: string })?.address?.trim()) : arr),
     z.array(emailSchema).default([]),
   ),
-  smsConsent: z.boolean().default(false),
+  smsConsent: z.boolean().default(true),
   billingContact: z.boolean().default(false),
   bookingContact: z.boolean().default(false),
 })
@@ -989,7 +989,7 @@ export async function getEstimateAction(orgId: string, estimateId: string) {
             type: e.type,
             isPrimary: e.isPrimary,
           })),
-          smsConsent: resolvedContactRows[0].smsConsent ?? false,
+          smsConsent: resolvedContactRows[0].smsConsent ?? true,
           billingContact: resolvedContactRows[0].billingContact ?? false,
           bookingContact: resolvedContactRows[0].bookingContact ?? false,
         }

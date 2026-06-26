@@ -296,7 +296,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     jobTitle: '',
     phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
     emails: [{ address: '', type: 'work', isPrimary: true }],
-    smsConsent: false,
+    smsConsent: true,
     billingContact: false,
     bookingContact: false,
   })
@@ -1109,7 +1109,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           variant="outline"
                           onClick={() => {
                             setContactPickerOpen(false)
-                            setNewContactForm(emptyNewContactForm())
+                            setNewContactForm({ ...emptyNewContactForm(), billingContact: contacts.length === 0 })
                             setNewContactDialogError(null)
                             setNewContactDialogOpen(true)
                           }}
@@ -1279,7 +1279,6 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                               <Plus className="mr-1 size-3" />
                               Add phone
                             </Button>
-                            <p className="text-xs text-muted-foreground pl-1">By providing a cell number, you agree to allow text communication.</p>
                           </div>
                         </div>
 

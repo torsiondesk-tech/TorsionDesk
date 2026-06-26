@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeAll } from 'vitest'
+import type { Tx } from '@/db/with-tenant'
 
 // Ensure STRIPE_WEBHOOK_SECRET is truthy so the `if (!secret)` guard doesn't
 // short-circuit to 500 before tests can exercise the webhook logic.
@@ -68,7 +69,7 @@ function makeWhereResult(resolveValue: unknown[]): {
 //   (select calls 4+ → invoice total fetch etc → [])
 // insert always throws 23505 so the existing dedup-by-event-id test → 200.
 vi.mock('@/db/with-tenant', () => ({
-  withTenant: vi.fn(async (_orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
+  withTenant: vi.fn(async (_orgId: string, fn: (tx: Tx) => Promise<unknown>) => {
     let selectCallCount = 0
     const tx = {
       select: vi.fn((_cols?: unknown) => {
@@ -92,7 +93,7 @@ vi.mock('@/db/with-tenant', () => ({
         })),
       })),
     }
-    return fn(tx)
+    return fn(tx as unknown as Tx)
   }),
 }))
 
@@ -149,7 +150,7 @@ describe('handleStripeWebhook', () => {
 
     // Override withTenant for this test: transactionToken dedup select returns existing row
     vi.mocked(withTenant).mockImplementationOnce(
-      async (_orgId: string, fn: (tx: unknown) => Promise<unknown>) => {
+      async (_orgId: string, fn: (tx: Tx) => Promise<unknown>) => {
         let selectCallCount = 0
         const tx = {
           select: vi.fn((_cols?: unknown) => {
@@ -166,7 +167,7 @@ describe('handleStripeWebhook', () => {
           }),
           insert: insertSpy,
         }
-        return fn(tx)
+        return fn(tx as unknown as Tx)
       },
     )
 

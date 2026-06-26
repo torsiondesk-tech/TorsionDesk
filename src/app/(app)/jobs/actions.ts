@@ -172,7 +172,7 @@ const contactUpdateSchema = z.object({
     (arr) => (Array.isArray(arr) ? arr.filter((e) => (e as { address?: string })?.address?.trim()) : arr),
     z.array(emailSchema).default([]),
   ),
-  smsConsent: z.boolean().default(false),
+  smsConsent: z.boolean().default(true),
   billingContact: z.boolean().default(false),
   bookingContact: z.boolean().default(false),
 })
@@ -1292,6 +1292,13 @@ export async function createContactForJob(
         .where(and(eq(customers.tenantId, orgId), eq(customers.id, customerId)))
         .limit(1)
       if (custRows.length === 0) throw new Error('Invalid customer: cross-tenant access denied')
+
+      if (input.billingContact) {
+        await tx
+          .update(contacts)
+          .set({ billingContact: false })
+          .where(and(eq(contacts.tenantId, orgId), eq(contacts.customerId, customerId)))
+      }
 
       const [newContact] = await tx
         .insert(contacts)

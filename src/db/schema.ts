@@ -149,7 +149,7 @@ export const contacts = pgTable(
       .references(() => customers.id, { onDelete: 'cascade' }),
     firstName: text('first_name').notNull(),
     lastName: text('last_name'),
-    smsConsent: boolean('sms_consent').default(false),
+    smsConsent: boolean('sms_consent').default(true),
     billingContact: boolean('billing_contact').default(false),
     bookingContact: boolean('booking_contact').default(false),
     jobTitle: text('job_title'),

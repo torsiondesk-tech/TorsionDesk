@@ -183,7 +183,7 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
             type: e.type,
             isPrimary: e.isPrimary ?? false,
           })),
-          smsConsent: false,
+          smsConsent: true,
           billingContact: false,
           bookingContact: false,
         }

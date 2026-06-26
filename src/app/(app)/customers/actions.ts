@@ -440,7 +440,7 @@ const updateCustomerDetailSchema = z.object({
         jobTitle: z.string().max(255).nullable().optional(),
         birthday: z.string().nullable().optional(),
         anniversary: z.string().nullable().optional(),
-        smsConsent: z.boolean().default(false),
+        smsConsent: z.boolean().default(true),
         billingContact: z.boolean().default(false),
         bookingContact: z.boolean().default(false),
         phones: z

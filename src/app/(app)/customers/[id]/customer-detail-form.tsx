@@ -218,7 +218,7 @@ export function CustomerDetailForm({
     jobTitle: '',
     birthday: '',
     anniversary: '',
-    smsConsent: false,
+    smsConsent: true,
     billingContact: false,
     bookingContact: false,
     phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
@@ -226,7 +226,7 @@ export function CustomerDetailForm({
   })
 
   const [contactsState, setContactsState] = useState<ContactFormState[]>(() => {
-    if (initialContacts.length === 0) return [emptyContact()]
+    if (initialContacts.length === 0) return [{ ...emptyContact(), billingContact: true }]
     return initialContacts.map((c) => ({
       id: c.id,
       firstName: c.firstName,
@@ -326,6 +326,11 @@ export function CustomerDetailForm({
     value: unknown,
   ) => {
     setContactsState((prev) => {
+      if (field === 'billingContact' && value === true) {
+        return prev.map((c, i) =>
+          i === ci ? { ...c, billingContact: true } : { ...c, billingContact: false },
+        )
+      }
       const next = [...prev]
       next[ci] = { ...next[ci], [field]: value }
       return next
