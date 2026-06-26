@@ -139,6 +139,8 @@ export function InvoiceDetailShell({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [removeJobsOpen, setRemoveJobsOpen] = useState(false)
+  const [jobSelected, setJobSelected] = useState(false)
   const [paymentLinkUrl, setPaymentLinkUrl] = useState(invoice.paymentLinkUrl)
   const [generatingLink, setGeneratingLink] = useState(false)
 
@@ -600,7 +602,12 @@ export function InvoiceDetailShell({
             <tr>
               {mode === 'edit' && (
                 <th className="w-8 px-3 py-2">
-                  <input type="checkbox" className="rounded" />
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={jobSelected}
+                    onChange={(e) => setJobSelected(e.target.checked)}
+                  />
                 </th>
               )}
               <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Job Date</th>
@@ -619,7 +626,12 @@ export function InvoiceDetailShell({
             <tr>
               {mode === 'edit' && (
                 <td className="px-3 py-3">
-                  <input type="checkbox" className="rounded" />
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={jobSelected}
+                    onChange={(e) => setJobSelected(e.target.checked)}
+                  />
                 </td>
               )}
               <td className="px-3 py-3 whitespace-nowrap">{fmtDate(jobDetails?.startDate)}</td>
@@ -661,7 +673,8 @@ export function InvoiceDetailShell({
               variant="outline"
               size="sm"
               className="gap-1.5 text-destructive hover:text-destructive"
-              disabled
+              disabled={!jobSelected}
+              onClick={() => setRemoveJobsOpen(true)}
             >
               <Trash2 className="size-3.5" />
               Remove Selected Jobs
@@ -857,6 +870,27 @@ export function InvoiceDetailShell({
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCustDialogOpen(false)}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Remove selected jobs → delete invoice confirmation ── */}
+      <Dialog open={removeJobsOpen} onOpenChange={(open) => { if (!open) setRemoveJobsOpen(false) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remove all jobs from invoice?</DialogTitle>
+            <DialogDescription>
+              You are about to remove all the jobs from an invoice. Doing this will delete the entire invoice.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setRemoveJobsOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="mr-1 size-3.5 animate-spin" />}
+              Proceed With Deletion
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
