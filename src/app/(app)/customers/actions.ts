@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, ne } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import { customers, customerTags, contacts, contactPhones, contactEmails, serviceLocations, equipment } from '@/db/schema'
@@ -529,6 +529,19 @@ export async function updateCustomerDetail(
           throw new Error('Invalid contact: does not belong to this customer')
         }
 
+        if (contact.billingContact) {
+          await tx
+            .update(contacts)
+            .set({ billingContact: false })
+            .where(
+              and(
+                eq(contacts.tenantId, orgId),
+                eq(contacts.customerId, id),
+                ne(contacts.id, cid),
+              ),
+            )
+        }
+
         await tx
           .update(contacts)
           .set({
@@ -582,6 +595,18 @@ export async function updateCustomerDetail(
           )
         }
       } else {
+        if (contact.billingContact) {
+          await tx
+            .update(contacts)
+            .set({ billingContact: false })
+            .where(
+              and(
+                eq(contacts.tenantId, orgId),
+                eq(contacts.customerId, id),
+              ),
+            )
+        }
+
         const [newContact] = await tx
           .insert(contacts)
           .values({

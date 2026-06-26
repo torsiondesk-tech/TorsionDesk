@@ -169,7 +169,22 @@ export async function createInvoiceFromJobAction(
         const paymentTermsDays = 30
         const dueDate = toISODate(new Date(Date.now() + paymentTermsDays * 24 * 60 * 60 * 1000))
 
-        // 3. Generate invoice number and insert the invoice row.
+        // 3. Resolve invoice contact — prefer the customer's billing contact.
+        let invoiceContactId = job.contactId ?? null
+        const [billingContactRow] = await tx
+          .select({ id: contacts.id })
+          .from(contacts)
+          .where(
+            and(
+              eq(contacts.tenantId, orgId),
+              eq(contacts.customerId, job.customerId),
+              eq(contacts.billingContact, true),
+            ),
+          )
+          .limit(1)
+        if (billingContactRow) invoiceContactId = billingContactRow.id
+
+        // 4. Generate invoice number and insert the invoice row.
         const invoiceNo = await nextInvoiceNo(tx, orgId)
         const [invoice] = await tx
           .insert(invoices)
@@ -178,7 +193,7 @@ export async function createInvoiceFromJobAction(
             invoiceNo,
             jobId,
             customerId: job.customerId,
-            contactId: job.contactId ?? null,
+            contactId: invoiceContactId,
             serviceLocationId: job.serviceLocationId ?? null,
             invoiceDate,
             dueDate,

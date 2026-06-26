@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { eq, and, sql, max, count, asc, desc, isNull, inArray } from 'drizzle-orm'
+import { eq, and, sql, max, count, asc, desc, isNull, inArray, ne } from 'drizzle-orm'
 import { auth } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import type { Tx } from '@/db/with-tenant'
@@ -754,6 +754,18 @@ export async function updateEstimateAction(
       // Update existing contact in-place when contactUpdate is provided
       if (d.contactUpdate && d.contactId) {
         const cu = d.contactUpdate
+        if (cu.billingContact) {
+          await tx
+            .update(contacts)
+            .set({ billingContact: false })
+            .where(
+              and(
+                eq(contacts.tenantId, orgId),
+                eq(contacts.customerId, resolvedCustomerId),
+                ne(contacts.id, d.contactId),
+              ),
+            )
+        }
         await tx
           .update(contacts)
           .set({

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { z } from 'zod'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, ne } from 'drizzle-orm'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import {
@@ -770,6 +770,18 @@ export async function updateJob(
     // Update existing contact in-place when contactUpdate is provided
     if (data.contactUpdate && data.contactId) {
       const cu = data.contactUpdate
+      if (cu.billingContact) {
+        await tx
+          .update(contacts)
+          .set({ billingContact: false })
+          .where(
+            and(
+              eq(contacts.tenantId, orgId),
+              eq(contacts.customerId, data.customerId),
+              ne(contacts.id, data.contactId),
+            ),
+          )
+      }
       await tx
         .update(contacts)
         .set({
