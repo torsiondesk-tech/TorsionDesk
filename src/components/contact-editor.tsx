@@ -45,7 +45,7 @@ export function emptyContact(): ContactEditorValue {
     jobTitle: '',
     phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
     emails: [{ address: '', type: 'work', isPrimary: true }],
-    billingContact: false,
+    billingContact: true,
     bookingContact: false,
     smsConsent: true,
   }
