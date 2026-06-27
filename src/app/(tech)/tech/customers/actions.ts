@@ -25,6 +25,7 @@ export interface CreateTechCustomerInput {
   contactFirstName?: string | null
   contactLastName?: string | null
   phone?: string | null
+  phoneExt?: string | null
   email?: string | null
   addressLine1?: string | null
   city?: string | null
@@ -64,6 +65,7 @@ export async function createTechCustomerAction(
             tenantId: orgId,
             contactId: contactRow.id,
             number: phone,
+            ext: input.phoneExt || null,
             type: 'cell',
             isPrimary: true,
           })

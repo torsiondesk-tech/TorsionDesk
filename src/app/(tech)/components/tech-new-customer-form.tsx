@@ -24,6 +24,7 @@ export function TechNewCustomerForm({ orgId }: Props) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
+  const [phoneExt, setPhoneExt] = useState('')
   const [email, setEmail] = useState('')
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
@@ -79,6 +80,7 @@ export function TechNewCustomerForm({ orgId }: Props) {
       contactFirstName: firstName.trim() || null,
       contactLastName: lastName.trim() || null,
       phone: phone || null,
+      phoneExt: phoneExt || null,
       email: email.trim() || null,
       addressLine1: address || null,
       city: city || null,
@@ -161,14 +163,23 @@ export function TechNewCustomerForm({ orgId }: Props) {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              type="tel"
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-              placeholder="(555) 000-0000"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                placeholder="(555) 000-0000"
+                className="flex-1"
+              />
+              <Input
+                value={phoneExt}
+                onChange={(e) => setPhoneExt(e.target.value.replace(/\D/g, ''))}
+                placeholder="Ext"
+                className="w-16"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">

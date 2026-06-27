@@ -287,6 +287,7 @@ export async function createOfficeEstimateAction(
               tenantId: orgId,
               contactId: resolvedContactId,
               number: phoneDigits,
+              ext: d.newContactPhoneExt || null,
               isPrimary: true,
             })
           }
@@ -483,6 +484,7 @@ const updateEstimateSchema = z.object({
   newContactFirstName: emptyToUndefined,
   newContactLastName: emptyToUndefined,
   newContactPhone: emptyToUndefined,
+  newContactPhoneExt: emptyToUndefined,
   newContactEmail: emptyToUndefined,
   newLocationName: emptyToUndefined,
   newLocationAddress1: emptyToUndefined,

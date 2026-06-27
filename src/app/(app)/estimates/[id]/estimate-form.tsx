@@ -136,6 +136,7 @@ export function EstimateForm({
   const [newContactFirstName, setNewContactFirstName] = React.useState('')
   const [newContactLastName, setNewContactLastName] = React.useState('')
   const [newContactPhone, setNewContactPhone] = React.useState('')
+  const [newContactPhoneExt, setNewContactPhoneExt] = React.useState('')
   const [newContactEmail, setNewContactEmail] = React.useState('')
   const [newLocationName, setNewLocationName] = React.useState('')
   const [newLocationAddress1, setNewLocationAddress1] = React.useState('')
@@ -498,6 +499,7 @@ export function EstimateForm({
     setNewContactFirstName('')
     setNewContactLastName('')
     setNewContactPhone('')
+    setNewContactPhoneExt('')
     setNewContactEmail('')
     setLocationMode('new')
     setNewLocationName('')
@@ -527,6 +529,7 @@ export function EstimateForm({
     setNewContactFirstName('')
     setNewContactLastName('')
     setNewContactPhone('')
+    setNewContactPhoneExt('')
     setNewContactEmail('')
     setLocationMode('existing')
     setNewLocationName('')
@@ -559,7 +562,7 @@ export function EstimateForm({
       const result = await createContactForJob(customerId, {
         firstName: newContactFirstName.trim(),
         lastName: newContactLastName.trim() || null,
-        phones: newContactPhone ? [{ number: newContactPhone, ext: null, type: 'cell', isPrimary: true }] : [],
+        phones: newContactPhone ? [{ number: newContactPhone, ext: newContactPhoneExt || null, type: 'cell', isPrimary: true }] : [],
         emails: newContactEmail.trim() ? [{ address: newContactEmail.trim(), type: 'work', isPrimary: true }] : [],
       })
       if (result.error) {
@@ -574,6 +577,7 @@ export function EstimateForm({
       setNewContactFirstName('')
       setNewContactLastName('')
       setNewContactPhone('')
+      setNewContactPhoneExt('')
       setNewContactEmail('')
       setContactEdit(null)
     } catch (err) {
@@ -774,6 +778,7 @@ export function EstimateForm({
     newContactFirstName: customerMode === 'new' ? newContactFirstName : '',
     newContactLastName: customerMode === 'new' ? newContactLastName : '',
     newContactPhone: customerMode === 'new' ? normalizePhone(newContactPhone) : '',
+    newContactPhoneExt: customerMode === 'new' ? newContactPhoneExt : '',
     newContactEmail: customerMode === 'new' ? newContactEmail : '',
     contactUpdate:
       customerMode === 'existing' && contactId && contactEdit
@@ -1116,12 +1121,21 @@ export function EstimateForm({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Contact phone</Label>
-                  <Input
-                    type="tel"
-                    value={formatPhoneInput(newContactPhone)}
-                    onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="(555) 000-0000"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="tel"
+                      value={formatPhoneInput(newContactPhone)}
+                      onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="(555) 000-0000"
+                      className="flex-1"
+                    />
+                    <Input
+                      value={newContactPhoneExt}
+                      onChange={(e) => setNewContactPhoneExt(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ext"
+                      className="w-16"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Contact email</Label>
@@ -1237,12 +1251,21 @@ export function EstimateForm({
                         placeholder="Last name (optional)"
                       />
                     </div>
-                    <Input
-                      type="tel"
-                      value={formatPhoneInput(newContactPhone)}
-                      onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="Phone number (optional)"
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="tel"
+                        value={formatPhoneInput(newContactPhone)}
+                        onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="Phone number (optional)"
+                        className="flex-1"
+                      />
+                      <Input
+                        value={newContactPhoneExt}
+                        onChange={(e) => setNewContactPhoneExt(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Ext"
+                        className="w-16"
+                      />
+                    </div>
                     <Input
                       type="email"
                       value={newContactEmail}
@@ -1257,6 +1280,7 @@ export function EstimateForm({
                           setNewContactFirstName('')
                           setNewContactLastName('')
                           setNewContactPhone('')
+                          setNewContactPhoneExt('')
                           setNewContactEmail('')
                           setContactError(null)
                         }}
