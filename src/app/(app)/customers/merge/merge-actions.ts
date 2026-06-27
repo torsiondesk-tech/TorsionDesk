@@ -46,11 +46,11 @@ export async function submitMerge(
     'referralSourceId',
     'taxable',
   ])
-  const fieldChoices: Record<string, 'left' | 'right'> = {}
+  const fieldChoices: Record<string, 'winner' | 'loser'> = {}
   for (const [key, value] of formData.entries()) {
     if (key.startsWith('field_')) {
       const fieldName = key.slice('field_'.length)
-      if (ALLOWED_MERGE_FIELDS.has(fieldName) && (value === 'left' || value === 'right')) {
+      if (ALLOWED_MERGE_FIELDS.has(fieldName) && (value === 'winner' || value === 'loser')) {
         fieldChoices[fieldName] = value
       }
     }

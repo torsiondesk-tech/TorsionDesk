@@ -141,15 +141,14 @@ export function MergeCompare({ a, b }: MergeCompareProps) {
         </Card>
       </div>
 
-      {/* Hidden inputs for field choices */}
-      {Object.entries(choices).map(([field, side]) => (
-        <input
-          key={field}
-          type="hidden"
-          name={`field_${field}`}
-          value={side}
-        />
-      ))}
+      {/* Hidden inputs for field choices — normalized to winner/loser, not left/right */}
+      {Object.entries(choices).map(([field, side]) => {
+        const winnerSide = choices.name === 'left' ? 'left' : 'right'
+        const normalized = side === winnerSide ? 'winner' : 'loser'
+        return (
+          <input key={field} type="hidden" name={`field_${field}`} value={normalized} />
+        )
+      })}
 
       {state.error && (
         <p role="alert" className="text-sm text-destructive">{state.error}</p>

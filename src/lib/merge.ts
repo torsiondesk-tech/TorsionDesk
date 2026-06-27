@@ -9,7 +9,7 @@ import {
 } from '@/db/schema'
 
 export interface FieldChoices {
-  [fieldName: string]: 'left' | 'right'
+  [fieldName: string]: 'winner' | 'loser'
 }
 
 /**
@@ -135,11 +135,10 @@ export async function mergeCustomers(
       const updates: Record<string, unknown> = {}
       const loserData = loserRecord as Record<string, unknown>
       for (const [field, choice] of Object.entries(fieldChoices)) {
-        if (choice === 'left') {
-          // Overwrite winner with loser's value
+        if (choice === 'loser') {
           updates[field] = loserData[field]
         }
-        // choice === 'right' means keep winner's value — no change
+        // choice === 'winner' means keep winner's value — no change
       }
       if (Object.keys(updates).length > 0) {
         await tx
