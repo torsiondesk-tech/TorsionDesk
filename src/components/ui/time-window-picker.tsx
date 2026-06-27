@@ -47,51 +47,46 @@ function fmtHM(h24: number, m: string) {
 const DEFAULT_TIME = fmtHM(8, '00') // '08:00'
 
 const selectCls =
-  'rounded-md border border-input bg-background px-2 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+  'h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 dark:bg-input/30'
 
 function TimeDropdowns({
   value,
   onChange,
-  label,
 }: {
   value: string
   onChange: (v: string) => void
-  label: string
 }) {
   const { h24, m } = parseHM(value)
   const { h12, ampm } = to12h(h24)
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-1">
-        <select
-          value={h12}
-          onChange={(e) => onChange(fmtHM(to24h(parseInt(e.target.value), ampm), m))}
-          className={selectCls}
-        >
-          {HOURS_12.map((h) => (
-            <option key={h} value={h}>{h}</option>
-          ))}
-        </select>
-        <select
-          value={m}
-          onChange={(e) => onChange(fmtHM(h24, e.target.value))}
-          className={selectCls}
-        >
-          {MINUTES.map((min) => (
-            <option key={min} value={min}>:{min}</option>
-          ))}
-        </select>
-        <select
-          value={ampm}
-          onChange={(e) => onChange(fmtHM(to24h(h12, e.target.value as 'AM' | 'PM'), m))}
-          className={selectCls}
-        >
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
-      </div>
+    <div className="flex items-center gap-1">
+      <select
+        value={h12}
+        onChange={(e) => onChange(fmtHM(to24h(parseInt(e.target.value), ampm), m))}
+        className={selectCls}
+      >
+        {HOURS_12.map((h) => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <select
+        value={m}
+        onChange={(e) => onChange(fmtHM(h24, e.target.value))}
+        className={selectCls}
+      >
+        {MINUTES.map((min) => (
+          <option key={min} value={min}>:{min}</option>
+        ))}
+      </select>
+      <select
+        value={ampm}
+        onChange={(e) => onChange(fmtHM(to24h(h12, e.target.value as 'AM' | 'PM'), m))}
+        className={selectCls}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
     </div>
   )
 }
@@ -126,10 +121,10 @@ export function TimeWindowPicker({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <div className="flex flex-wrap items-end gap-3">
-        <TimeDropdowns value={startValue} onChange={handleStartChange} label="Start" />
-        <span className="mb-2 text-sm text-muted-foreground">→</span>
-        <TimeDropdowns value={endValue} onChange={handleEndChange} label="End" />
+      <div className="flex flex-wrap items-center gap-2">
+        <TimeDropdowns value={startValue} onChange={handleStartChange} />
+        <span className="text-sm text-muted-foreground">→</span>
+        <TimeDropdowns value={endValue} onChange={handleEndChange} />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
