@@ -56,9 +56,10 @@ import { setPrimaryContactAction, setPrimaryLocationAction } from '../../custome
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { EstimateStatusDropdown } from './estimate-status-dropdown'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
-import { toISODate, formatPhoneInput, formatPhone, normalizePhone, capitalizeWords } from '@/lib/utils'
+import { toISODate, formatPhone, normalizePhone, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
 import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, Phone, Trash2 } from 'lucide-react'
+import { ContactEditor, type ContactEditorValue, emptyContact } from '@/components/contact-editor'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
 
@@ -133,11 +134,7 @@ export function EstimateForm({
   // ── Customer create-or-select mode ──
   const [customerMode, setCustomerMode] = React.useState<'existing' | 'new'>(mode === 'create' ? 'existing' : 'existing')
   const [newCustomerName, setNewCustomerName] = React.useState('')
-  const [newContactFirstName, setNewContactFirstName] = React.useState('')
-  const [newContactLastName, setNewContactLastName] = React.useState('')
-  const [newContactPhone, setNewContactPhone] = React.useState('')
-  const [newContactPhoneExt, setNewContactPhoneExt] = React.useState('')
-  const [newContactEmail, setNewContactEmail] = React.useState('')
+  const [newContactData, setNewContactData] = React.useState<ContactEditorValue>(emptyContact())
   const [newLocationName, setNewLocationName] = React.useState('')
   const [newLocationAddress1, setNewLocationAddress1] = React.useState('')
   const [newLocationAddress2, setNewLocationAddress2] = React.useState('')
@@ -496,11 +493,7 @@ export function EstimateForm({
     setContacts([])
     setLocations([])
     setContactMode('new')
-    setNewContactFirstName('')
-    setNewContactLastName('')
-    setNewContactPhone('')
-    setNewContactPhoneExt('')
-    setNewContactEmail('')
+    setNewContactData(emptyContact())
     setLocationMode('new')
     setNewLocationName('')
     setNewLocationAddress1('')
@@ -526,11 +519,7 @@ export function EstimateForm({
     setContacts([])
     setLocations([])
     setContactMode('existing')
-    setNewContactFirstName('')
-    setNewContactLastName('')
-    setNewContactPhone('')
-    setNewContactPhoneExt('')
-    setNewContactEmail('')
+    setNewContactData(emptyContact())
     setLocationMode('existing')
     setNewLocationName('')
     setNewLocationAddress1('')
@@ -552,7 +541,7 @@ export function EstimateForm({
       setContactError('Select a customer first.')
       return
     }
-    if (!newContactFirstName.trim() && !newContactLastName.trim()) {
+    if (!newContactData.firstName.trim() && !newContactData.lastName.trim()) {
       setContactError('First or last name is required.')
       return
     }
@@ -560,10 +549,18 @@ export function EstimateForm({
     setContactError(null)
     try {
       const result = await createContactForJob(customerId, {
-        firstName: newContactFirstName.trim(),
-        lastName: newContactLastName.trim() || null,
-        phones: newContactPhone ? [{ number: newContactPhone, ext: newContactPhoneExt || null, type: 'cell', isPrimary: true }] : [],
-        emails: newContactEmail.trim() ? [{ address: newContactEmail.trim(), type: 'work', isPrimary: true }] : [],
+        firstName: newContactData.firstName.trim(),
+        lastName: newContactData.lastName.trim() || null,
+        jobTitle: newContactData.jobTitle.trim() || null,
+        billingContact: newContactData.billingContact,
+        bookingContact: newContactData.bookingContact,
+        smsConsent: newContactData.smsConsent,
+        phones: newContactData.phones
+          .filter((p) => p.number.trim())
+          .map((p) => ({ number: p.number, ext: p.ext || null, type: p.type, isPrimary: p.isPrimary })),
+        emails: newContactData.emails
+          .filter((e) => e.address.trim())
+          .map((e) => ({ address: e.address, type: e.type, isPrimary: e.isPrimary })),
       })
       if (result.error) {
         setContactError(result.error)
@@ -574,11 +571,7 @@ export function EstimateForm({
       setPrimaryContactId(refreshedPrimary)
       setContactId(result.id)
       setContactMode('existing')
-      setNewContactFirstName('')
-      setNewContactLastName('')
-      setNewContactPhone('')
-      setNewContactPhoneExt('')
-      setNewContactEmail('')
+      setNewContactData(emptyContact())
       setContactEdit(null)
     } catch (err) {
       setContactError(err instanceof Error ? err.message : String(err))
@@ -775,11 +768,7 @@ export function EstimateForm({
   const buildPayload = () => ({
     customerId: customerMode === 'existing' ? (customerId ?? '') : '',
     newCustomerName: customerMode === 'new' ? newCustomerName : '',
-    newContactFirstName: customerMode === 'new' ? newContactFirstName : '',
-    newContactLastName: customerMode === 'new' ? newContactLastName : '',
-    newContactPhone: customerMode === 'new' ? normalizePhone(newContactPhone) : '',
-    newContactPhoneExt: customerMode === 'new' ? newContactPhoneExt : '',
-    newContactEmail: customerMode === 'new' ? newContactEmail : '',
+    newContactJson: customerMode === 'new' ? JSON.stringify(newContactData) : '',
     contactUpdate:
       customerMode === 'existing' && contactId && contactEdit
         ? JSON.stringify({
@@ -1098,55 +1087,12 @@ export function EstimateForm({
 
           {customerMode === 'new' ? (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Contact first name</Label>
-                  <Input
-                    value={newContactFirstName}
-                    onChange={(e) => setNewContactFirstName(capitalizeWords(e.target.value))}
-                    autoCapitalize="words"
-                    placeholder="First name (optional)"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact last name</Label>
-                  <Input
-                    value={newContactLastName}
-                    onChange={(e) => setNewContactLastName(capitalizeWords(e.target.value))}
-                    autoCapitalize="words"
-                    placeholder="Last name (optional)"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Contact phone</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="tel"
-                      value={formatPhoneInput(newContactPhone)}
-                      onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="(555) 000-0000"
-                      className="flex-1"
-                    />
-                    <Input
-                      value={newContactPhoneExt}
-                      onChange={(e) => setNewContactPhoneExt(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Ext"
-                      className="w-16"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact email</Label>
-                  <Input
-                    type="email"
-                    value={newContactEmail}
-                    onChange={(e) => setNewContactEmail(e.target.value)}
-                    placeholder="email@example.com"
-                  />
-                </div>
-              </div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact (optional)</p>
+              <ContactEditor
+                value={newContactData}
+                onChange={setNewContactData}
+                idPrefix="est-new-cust-c"
+              />
               <div>
                 <Label>Service Location</Label>
               </div>
@@ -1236,52 +1182,18 @@ export function EstimateForm({
                     </SelectTrigger>
                   </Select>
                 ) : contactMode === 'new' ? (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        value={newContactFirstName}
-                        onChange={(e) => setNewContactFirstName(capitalizeWords(e.target.value))}
-                        autoCapitalize="words"
-                        placeholder="First name (optional)"
-                      />
-                      <Input
-                        value={newContactLastName}
-                        onChange={(e) => setNewContactLastName(capitalizeWords(e.target.value))}
-                        autoCapitalize="words"
-                        placeholder="Last name (optional)"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="tel"
-                        value={formatPhoneInput(newContactPhone)}
-                        onChange={(e) => setNewContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        placeholder="Phone number (optional)"
-                        className="flex-1"
-                      />
-                      <Input
-                        value={newContactPhoneExt}
-                        onChange={(e) => setNewContactPhoneExt(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Ext"
-                        className="w-16"
-                      />
-                    </div>
-                    <Input
-                      type="email"
-                      value={newContactEmail}
-                      onChange={(e) => setNewContactEmail(e.target.value)}
-                      placeholder="Email (optional)"
+                  <div className="space-y-3">
+                    <ContactEditor
+                      value={newContactData}
+                      onChange={setNewContactData}
+                      idPrefix="est-existing-cust-c"
                     />
                     <div className="flex flex-wrap items-center gap-3 pt-1">
                       <button
                         type="button"
                         onClick={() => {
                           setContactMode('existing')
-                          setNewContactFirstName('')
-                          setNewContactLastName('')
-                          setNewContactPhone('')
-                          setNewContactPhoneExt('')
-                          setNewContactEmail('')
+                          setNewContactData(emptyContact())
                           setContactError(null)
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground"

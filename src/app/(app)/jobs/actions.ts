@@ -151,10 +151,7 @@ const createJobSchema = z.object({
   // existing customer ID OR inline-create fields (validated manually)
   customerId: emptyToUndefined,
   newCustomerName: emptyToUndefined,
-  newContactFirstName: emptyToUndefined,
-  newContactLastName: emptyToUndefined,
-  newContactPhone: emptyToUndefined,
-  newContactEmail: emptyToUndefined,
+  newContactJson: emptyToUndefined,
   newLocationName: emptyToUndefined,
   newLocationAddress1: emptyToUndefined,
   newLocationAddress2: emptyToUndefined,
@@ -368,10 +365,7 @@ export async function createJob(
   const parsed = createJobSchema.safeParse({
     customerId: formData.get('customerId'),
     newCustomerName: formData.get('newCustomerName'),
-    newContactFirstName: formData.get('newContactFirstName'),
-    newContactLastName: formData.get('newContactLastName'),
-    newContactPhone: formData.get('newContactPhone'),
-    newContactEmail: formData.get('newContactEmail'),
+    newContactJson: formData.get('newContactJson'),
     newLocationName: formData.get('newLocationName'),
     newLocationAddress1: formData.get('newLocationAddress1'),
     newLocationAddress2: formData.get('newLocationAddress2'),
@@ -477,33 +471,46 @@ export async function createJob(
         if (data.contactId) {
           await guardContact(tx, orgId, data.contactId)
           resolvedContactId = data.contactId
-        } else if (data.newContactFirstName || data.newContactLastName) {
-          const [newContact] = await tx
-            .insert(contacts)
-            .values({
-              tenantId: orgId,
-              customerId: resolvedCustomerId,
-              firstName: data.newContactFirstName || '',
-              lastName: data.newContactLastName || null,
-            })
-            .returning({ id: contacts.id })
-          resolvedContactId = newContact.id
-          if (data.newContactPhone) {
-            await tx.insert(contactPhones).values({
-              tenantId: orgId,
-              contactId: resolvedContactId,
-              number: normalizePhone(data.newContactPhone)!,
-              isPrimary: true,
-            })
-          }
-          if (data.newContactEmail) {
-            await tx.insert(contactEmails).values({
-              tenantId: orgId,
-              contactId: resolvedContactId,
-              address: data.newContactEmail,
-              type: 'work',
-              isPrimary: true,
-            })
+        } else if (data.newContactJson) {
+          let nc: { firstName?: string; lastName?: string; jobTitle?: string; billingContact?: boolean; bookingContact?: boolean; smsConsent?: boolean; phones?: Array<{ number: string; ext?: string; type?: string; isPrimary?: boolean }>; emails?: Array<{ address: string; type?: string; isPrimary?: boolean }> } = {}
+          try { nc = JSON.parse(data.newContactJson) } catch { /* ignore */ }
+          if (nc.firstName?.trim() || nc.lastName?.trim()) {
+            const [newContact] = await tx
+              .insert(contacts)
+              .values({
+                tenantId: orgId,
+                customerId: resolvedCustomerId,
+                firstName: nc.firstName?.trim() || '',
+                lastName: nc.lastName?.trim() || null,
+                jobTitle: nc.jobTitle?.trim() || null,
+                billingContact: nc.billingContact ?? false,
+                bookingContact: nc.bookingContact ?? false,
+                smsConsent: nc.smsConsent ?? true,
+              })
+              .returning({ id: contacts.id })
+            resolvedContactId = newContact.id
+            for (const p of (nc.phones ?? []).filter((p) => p.number?.trim())) {
+              const normPhone = normalizePhone(p.number)
+              if (normPhone) {
+                await tx.insert(contactPhones).values({
+                  tenantId: orgId,
+                  contactId: resolvedContactId,
+                  number: normPhone,
+                  ext: p.ext || null,
+                  type: (p.type as 'cell' | 'home' | 'work') || 'cell',
+                  isPrimary: p.isPrimary ?? false,
+                })
+              }
+            }
+            for (const e of (nc.emails ?? []).filter((e) => e.address?.trim())) {
+              await tx.insert(contactEmails).values({
+                tenantId: orgId,
+                contactId: resolvedContactId,
+                address: e.address.trim(),
+                type: (e.type as 'work' | 'personal') || 'work',
+                isPrimary: e.isPrimary ?? false,
+              })
+            }
           }
 
           // Auto-promote to primary if customer has none yet
@@ -515,7 +522,7 @@ export async function createJob(
           if (!custForContact?.primaryContactId) {
             await tx
               .update(customers)
-              .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+              .set({ primaryContactId: resolvedContactId, updatedAt: new Date() })
               .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
           }
         }
@@ -1359,6 +1366,7 @@ export async function createContactForJob(
     jobTitle?: string | null
     billingContact?: boolean
     bookingContact?: boolean
+    smsConsent?: boolean
     birthday?: string | null
     anniversary?: string | null
     phones?: Array<{ number: string; ext?: string | null; type: string; isPrimary: boolean }>
@@ -1394,6 +1402,7 @@ export async function createContactForJob(
           jobTitle: input.jobTitle ?? null,
           billingContact: input.billingContact ?? false,
           bookingContact: input.bookingContact ?? false,
+          smsConsent: input.smsConsent ?? true,
           birthday: input.birthday ?? null,
           anniversary: input.anniversary ?? null,
         })

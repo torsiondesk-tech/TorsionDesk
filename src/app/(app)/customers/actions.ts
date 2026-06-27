@@ -59,21 +59,27 @@ function extractIndexedArrays(formData: FormData) {
   }
 }
 
-function extractInlineContacts(formData: FormData): Array<{ firstName: string; lastName: string; phone: string; email: string }> {
-  const map = new Map<number, { firstName: string; lastName: string; phone: string; email: string }>()
+interface InlineContactFull {
+  firstName: string
+  lastName: string
+  jobTitle: string
+  phones: Array<{ number: string; ext: string; type: string; isPrimary: boolean }>
+  emails: Array<{ address: string; type: string; isPrimary: boolean }>
+  billingContact: boolean
+  bookingContact: boolean
+  smsConsent: boolean
+}
 
-  for (const [key, value] of formData.entries()) {
-    const match = key.match(/^contacts\[(\d+)\]\.(firstName|lastName|phone|email)$/)
-    if (match) {
-      const idx = Number(match[1])
-      const field = match[2] as 'firstName' | 'lastName' | 'phone' | 'email'
-      const entry = map.get(idx) ?? { firstName: '', lastName: '', phone: '', email: '' }
-      entry[field] = String(value)
-      map.set(idx, entry)
-    }
+function extractInlineContacts(formData: FormData): InlineContactFull[] {
+  const raw = formData.get('contactsJson')
+  if (!raw) return []
+  try {
+    const arr = JSON.parse(String(raw))
+    if (!Array.isArray(arr)) return []
+    return (arr as InlineContactFull[]).filter((c) => c.firstName?.trim())
+  } catch {
+    return []
   }
-
-  return Array.from(map.values()).filter((c) => c.firstName.trim())
 }
 
 // ── Schemas ────────────────────────────────────────────────────────────────
@@ -277,25 +283,32 @@ export async function createCustomer(
               customerId: row.id,
               firstName: ic.firstName,
               lastName: ic.lastName || null,
+              jobTitle: ic.jobTitle || null,
+              billingContact: ic.billingContact ?? false,
+              bookingContact: ic.bookingContact ?? false,
+              smsConsent: ic.smsConsent ?? true,
             })
             .returning({ id: contacts.id })
-          const normPhone = normalizePhone(ic.phone)
-          if (normPhone) {
-            await tx.insert(contactPhones).values({
-              tenantId: orgId,
-              contactId: contact.id,
-              number: normPhone,
-              type: 'cell',
-              isPrimary: true,
-            })
+          for (const p of (ic.phones ?? []).filter((p) => p.number?.trim())) {
+            const normPhone = normalizePhone(p.number)
+            if (normPhone) {
+              await tx.insert(contactPhones).values({
+                tenantId: orgId,
+                contactId: contact.id,
+                number: normPhone,
+                ext: p.ext || null,
+                type: (p.type as 'cell' | 'home' | 'work') || 'cell',
+                isPrimary: p.isPrimary ?? false,
+              })
+            }
           }
-          if (ic.email.trim()) {
+          for (const e of (ic.emails ?? []).filter((e) => e.address?.trim())) {
             await tx.insert(contactEmails).values({
               tenantId: orgId,
               contactId: contact.id,
-              address: ic.email.trim(),
-              type: 'work',
-              isPrimary: true,
+              address: e.address.trim(),
+              type: (e.type as 'work' | 'personal') || 'work',
+              isPrimary: e.isPrimary ?? false,
             })
           }
         }

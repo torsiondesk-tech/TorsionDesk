@@ -270,48 +270,59 @@ export async function createOfficeEstimateAction(
         if (d.contactId) {
           await guardContact(tx, orgId, d.contactId)
           resolvedContactId = d.contactId
-        } else if (d.newContactFirstName || d.newContactLastName) {
-          const [newContact] = await tx
-            .insert(contacts)
-            .values({
-              tenantId: orgId,
-              customerId: resolvedCustomerId,
-              firstName: d.newContactFirstName || '',
-              lastName: d.newContactLastName || null,
-            })
-            .returning({ id: contacts.id })
-          resolvedContactId = newContact.id
-          const phoneDigits = normalizePhone(d.newContactPhone)
-          if (phoneDigits) {
-            await tx.insert(contactPhones).values({
-              tenantId: orgId,
-              contactId: resolvedContactId,
-              number: phoneDigits,
-              ext: d.newContactPhoneExt || null,
-              isPrimary: true,
-            })
-          }
-          if (d.newContactEmail) {
-            await tx.insert(contactEmails).values({
-              tenantId: orgId,
-              contactId: resolvedContactId,
-              address: d.newContactEmail,
-              type: 'work',
-              isPrimary: true,
-            })
-          }
+        } else if (d.newContactJson) {
+          let nc: { firstName?: string; lastName?: string; jobTitle?: string; billingContact?: boolean; bookingContact?: boolean; smsConsent?: boolean; phones?: Array<{ number: string; ext?: string; type?: string; isPrimary?: boolean }>; emails?: Array<{ address: string; type?: string; isPrimary?: boolean }> } = {}
+          try { nc = JSON.parse(d.newContactJson) } catch { /* ignore */ }
+          if (nc.firstName?.trim() || nc.lastName?.trim()) {
+            const [newContact] = await tx
+              .insert(contacts)
+              .values({
+                tenantId: orgId,
+                customerId: resolvedCustomerId,
+                firstName: nc.firstName?.trim() || '',
+                lastName: nc.lastName?.trim() || null,
+                jobTitle: nc.jobTitle?.trim() || null,
+                billingContact: nc.billingContact ?? false,
+                bookingContact: nc.bookingContact ?? false,
+                smsConsent: nc.smsConsent ?? true,
+              })
+              .returning({ id: contacts.id })
+            resolvedContactId = newContact.id
+            for (const p of (nc.phones ?? []).filter((p) => p.number?.trim())) {
+              const phoneDigits = normalizePhone(p.number)
+              if (phoneDigits) {
+                await tx.insert(contactPhones).values({
+                  tenantId: orgId,
+                  contactId: resolvedContactId,
+                  number: phoneDigits,
+                  ext: p.ext || null,
+                  type: (p.type as 'cell' | 'home' | 'work') || 'cell',
+                  isPrimary: p.isPrimary ?? false,
+                })
+              }
+            }
+            for (const e of (nc.emails ?? []).filter((e) => e.address?.trim())) {
+              await tx.insert(contactEmails).values({
+                tenantId: orgId,
+                contactId: resolvedContactId,
+                address: e.address.trim(),
+                type: (e.type as 'work' | 'personal') || 'work',
+                isPrimary: e.isPrimary ?? false,
+              })
+            }
 
-          // Auto-promote to primary if customer has none yet
-          const [custForContact] = await tx
-            .select({ primaryContactId: customers.primaryContactId })
-            .from(customers)
-            .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
-            .limit(1)
-          if (!custForContact?.primaryContactId) {
-            await tx
-              .update(customers)
-              .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+            // Auto-promote to primary if customer has none yet
+            const [custForContact] = await tx
+              .select({ primaryContactId: customers.primaryContactId })
+              .from(customers)
               .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+              .limit(1)
+            if (!custForContact?.primaryContactId) {
+              await tx
+                .update(customers)
+                .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+                .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+            }
           }
         }
 
@@ -481,11 +492,7 @@ const updateEstimateSchema = z.object({
   status: z.enum(['estimate_requested', 'estimate_provided', 'estimate_accepted', 'estimate_won', 'estimate_lost']).optional(),
   customerId: emptyToUndefined,
   newCustomerName: emptyToUndefined,
-  newContactFirstName: emptyToUndefined,
-  newContactLastName: emptyToUndefined,
-  newContactPhone: emptyToUndefined,
-  newContactPhoneExt: emptyToUndefined,
-  newContactEmail: emptyToUndefined,
+  newContactJson: emptyToUndefined,
   newLocationName: emptyToUndefined,
   newLocationAddress1: emptyToUndefined,
   newLocationAddress2: emptyToUndefined,
@@ -599,47 +606,59 @@ export async function updateEstimateAction(
       if (d.contactId) {
         await guardContact(tx, orgId, d.contactId)
         resolvedContactId = d.contactId
-      } else if (d.newContactFirstName || d.newContactLastName) {
-        const [newContact] = await tx
-          .insert(contacts)
-          .values({
-            tenantId: orgId,
-            customerId: resolvedCustomerId,
-            firstName: d.newContactFirstName || '',
-            lastName: d.newContactLastName || null,
-          })
-          .returning({ id: contacts.id })
-        resolvedContactId = newContact.id
-        const phoneDigits = normalizePhone(d.newContactPhone)
-        if (phoneDigits) {
-          await tx.insert(contactPhones).values({
-            tenantId: orgId,
-            contactId: resolvedContactId,
-            number: phoneDigits,
-            isPrimary: true,
-          })
-        }
-        if (d.newContactEmail) {
-          await tx.insert(contactEmails).values({
-            tenantId: orgId,
-            contactId: resolvedContactId,
-            address: d.newContactEmail,
-            type: 'work',
-            isPrimary: true,
-          })
-        }
+      } else if (d.newContactJson) {
+        let nc: { firstName?: string; lastName?: string; jobTitle?: string; billingContact?: boolean; bookingContact?: boolean; smsConsent?: boolean; phones?: Array<{ number: string; ext?: string; type?: string; isPrimary?: boolean }>; emails?: Array<{ address: string; type?: string; isPrimary?: boolean }> } = {}
+        try { nc = JSON.parse(d.newContactJson) } catch { /* ignore */ }
+        if (nc.firstName?.trim() || nc.lastName?.trim()) {
+          const [newContact] = await tx
+            .insert(contacts)
+            .values({
+              tenantId: orgId,
+              customerId: resolvedCustomerId,
+              firstName: nc.firstName?.trim() || '',
+              lastName: nc.lastName?.trim() || null,
+              jobTitle: nc.jobTitle?.trim() || null,
+              billingContact: nc.billingContact ?? false,
+              bookingContact: nc.bookingContact ?? false,
+              smsConsent: nc.smsConsent ?? true,
+            })
+            .returning({ id: contacts.id })
+          resolvedContactId = newContact.id
+          for (const p of (nc.phones ?? []).filter((p) => p.number?.trim())) {
+            const phoneDigits = normalizePhone(p.number)
+            if (phoneDigits) {
+              await tx.insert(contactPhones).values({
+                tenantId: orgId,
+                contactId: resolvedContactId,
+                number: phoneDigits,
+                ext: p.ext || null,
+                type: (p.type as 'cell' | 'home' | 'work') || 'cell',
+                isPrimary: p.isPrimary ?? false,
+              })
+            }
+          }
+          for (const e of (nc.emails ?? []).filter((e) => e.address?.trim())) {
+            await tx.insert(contactEmails).values({
+              tenantId: orgId,
+              contactId: resolvedContactId,
+              address: e.address.trim(),
+              type: (e.type as 'work' | 'personal') || 'work',
+              isPrimary: e.isPrimary ?? false,
+            })
+          }
 
-        // Auto-promote to primary if customer has none yet
-        const [custForContact] = await tx
-          .select({ primaryContactId: customers.primaryContactId })
-          .from(customers)
-          .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
-          .limit(1)
-        if (!custForContact?.primaryContactId) {
-          await tx
-            .update(customers)
-            .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+          // Auto-promote to primary if customer has none yet
+          const [custForContact] = await tx
+            .select({ primaryContactId: customers.primaryContactId })
+            .from(customers)
             .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+            .limit(1)
+          if (!custForContact?.primaryContactId) {
+            await tx
+              .update(customers)
+              .set({ primaryContactId: newContact.id, updatedAt: new Date() })
+              .where(and(eq(customers.tenantId, orgId), eq(customers.id, resolvedCustomerId)))
+          }
         }
       }
 

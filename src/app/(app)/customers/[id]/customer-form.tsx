@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Trash2 } from 'lucide-react'
-import { formatPhone } from '@/lib/utils'
 import {
   createCustomer,
   updateCustomer,
@@ -25,13 +24,7 @@ import { ReferralSelect, type ReferralOption } from '@/components/referral-selec
 import { CustomerSearch } from '@/components/customer-search'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
 import type { ParsedAddress } from '@/lib/places-actions'
-
-interface InlineContact {
-  firstName: string
-  lastName: string
-  phone: string
-  email: string
-}
+import { ContactEditor, type ContactEditorValue, emptyContact } from '@/components/contact-editor'
 
 export interface CustomerFormData {
   id?: string
@@ -72,16 +65,12 @@ export function CustomerForm({
   const [vip, setVip] = useState(initial?.vip ?? false)
   const [active, setActive] = useState(initial?.active ?? true)
   const [locationAddr, setLocationAddr] = useState<Partial<ParsedAddress>>({})
-  const [contacts, setContacts] = useState<InlineContact[]>([
-    { firstName: '', lastName: '', phone: '', email: '' },
-  ])
+  const [contacts, setContacts] = useState<ContactEditorValue[]>([emptyContact()])
 
-  const addContact = () =>
-    setContacts((prev) => [...prev, { firstName: '', lastName: '', phone: '', email: '' }])
-  const removeContact = (idx: number) =>
-    setContacts((prev) => prev.filter((_, i) => i !== idx))
-  const updateContact = (idx: number, field: keyof InlineContact, value: string) =>
-    setContacts((prev) => prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c)))
+  const addContact = () => setContacts((prev) => [...prev, emptyContact()])
+  const removeContact = (idx: number) => setContacts((prev) => prev.filter((_, i) => i !== idx))
+  const updateContact = (idx: number, val: ContactEditorValue) =>
+    setContacts((prev) => prev.map((c, i) => (i === idx ? val : c)))
 
   useEffect(() => {
     if (state.success && state.id) {
@@ -218,15 +207,14 @@ export function CustomerForm({
             {mode === 'create' && (
               <>
                 {/* Inline Contacts */}
+                <input type="hidden" name="contactsJson" value={JSON.stringify(contacts)} />
                 <div className="space-y-3 rounded-lg border border-dashed p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-muted-foreground">Contacts <span className="font-normal">(optional)</span></p>
-                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Contacts <span className="font-normal">(optional)</span></p>
                   {contacts.map((contact, ci) => (
-                    <div key={ci} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Contact {ci + 1}</span>
-                        {contacts.length > 1 && (
+                    <div key={ci} className="space-y-3">
+                      {contacts.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Contact {ci + 1}</span>
                           <Button
                             type="button"
                             size="sm"
@@ -237,40 +225,13 @@ export function CustomerForm({
                             <Trash2 className="size-3" />
                             Remove
                           </Button>
-                        )}
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Input
-                          name={`contacts[${ci}].firstName`}
-                          value={contact.firstName}
-                          onChange={(e) => updateContact(ci, 'firstName', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
-                          autoCapitalize="words"
-                          placeholder="First name"
-                        />
-                        <Input
-                          name={`contacts[${ci}].lastName`}
-                          value={contact.lastName}
-                          onChange={(e) => updateContact(ci, 'lastName', e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
-                          autoCapitalize="words"
-                          placeholder="Last name"
-                        />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Input
-                          name={`contacts[${ci}].phone`}
-                          value={formatPhone(contact.phone)}
-                          onChange={(e) => updateContact(ci, 'phone', e.target.value.replace(/\D/g, ''))}
-                          type="tel"
-                          placeholder="Phone"
-                        />
-                        <Input
-                          name={`contacts[${ci}].email`}
-                          value={contact.email}
-                          onChange={(e) => updateContact(ci, 'email', e.target.value)}
-                          type="email"
-                          placeholder="Email"
-                        />
-                      </div>
+                        </div>
+                      )}
+                      <ContactEditor
+                        value={contact}
+                        onChange={(val) => updateContact(ci, val)}
+                        idPrefix={`cust-c${ci}`}
+                      />
                     </div>
                   ))}
                   <Button
