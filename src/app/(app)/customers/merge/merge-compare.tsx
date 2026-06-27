@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -46,6 +46,7 @@ const FIELDS: Array<{
 
 export function MergeCompare({ a, b }: MergeCompareProps) {
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
   const [choices, setChoices] = useState<Record<string, 'left' | 'right'>>({})
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [state, formAction, pending] = useActionState<MergeActionState, FormData>(
@@ -66,7 +67,7 @@ export function MergeCompare({ a, b }: MergeCompareProps) {
   }
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} className="space-y-6">
       <input type="hidden" name="winnerId" value={winner.id} />
       <input type="hidden" name="loserId" value={loser.id} />
 
@@ -175,12 +176,12 @@ export function MergeCompare({ a, b }: MergeCompareProps) {
                 Cancel
               </Button>
               <Button
-                type="submit"
+                type="button"
                 variant="destructive"
                 disabled={pending}
                 onClick={() => {
-                  // Allow the form to submit; close dialog visually
                   setConfirmOpen(false)
+                  formRef.current?.requestSubmit()
                 }}
               >
                 {pending ? 'Merging…' : 'Merge & Archive'}
