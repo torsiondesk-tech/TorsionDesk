@@ -2,6 +2,13 @@
 
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export interface TimeWindowPickerProps {
   startValue: string
@@ -44,10 +51,7 @@ function fmtHM(h24: number, m: string) {
   return `${String(h24).padStart(2, '0')}:${m}`
 }
 
-const DEFAULT_TIME = fmtHM(8, '00') // '08:00'
-
-const selectCls =
-  'h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 dark:bg-input/30'
+const DEFAULT_TIME = fmtHM(8, '00')
 
 function TimeDropdowns({
   value,
@@ -61,32 +65,46 @@ function TimeDropdowns({
 
   return (
     <div className="flex items-center gap-1">
-      <select
-        value={h12}
-        onChange={(e) => onChange(fmtHM(to24h(parseInt(e.target.value), ampm), m))}
-        className={selectCls}
+      <Select
+        value={String(h12)}
+        onValueChange={(v) => { if (v) onChange(fmtHM(to24h(parseInt(v), ampm), m)) }}
       >
-        {HOURS_12.map((h) => (
-          <option key={h} value={h}>{h}</option>
-        ))}
-      </select>
-      <select
+        <SelectTrigger className="w-14">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {HOURS_12.map((h) => (
+            <SelectItem key={h} value={String(h)}>{h}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
         value={m}
-        onChange={(e) => onChange(fmtHM(h24, e.target.value))}
-        className={selectCls}
+        onValueChange={(v) => { if (v) onChange(fmtHM(h24, v)) }}
       >
-        {MINUTES.map((min) => (
-          <option key={min} value={min}>:{min}</option>
-        ))}
-      </select>
-      <select
+        <SelectTrigger className="w-16">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {MINUTES.map((min) => (
+            <SelectItem key={min} value={min}>:{min}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
         value={ampm}
-        onChange={(e) => onChange(fmtHM(to24h(h12, e.target.value as 'AM' | 'PM'), m))}
-        className={selectCls}
+        onValueChange={(v) => { if (v) onChange(fmtHM(to24h(h12, v as 'AM' | 'PM'), m)) }}
       >
-        <option value="AM">AM</option>
-        <option value="PM">PM</option>
-      </select>
+        <SelectTrigger className="w-16">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="AM">AM</SelectItem>
+          <SelectItem value="PM">PM</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -103,8 +121,6 @@ export function TimeWindowPicker({
   error,
   className,
 }: TimeWindowPickerProps) {
-  // When the picker mounts with one side null (e.g. DB has end but no start),
-  // sync the empty side to the displayed default so saves always write both.
   useEffect(() => {
     if (endValue && !startValue) onStartChange(DEFAULT_TIME)
     else if (startValue && !endValue) onEndChange(DEFAULT_TIME)

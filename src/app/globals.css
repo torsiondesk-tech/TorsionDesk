@@ -136,9 +136,4 @@ body {
   html {
     @apply font-sans;
   }
-  /* Native <select> dropdowns inherit OS light-mode by default.
-     This ensures option lists render with dark backgrounds in dark mode. */
-  .dark select {
-    color-scheme: dark;
-  }
 }
