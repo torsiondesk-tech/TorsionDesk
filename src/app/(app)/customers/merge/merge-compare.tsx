@@ -183,7 +183,7 @@ export function MergeCompare({ a, b }: MergeCompareProps) {
                   setConfirmOpen(false)
                 }}
               >
-                {pending ? 'Merging…' : 'Merge &amp; Archive'}
+                {pending ? 'Merging…' : 'Merge & Archive'}
               </Button>
             </DialogFooter>
           </DialogContent>
