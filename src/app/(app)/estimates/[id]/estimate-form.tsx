@@ -197,6 +197,12 @@ export function EstimateForm({
   const [contactMode, setContactMode] = React.useState<'existing' | 'new'>('existing')
   const [contactPickerOpen, setContactPickerOpen] = React.useState(false)
   const [contactPickerSelected, setContactPickerSelected] = React.useState<string>('')
+  const [newContactDialogOpen, setNewContactDialogOpen] = React.useState(false)
+  const [savingNewContactDialog, setSavingNewContactDialog] = React.useState(false)
+  const [newContactDialogError, setNewContactDialogError] = React.useState<string | null>(null)
+  const [dialogNewContact, setDialogNewContact] = React.useState<ContactEditorValue>(emptyContact())
+  const [dialogBirthday, setDialogBirthday] = React.useState('')
+  const [dialogAnniversary, setDialogAnniversary] = React.useState('')
   const [locationMode, setLocationMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
   interface LocationAddrState extends Partial<ParsedAddress> {
     addressLine2?: string
@@ -577,6 +583,47 @@ export function EstimateForm({
       setContactError(err instanceof Error ? err.message : String(err))
     } finally {
       setSavingContact(false)
+    }
+  }
+
+  const handleSaveNewContactDialog = async () => {
+    if (!customerId) return
+    if (!dialogNewContact.firstName.trim() && !dialogNewContact.lastName.trim()) {
+      setNewContactDialogError('First or last name is required.')
+      return
+    }
+    setSavingNewContactDialog(true)
+    setNewContactDialogError(null)
+    try {
+      const result = await createContactForJob(customerId, {
+        firstName: dialogNewContact.firstName.trim(),
+        lastName: dialogNewContact.lastName.trim() || null,
+        jobTitle: dialogNewContact.jobTitle.trim() || null,
+        billingContact: dialogNewContact.billingContact,
+        bookingContact: dialogNewContact.bookingContact,
+        smsConsent: dialogNewContact.smsConsent,
+        birthday: dialogBirthday || null,
+        anniversary: dialogAnniversary || null,
+        phones: dialogNewContact.phones
+          .filter((p) => p.number.trim())
+          .map((p) => ({ number: p.number, ext: p.ext || null, type: p.type, isPrimary: p.isPrimary })),
+        emails: dialogNewContact.emails
+          .filter((e) => e.address.trim())
+          .map((e) => ({ address: e.address, type: e.type, isPrimary: e.isPrimary })),
+      })
+      if (result.error) {
+        setNewContactDialogError(result.error)
+        return
+      }
+      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
+      setContacts(refreshed)
+      setPrimaryContactId(refreshedPrimary)
+      setContactId(result.id)
+      setNewContactDialogOpen(false)
+    } catch (err) {
+      setNewContactDialogError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSavingNewContactDialog(false)
     }
   }
 
@@ -1158,38 +1205,6 @@ export function EstimateForm({
                       <SelectValue placeholder="Select a customer first…" />
                     </SelectTrigger>
                   </Select>
-                ) : contactMode === 'new' ? (
-                  <div className="space-y-3">
-                    <ContactEditor
-                      value={newContactData}
-                      onChange={setNewContactData}
-                      idPrefix="est-existing-cust-c"
-                    />
-                    <div className="flex flex-wrap items-center gap-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setContactMode('existing')
-                          setNewContactData(emptyContact())
-                          setContactError(null)
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        ← Use existing contact
-                      </button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={savingContact}
-                        onClick={handleSaveNewContact}
-                      >
-                        {savingContact ? 'Saving…' : 'Save Contact'}
-                      </Button>
-                    </div>
-                    {contactError && (
-                      <p className="text-xs text-destructive">{contactError}</p>
-                    )}
-                  </div>
                 ) : (
                   <>
                     <input type="hidden" name="contactId" value={contactId ?? ''} />
@@ -1275,9 +1290,11 @@ export function EstimateForm({
                             variant="outline"
                             onClick={() => {
                               setContactPickerOpen(false)
-                              setContactMode('new')
-                              setContactId(null)
-                              setContactEdit(null)
+                              setDialogNewContact({ ...emptyContact(), billingContact: contacts.length === 0 })
+                              setDialogBirthday('')
+                              setDialogAnniversary('')
+                              setNewContactDialogError(null)
+                              setNewContactDialogOpen(true)
                             }}
                             className="mr-auto"
                           >
@@ -1298,6 +1315,52 @@ export function EstimateForm({
                             }}
                           >
                             Select
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* Add New Contact dialog */}
+                    <Dialog open={newContactDialogOpen} onOpenChange={setNewContactDialogOpen}>
+                      <DialogContent className="max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Add New Contact</DialogTitle>
+                          <DialogDescription>Create a new contact for this customer.</DialogDescription>
+                        </DialogHeader>
+                        <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-1">
+                          <ContactEditor
+                            value={dialogNewContact}
+                            onChange={setDialogNewContact}
+                            idPrefix="est-dialog-nc"
+                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Birthday</Label>
+                              <Input
+                                type="date"
+                                value={dialogBirthday}
+                                onChange={(e) => setDialogBirthday(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Anniversary</Label>
+                              <Input
+                                type="date"
+                                value={dialogAnniversary}
+                                onChange={(e) => setDialogAnniversary(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          {newContactDialogError && (
+                            <p className="text-sm text-destructive">{newContactDialogError}</p>
+                          )}
+                        </div>
+                        <DialogFooter>
+                          <Button type="button" variant="ghost" onClick={() => setNewContactDialogOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button type="button" onClick={handleSaveNewContactDialog} disabled={savingNewContactDialog}>
+                            {savingNewContactDialog ? 'Saving…' : 'Save'}
                           </Button>
                         </DialogFooter>
                       </DialogContent>
