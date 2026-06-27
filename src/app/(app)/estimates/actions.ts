@@ -325,11 +325,13 @@ export async function createOfficeEstimateAction(
             .values({
               tenantId: orgId,
               customerId: resolvedCustomerId,
+              name: d.newLocationName ?? null,
               addressLine1: d.newLocationAddress1,
               addressLine2: d.newLocationAddress2 ?? null,
               city: d.newLocationCity ?? null,
               state: d.newLocationState ?? null,
               postalCode: d.newLocationPostalCode ?? null,
+              gated: d.newLocationGated ?? false,
             })
             .returning({ id: serviceLocations.id })
           resolvedLocationId = newLoc.id
@@ -482,11 +484,13 @@ const updateEstimateSchema = z.object({
   newContactLastName: emptyToUndefined,
   newContactPhone: emptyToUndefined,
   newContactEmail: emptyToUndefined,
+  newLocationName: emptyToUndefined,
   newLocationAddress1: emptyToUndefined,
   newLocationAddress2: emptyToUndefined,
   newLocationCity: emptyToUndefined,
   newLocationState: emptyToUndefined,
   newLocationPostalCode: emptyToUndefined,
+  newLocationGated: z.preprocess((v) => v === true || v === 'true', z.boolean().default(false)),
   contactId: emptyToNull,
   serviceLocationId: emptyToNull,
   categoryId: emptyToNull,

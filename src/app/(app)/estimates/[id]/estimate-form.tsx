@@ -137,11 +137,13 @@ export function EstimateForm({
   const [newContactLastName, setNewContactLastName] = React.useState('')
   const [newContactPhone, setNewContactPhone] = React.useState('')
   const [newContactEmail, setNewContactEmail] = React.useState('')
+  const [newLocationName, setNewLocationName] = React.useState('')
   const [newLocationAddress1, setNewLocationAddress1] = React.useState('')
   const [newLocationAddress2, setNewLocationAddress2] = React.useState('')
   const [newLocationCity, setNewLocationCity] = React.useState('')
   const [newLocationState, setNewLocationState] = React.useState('')
   const [newLocationPostalCode, setNewLocationPostalCode] = React.useState('')
+  const [newLocationGated, setNewLocationGated] = React.useState(false)
   const prevCustomerIdRef = React.useRef<string | null>(initial?.estimate.customerId ?? null)
 
   // ── Core form state ──
@@ -498,11 +500,13 @@ export function EstimateForm({
     setNewContactPhone('')
     setNewContactEmail('')
     setLocationMode('new')
+    setNewLocationName('')
     setNewLocationAddress1('')
     setNewLocationAddress2('')
     setNewLocationCity('')
     setNewLocationState('')
     setNewLocationPostalCode('')
+    setNewLocationGated(false)
     setLocationEditName('')
     setLocationGated(false)
     setNewLocationAddr({})
@@ -525,11 +529,13 @@ export function EstimateForm({
     setNewContactPhone('')
     setNewContactEmail('')
     setLocationMode('existing')
+    setNewLocationName('')
     setNewLocationAddress1('')
     setNewLocationAddress2('')
     setNewLocationCity('')
     setNewLocationState('')
     setNewLocationPostalCode('')
+    setNewLocationGated(false)
     setLocationEditName('')
     setLocationGated(false)
     setNewLocationAddr({})
@@ -785,11 +791,13 @@ export function EstimateForm({
             bookingContact: contactEdit.bookingContact,
           })
         : '',
+    newLocationName: customerMode === 'new' ? newLocationName : '',
     newLocationAddress1: customerMode === 'new' ? newLocationAddress1 : '',
     newLocationAddress2: customerMode === 'new' ? newLocationAddress2 : '',
     newLocationCity: customerMode === 'new' ? newLocationCity : '',
     newLocationState: customerMode === 'new' ? newLocationState : '',
     newLocationPostalCode: customerMode === 'new' ? newLocationPostalCode : '',
+    newLocationGated: customerMode === 'new' ? newLocationGated : false,
     contactId: customerMode === 'new' ? null : contactId,
     serviceLocationId: customerMode === 'new' ? null : serviceLocationId,
     status,
@@ -1125,42 +1133,79 @@ export function EstimateForm({
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Service location address</Label>
-                <AddressAutocomplete
-                  defaultValue={newLocationAddress1}
-                  placeholder="Start typing an address…"
-                  onAddressSelect={(result) => {
-                    setNewLocationAddress1(result.addressLine1 ?? '')
-                    setNewLocationCity(result.city ?? '')
-                    setNewLocationState(result.state ?? '')
-                    setNewLocationPostalCode(result.postalCode ?? '')
-                  }}
-                />
+              <div>
+                <Label>Service Location</Label>
               </div>
-              <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto]">
-                <div className="space-y-2">
-                  <Label>City</Label>
+              {/* Row 1: Location Name + Gated */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Location Name</Label>
+                  <Input
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    placeholder="e.g. Home or Office"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 pt-5">
+                  <Checkbox
+                    id="new-cust-location-gated"
+                    checked={newLocationGated}
+                    onCheckedChange={(c) => setNewLocationGated(c === true)}
+                  />
+                  <Label htmlFor="new-cust-location-gated" className="cursor-pointer text-sm">
+                    Gated Property
+                  </Label>
+                </div>
+              </div>
+              {/* Row 2: Street Address + Unit */}
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Street Address</Label>
+                  <AddressAutocomplete
+                    defaultValue={newLocationAddress1}
+                    placeholder="Start typing an address…"
+                    onAddressSelect={(result) => {
+                      setNewLocationAddress1(result.addressLine1 ?? '')
+                      setNewLocationCity(result.city ?? '')
+                      setNewLocationState(result.state ?? '')
+                      setNewLocationPostalCode(result.postalCode ?? '')
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Unit</Label>
+                  <Input
+                    value={newLocationAddress2}
+                    onChange={(e) => setNewLocationAddress2(e.target.value)}
+                    placeholder="Ste/Unit/Apt"
+                    className="w-32"
+                  />
+                </div>
+              </div>
+              {/* Row 3: City + State + Zip */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">City</Label>
                   <Input
                     value={newLocationCity}
                     onChange={(e) => setNewLocationCity(e.target.value)}
                     placeholder="City"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>State</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">State</Label>
                   <Input
                     value={newLocationState}
                     onChange={(e) => setNewLocationState(e.target.value)}
                     placeholder="State"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>ZIP</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs">Zip</Label>
                   <Input
                     value={newLocationPostalCode}
                     onChange={(e) => setNewLocationPostalCode(e.target.value)}
-                    placeholder="ZIP"
+                    placeholder="Zip/Postal Code"
                   />
                 </div>
               </div>
