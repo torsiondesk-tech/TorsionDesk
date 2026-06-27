@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { ServiceLocationCard, isRedundantLocationName } from '@/components/service-location-card'
 import { CustomerSearch } from '@/components/customer-search'
 import { TagSelect, type TagOption } from '@/components/tag-select'
 import { TechSelect } from '@/components/tech-select'
@@ -145,17 +146,6 @@ interface JobFormProps {
 }
 
 /** Detect auto-filled or redundant location names that equal the address. */
-function isRedundantLocationName(
-  name: string | null,
-  addressLine1: string | null,
-  city: string | null,
-): boolean {
-  if (!name || !addressLine1) return true
-  const n = name.trim().toLowerCase().replace(/,\s*/g, ',')
-  const a1 = addressLine1.trim().toLowerCase()
-  const a1City = [addressLine1, city].filter(Boolean).join(', ').toLowerCase().replace(/,\s*/g, ',')
-  return n === a1 || n === a1City || n.startsWith(a1 + ',')
-}
 
 export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId, primaryContactId: initialPrimaryContactId, defaults, onSuccess, onCancel, rightPanelExtras }: JobFormProps) {
   const router = useRouter()
@@ -1406,95 +1396,23 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                 // Location chosen — show summary card only (no select so no UUID leaks into trigger)
                 <>
                   <input type="hidden" name="serviceLocationId" value={locationId} />
-                  {(() => {
-                    const loc = locations.find((l) => l.id === locationId)
-                    const cityStateZip = loc
-                      ? [loc.city, loc.state, loc.postalCode].filter(Boolean).join(', ')
-                      : ''
-                    return (
-                      <div className="rounded-lg border border-input bg-muted/30 px-3 py-2 text-sm">
-                        <div className="space-y-0.5">
-                          {loc ? (
-                            <>
-                              {!isRedundantLocationName(loc.name, loc.addressLine1, loc.city) && (
-                                <div className="font-medium">{loc.name}</div>
-                              )}
-                              {loc.addressLine1 && (
-                                <div className="text-muted-foreground">{loc.addressLine1}</div>
-                              )}
-                              {loc.addressLine2 && (
-                                <div className="text-muted-foreground">{loc.addressLine2}</div>
-                              )}
-                              {cityStateZip && (
-                                <div className="text-muted-foreground">{cityStateZip}</div>
-                              )}
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                {loc.id === localPrimaryLocationId && (
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Primary</Badge>
-                                )}
-                                {loc.gated && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                    Gated Property
-                                  </Badge>
-                                )}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">Loading…</span>
-                          )}
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-3">
-                          {customerId && (
-                            locationId === localPrimaryLocationId ? (
-                              <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
-                                <Star className="size-3 fill-amber-500 text-amber-500" />
-                                Primary
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const result = await setPrimaryLocationAction(customerId, locationId)
-                                  if (result.success) setLocalPrimaryLocationId(locationId)
-                                }}
-                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                              >
-                                <Star className="size-3" />
-                                Set as Primary
-                              </button>
-                            )
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setLocationMode('edit')}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            Edit address
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setLocationId(undefined); setLocationError(null) }}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            Change location
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLocationMode('new')
-                              setLocationId(undefined)
-                              setNewLocationAddr({})
-                              setLocationEditName('')
-                              setLocationGated(false)
-                            }}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            + New address
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  <ServiceLocationCard
+                    location={locations.find((l) => l.id === locationId)}
+                    isPrimary={locationId === localPrimaryLocationId}
+                    onSetPrimary={customerId ? async () => {
+                      const result = await setPrimaryLocationAction(customerId, locationId)
+                      if (result.success) setLocalPrimaryLocationId(locationId)
+                    } : undefined}
+                    onEditAddress={() => setLocationMode('edit')}
+                    onChangeLocation={() => { setLocationId(undefined); setLocationError(null) }}
+                    onNewAddress={() => {
+                      setLocationMode('new')
+                      setLocationId(undefined)
+                      setNewLocationAddr({})
+                      setLocationEditName('')
+                      setLocationGated(false)
+                    }}
+                  />
                 </>
               ) : (
                 <>
