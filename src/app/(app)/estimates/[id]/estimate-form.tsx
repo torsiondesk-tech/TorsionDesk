@@ -892,41 +892,18 @@ export function EstimateForm({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {mode === 'create' ? 'New Estimate' : `Estimate #EST-${initial?.estimate.estimateNo ?? ''}`}
-          </h1>
-          {customerId ? (
-            <Link
-              href={`/customers/${customerId}`}
-              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-            >
-              {customerName}
-            </Link>
-          ) : (
+        {mode === 'create' && (
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              New Estimate
+            </h1>
             <p className="text-sm text-muted-foreground">
               {customerName || 'Select a customer to begin'}
             </p>
-          )}
-          {mode === 'edit' && initial?.convertedJobs && initial.convertedJobs.length > 0 && (
-            <p className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-muted-foreground">Converted to:</span>
-              {initial.convertedJobs.map((job, i) => (
-                <span key={job.id} className="inline-flex items-center gap-1">
-                  {i > 0 && <span className="text-muted-foreground">,</span>}
-                  <Link
-                    href={`/jobs/${job.id}`}
-                    className="font-medium underline hover:text-foreground"
-                  >
-                    Job #{`JOB-${job.jobNo}`}
-                  </Link>
-                </span>
-              ))}
-            </p>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {mode === 'edit' && estimateId && (
             <>
               <Link href={`/api/estimates/${estimateId}/pdf`} target="_blank" passHref>
