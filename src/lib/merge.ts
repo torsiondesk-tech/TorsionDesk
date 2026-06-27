@@ -37,14 +37,14 @@ export async function mergeCustomers(
       throw new Error('Winner is not available for merge')
     }
 
-    // Verify loser exists and is active
+    // Verify loser exists (inactive is fine — merging a deactivated duplicate is valid)
     const [loserRecord] = await tx
       .select()
       .from(customers)
       .where(and(eq(customers.tenantId, orgId), eq(customers.id, loserId)))
       .limit(1)
-    if (!loserRecord || !loserRecord.active) {
-      throw new Error('Loser is not available for merge')
+    if (!loserRecord) {
+      throw new Error('Loser record not found')
     }
 
     // Prevent circular merge chains (AN-002)
