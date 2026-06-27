@@ -47,7 +47,7 @@ function fmtHM(h24: number, m: string) {
 const DEFAULT_TIME = fmtHM(8, '00') // '08:00'
 
 const selectCls =
-  'h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 dark:bg-input/30'
+  'h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 dark:bg-input/30 dark:[color-scheme:dark]'
 
 function TimeDropdowns({
   value,
