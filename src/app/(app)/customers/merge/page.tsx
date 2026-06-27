@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect, notFound } from 'next/navigation'
 import { getCustomerById } from '@/lib/customers'
 import { MergeCompare } from './merge-compare'
+import { MergePicker } from './merge-picker'
 
 interface MergePageProps {
   searchParams: Promise<{
@@ -23,7 +24,7 @@ export default async function MergePage({ searchParams }: MergePageProps) {
   const aId = normalizeParam(params.a)
   const bId = normalizeParam(params.b)
 
-  if (!aId || !bId) {
+  if (!aId) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-center">
         <h1 className="text-2xl font-bold">Merge Customers</h1>
@@ -32,6 +33,12 @@ export default async function MergePage({ searchParams }: MergePageProps) {
         </p>
       </div>
     )
+  }
+
+  if (!bId) {
+    const a = await getCustomerById(orgId, aId)
+    if (!a) notFound()
+    return <MergePicker aId={aId} aName={a.name} />
   }
 
   const [a, b] = await Promise.all([
