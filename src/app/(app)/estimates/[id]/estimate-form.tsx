@@ -1741,65 +1741,83 @@ export function EstimateForm({
 
                     {(locationMode === 'new' || locationMode === 'edit') && (
                       <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-                        <div className="space-y-2">
-                          <Label className="text-xs">Location name</Label>
-                          <Input
-                            value={locationEditName}
-                            onChange={(e) => setLocationEditName(e.target.value)}
-                            placeholder="e.g. Main residence"
-                          />
+                        {/* Row 1: Location Name + Gated */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-xs">Location Name</Label>
+                            <Input
+                              value={locationEditName}
+                              onChange={(e) => setLocationEditName(e.target.value)}
+                              placeholder="e.g. Home or Office"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5 pt-5">
+                            <Checkbox
+                              id="location-gated"
+                              checked={locationGated}
+                              onCheckedChange={(c) => setLocationGated(c === true)}
+                            />
+                            <Label htmlFor="location-gated" className="cursor-pointer text-sm">
+                              Gated Property
+                            </Label>
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs">Address</Label>
-                          <AddressAutocomplete
-                            key={locationFormKey}
-                            defaultValue={newLocationAddr.addressLine1 ?? ''}
-                            placeholder="Start typing an address…"
-                            onAddressSelect={(result) => {
-                              setNewLocationAddr((prev) => ({
-                                ...result,
-                                addressLine2: prev.addressLine2,
-                              }))
-                            }}
-                          />
+                        {/* Row 2: Street Address + Unit */}
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Street Address</Label>
+                            <AddressAutocomplete
+                              key={locationFormKey}
+                              defaultValue={newLocationAddr.addressLine1 ?? ''}
+                              placeholder="Start typing an address…"
+                              onAddressSelect={(result) => {
+                                setNewLocationAddr((prev) => ({
+                                  ...result,
+                                  addressLine2: prev.addressLine2,
+                                }))
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Unit</Label>
+                            <Input
+                              value={newLocationAddr.addressLine2 ?? ''}
+                              onChange={(e) =>
+                                setNewLocationAddr((prev) => ({ ...prev, addressLine2: e.target.value }))
+                              }
+                              placeholder="Ste/Unit/Apt"
+                              className="w-32"
+                            />
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            value={newLocationAddr.addressLine2 ?? ''}
-                            onChange={(e) =>
-                              setNewLocationAddr((prev) => ({ ...prev, addressLine2: e.target.value }))
-                            }
-                            placeholder="Apt / suite / unit"
-                          />
-                          <Input
-                            value={newLocationAddr.city ?? ''}
-                            onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, city: e.target.value }))}
-                            placeholder="City"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            value={newLocationAddr.state ?? ''}
-                            onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, state: e.target.value }))}
-                            placeholder="State"
-                          />
-                          <Input
-                            value={newLocationAddr.postalCode ?? ''}
-                            onChange={(e) =>
-                              setNewLocationAddr((prev) => ({ ...prev, postalCode: e.target.value }))
-                            }
-                            placeholder="ZIP"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="location-gated"
-                            checked={locationGated}
-                            onCheckedChange={(c) => setLocationGated(c === true)}
-                          />
-                          <Label htmlFor="location-gated" className="cursor-pointer text-sm">
-                            Gated Property
-                          </Label>
+                        {/* Row 3: City + State + Zip */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">City</Label>
+                            <Input
+                              value={newLocationAddr.city ?? ''}
+                              onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, city: e.target.value }))}
+                              placeholder="City"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">State</Label>
+                            <Input
+                              value={newLocationAddr.state ?? ''}
+                              onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, state: e.target.value }))}
+                              placeholder="State"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Zip</Label>
+                            <Input
+                              value={newLocationAddr.postalCode ?? ''}
+                              onChange={(e) =>
+                                setNewLocationAddr((prev) => ({ ...prev, postalCode: e.target.value }))
+                              }
+                              placeholder="Zip/Postal Code"
+                            />
+                          </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 pt-1">
                           <button
