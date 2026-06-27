@@ -1058,12 +1058,12 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
                   {/* Add New Contact dialog */}
                   <Dialog open={newContactDialogOpen} onOpenChange={setNewContactDialogOpen}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="sm:max-w-xl">
                       <DialogHeader>
                         <DialogTitle>Add New Contact</DialogTitle>
                         <DialogDescription>Create a new contact for this customer.</DialogDescription>
                       </DialogHeader>
-                      <div className="max-h-[60vh] overflow-y-auto space-y-4 pr-1">
+                      <div className="max-h-[70vh] overflow-y-auto space-y-5 pr-2">
                         <ContactEditor
                           value={dialogNewContact}
                           onChange={setDialogNewContact}

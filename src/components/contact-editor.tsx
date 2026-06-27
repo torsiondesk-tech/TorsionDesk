@@ -119,16 +119,16 @@ export function ContactEditor({ value, onChange, idPrefix = 'ce' }: ContactEdito
               placeholder="(555) 000-0000"
               value={formatPhone(phone.number)}
               onChange={(e) => setPhone(i, { number: e.target.value.replace(/\D/g, '') })}
-              className="max-w-[175px]"
+              className="flex-1 min-w-0"
             />
             <Input
               placeholder="Ext"
               value={phone.ext}
               onChange={(e) => setPhone(i, { ext: e.target.value.replace(/\D/g, '') })}
-              className="w-16"
+              className="w-16 shrink-0"
             />
             <Select value={phone.type} onValueChange={(v) => setPhone(i, { type: v as ContactPhone['type'] })}>
-              <SelectTrigger className="h-9 w-[100px]">
+              <SelectTrigger className="h-9 w-[90px] shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
