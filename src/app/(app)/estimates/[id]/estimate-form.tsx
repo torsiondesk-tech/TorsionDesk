@@ -1050,7 +1050,7 @@ export function EstimateForm({
           <h2 className="text-xl font-semibold">Project Specs</h2>
 
           <div className="space-y-2">
-            <Label>Customer *</Label>
+            <p className="text-sm font-medium leading-none">Customer *</p>
             {customerMode === 'new' ? (
               <div className="space-y-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-3">
                 <div className="flex items-center justify-between">
@@ -1108,13 +1108,14 @@ export function EstimateForm({
                 idPrefix="est-new-cust-c"
               />
               <div>
-                <Label>Service Location</Label>
+                <p className="text-sm font-medium leading-none">Service Location</p>
               </div>
               {/* Row 1: Location Name + Gated */}
               <div className="flex items-center gap-3">
                 <div className="flex-1 space-y-1">
-                  <Label className="text-xs">Location Name</Label>
+                  <Label htmlFor="est-new-loc-name" className="text-xs">Location Name</Label>
                   <Input
+                    id="est-new-loc-name"
                     value={newLocationName}
                     onChange={(e) => setNewLocationName(e.target.value)}
                     placeholder="e.g. Home or Office"
@@ -1134,8 +1135,9 @@ export function EstimateForm({
               {/* Row 2: Street Address + Unit */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Street Address</Label>
+                  <Label htmlFor="est-new-loc-addr1" className="text-xs">Street Address</Label>
                   <AddressAutocomplete
+                    id="est-new-loc-addr1"
                     defaultValue={newLocationAddress1}
                     placeholder="Start typing an address…"
                     onAddressSelect={(result) => {
@@ -1147,8 +1149,9 @@ export function EstimateForm({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Unit</Label>
+                  <Label htmlFor="est-new-loc-addr2" className="text-xs">Unit</Label>
                   <Input
+                    id="est-new-loc-addr2"
                     value={newLocationAddress2}
                     onChange={(e) => setNewLocationAddress2(e.target.value)}
                     placeholder="Ste/Unit/Apt"
@@ -1159,24 +1162,27 @@ export function EstimateForm({
               {/* Row 3: City + State + Zip */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">City</Label>
+                  <Label htmlFor="est-new-loc-city" className="text-xs">City</Label>
                   <Input
+                    id="est-new-loc-city"
                     value={newLocationCity}
                     onChange={(e) => setNewLocationCity(e.target.value)}
                     placeholder="City"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">State</Label>
+                  <Label htmlFor="est-new-loc-state" className="text-xs">State</Label>
                   <Input
+                    id="est-new-loc-state"
                     value={newLocationState}
                     onChange={(e) => setNewLocationState(e.target.value)}
                     placeholder="State"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Zip</Label>
+                  <Label htmlFor="est-new-loc-zip" className="text-xs">Zip</Label>
                   <Input
+                    id="est-new-loc-zip"
                     value={newLocationPostalCode}
                     onChange={(e) => setNewLocationPostalCode(e.target.value)}
                     placeholder="Zip/Postal Code"
@@ -1188,7 +1194,7 @@ export function EstimateForm({
             <div className="space-y-5">
               {/* ── Contact ── */}
               <div className="space-y-2">
-                <Label>Contact</Label>
+                <p className="text-sm font-medium leading-none">Contact</p>
                 {!customerId ? (
                   <Select disabled>
                     <SelectTrigger className="w-full opacity-50">
@@ -1600,7 +1606,7 @@ export function EstimateForm({
 
               {/* ── Service Location ── */}
               <div className="space-y-2">
-                <Label>Service Location</Label>
+                <p className="text-sm font-medium leading-none">Service Location</p>
                 {!customerId ? (
                   <Select disabled>
                     <SelectTrigger className="w-full opacity-50">
@@ -1791,9 +1797,9 @@ export function EstimateForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label htmlFor="est-category">Category</Label>
               <Select value={categoryId ?? ''} onValueChange={(v) => setCategoryId(v || null)}>
-                <SelectTrigger>
+                <SelectTrigger id="est-category">
                   <SelectValue placeholder="Select category">
                     {categoryId
                       ? referenceData.jobCategories.find((c) => c.id === categoryId)?.name ?? categoryId
@@ -1812,14 +1818,15 @@ export function EstimateForm({
             </div>
 
             <div className="space-y-2">
-              <Label>PO Number</Label>
-              <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="PO #" />
+              <Label htmlFor="est-poNumber">PO Number</Label>
+              <Input id="est-poNumber" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="PO #" />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Description</Label>
+            <Label htmlFor="est-description">Description</Label>
             <Textarea
+              id="est-description"
               value={description}
             onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the work or scope"
@@ -1829,11 +1836,11 @@ export function EstimateForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>On-site Visit Date</Label>
-              <Input type="date" value={onSiteDate} onChange={(e) => setOnSiteDate(e.target.value)} />
+              <Label htmlFor="est-onSiteDate">On-site Visit Date</Label>
+              <Input id="est-onSiteDate" type="date" value={onSiteDate} onChange={(e) => setOnSiteDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Arrival Window</Label>
+              <p className="text-sm font-medium leading-none">Arrival Window</p>
               <TimeWindowPicker
                 startValue={arrivalWindowStart}
                 endValue={arrivalWindowEnd}
@@ -1844,7 +1851,7 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Assigned Techs</Label>
+            <p className="text-sm font-medium leading-none">Assigned Techs</p>
             <TechSelect
               members={referenceData.orgMembers.filter(
                 (m) => m.role === 'org:technician' || m.role === 'org:admin',
@@ -1855,7 +1862,7 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Tags</Label>
+            <p className="text-sm font-medium leading-none">Tags</p>
             <TagSelect
               availableTags={referenceData.availableTags}
               defaultSelected={referenceData.availableTags.filter((t) => tagIds.includes(t.id))}
@@ -1864,8 +1871,9 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Notes for Techs</Label>
+            <Label htmlFor="est-notesForTechs">Notes for Techs</Label>
             <Textarea
+              id="est-notesForTechs"
               value={notesForTechs}
               onChange={(e) => setNotesForTechs(e.target.value)}
               placeholder="Visible to technicians in the field"
@@ -1879,12 +1887,12 @@ export function EstimateForm({
           <h2 className="text-xl font-semibold">Sales Data</h2>
 
           <div className="space-y-2">
-            <Label>Requested On</Label>
-            <Input type="date" value={requestedOn} onChange={(e) => setRequestedOn(e.target.value)} />
+            <Label htmlFor="est-requestedOn">Requested On</Label>
+            <Input id="est-requestedOn" type="date" value={requestedOn} onChange={(e) => setRequestedOn(e.target.value)} />
           </div>
 
           <div className="space-y-2">
-            <Label>Status</Label>
+            <p className="text-sm font-medium leading-none">Status</p>
             {mode === 'edit' && estimateId ? (
               <EstimateStatusDropdown
                 estimateId={estimateId}
@@ -1910,17 +1918,17 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Opportunity Rating</Label>
+            <p className="text-sm font-medium leading-none">Opportunity Rating</p>
             <StarPicker value={opportunityRating} onChange={setOpportunityRating} />
           </div>
 
           <div className="space-y-2">
-            <Label>Referral Source</Label>
+            <Label htmlFor="est-referralSource">Referral Source</Label>
             <Select
               value={referralSourceId ?? ''}
               onValueChange={(v) => setReferralSourceId(v || null)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="est-referralSource">
                 <SelectValue placeholder="Select source">
                   {referralSourceId
                     ? referenceData.referralSources.find((s) => s.id === referralSourceId)?.name ?? referralSourceId
@@ -1940,22 +1948,22 @@ export function EstimateForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Expiry Date</Label>
-              <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+              <Label htmlFor="est-expiryDate">Expiry Date</Label>
+              <Input id="est-expiryDate" type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Follow-up Date</Label>
-              <Input type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
+              <Label htmlFor="est-followUpDate">Follow-up Date</Label>
+              <Input id="est-followUpDate" type="date" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Sales Rep</Label>
+            <Label htmlFor="est-salesRep">Sales Rep</Label>
             <Select
               value={assignedAgentId ?? ''}
               onValueChange={(v) => setAssignedAgentId(v || null)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="est-salesRep">
                 <SelectValue placeholder="Select rep">
                   {assignedAgentId
                     ? referenceData.salesReps.find((r) => r.id === assignedAgentId)?.name ?? assignedAgentId
@@ -1974,8 +1982,9 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <Label>Internal Notes</Label>
+            <Label htmlFor="est-internalNotes">Internal Notes</Label>
             <Textarea
+              id="est-internalNotes"
               value={internalNotes}
               onChange={(e) => setInternalNotes(e.target.value)}
               placeholder="Not shown on the customer-facing PDF"

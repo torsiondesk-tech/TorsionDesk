@@ -384,7 +384,7 @@ function VisitFormFields({
       </div>
 
       <div className="space-y-2">
-        <Label>Arrival Time Window</Label>
+        <p className="text-sm font-medium leading-none">Arrival Time Window</p>
         <TimeWindowPicker
           startValue={start}
           endValue={end}

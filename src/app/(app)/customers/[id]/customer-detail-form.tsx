@@ -564,7 +564,7 @@ export function CustomerDetailForm({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Parent Account</Label>
+                      <p className="text-sm font-medium leading-none">Parent Account</p>
                       <CustomerSearch
                         name="parentCustomerId"
                         defaultValue={parentCustomerId ?? undefined}
@@ -627,7 +627,7 @@ export function CustomerDetailForm({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Tags</Label>
+                      <p className="text-sm font-medium leading-none">Tags</p>
                       <TagSelect
                         name="tagIds"
                         availableTags={availableTags}
@@ -641,7 +641,7 @@ export function CustomerDetailForm({
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Referral Source</Label>
+                      <p className="text-sm font-medium leading-none">Referral Source</p>
                       <ReferralSelect
                         name="referralSourceId"
                         options={referralOptions}
@@ -742,7 +742,7 @@ export function CustomerDetailForm({
 
                       {/* Phones */}
                       <div className="space-y-1.5 sm:col-span-2">
-                        <Label>Phone Numbers</Label>
+                        <p className="text-sm font-medium leading-none">Phone Numbers</p>
                         <div className="space-y-2">
                           {contact.phones.map((phone, pi) => (
                             <div key={pi} className="flex items-center gap-2">
@@ -833,7 +833,7 @@ export function CustomerDetailForm({
 
                       {/* Emails */}
                       <div className="space-y-1.5 sm:col-span-2">
-                        <Label>Email Addresses</Label>
+                        <p className="text-sm font-medium leading-none">Email Addresses</p>
                         <div className="space-y-2">
                           {contact.emails.map((email, ei) => (
                             <div key={ei} className="flex items-center gap-2">

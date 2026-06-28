@@ -168,12 +168,12 @@ export function JobsAdvancedSearch({
 
         {/* Status */}
         <div className="space-y-1.5">
-          <Label className="text-xs">Status</Label>
+          <Label htmlFor="adv-status" className="text-xs">Status</Label>
           <Select
             value={status || ''}
             onValueChange={(val) => updateFilter('status', val)}
           >
-            <SelectTrigger className="h-8 w-full">
+            <SelectTrigger id="adv-status" className="h-8 w-full">
               <SelectValue placeholder="Any status" />
             </SelectTrigger>
             <SelectContent>
@@ -189,12 +189,12 @@ export function JobsAdvancedSearch({
 
         {/* Priority */}
         <div className="space-y-1.5">
-          <Label className="text-xs">Priority</Label>
+          <Label htmlFor="adv-priority" className="text-xs">Priority</Label>
           <Select
             value={priority || ''}
             onValueChange={(val) => updateFilter('priority', val)}
           >
-            <SelectTrigger className="h-8 w-full">
+            <SelectTrigger id="adv-priority" className="h-8 w-full">
               <SelectValue placeholder="Any priority" />
             </SelectTrigger>
             <SelectContent>
@@ -210,12 +210,12 @@ export function JobsAdvancedSearch({
 
         {/* Category */}
         <div className="space-y-1.5">
-          <Label className="text-xs">Category</Label>
+          <Label htmlFor="adv-category" className="text-xs">Category</Label>
           <Select
             value={category || ''}
             onValueChange={(val) => updateFilter('category', val)}
           >
-            <SelectTrigger className="h-8 w-full">
+            <SelectTrigger id="adv-category" className="h-8 w-full">
               <SelectValue placeholder="Any category">
                 {category
                   ? categories.find((c) => c.id === category)?.name ?? 'Any category'
@@ -235,8 +235,9 @@ export function JobsAdvancedSearch({
 
         {/* Date range */}
         <div className="space-y-1.5">
-          <Label className="text-xs">From date</Label>
+          <Label htmlFor="adv-from" className="text-xs">From date</Label>
           <Input
+            id="adv-from"
             type="date"
             value={from}
             onChange={(e) => updateFilter('from', e.currentTarget.value)}
@@ -244,8 +245,9 @@ export function JobsAdvancedSearch({
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">To date</Label>
+          <Label htmlFor="adv-to" className="text-xs">To date</Label>
           <Input
+            id="adv-to"
             type="date"
             value={to}
             onChange={(e) => updateFilter('to', e.currentTarget.value)}
@@ -255,12 +257,12 @@ export function JobsAdvancedSearch({
 
         {/* Assignee */}
         <div className="space-y-1.5">
-          <Label className="text-xs">Assigned tech</Label>
+          <Label htmlFor="adv-tech" className="text-xs">Assigned tech</Label>
           <Select
             value={tech || ''}
             onValueChange={(val) => updateFilter('tech', val)}
           >
-            <SelectTrigger className="h-8 w-full">
+            <SelectTrigger id="adv-tech" className="h-8 w-full">
               <SelectValue placeholder="Any tech">
                 {tech ? techs.find((t) => t.userId === tech)?.name ?? 'Any tech' : 'Any tech'}
               </SelectValue>
@@ -278,7 +280,7 @@ export function JobsAdvancedSearch({
 
         {/* Customer */}
         <div className="space-y-1.5 md:col-span-2 lg:col-span-1">
-          <Label className="text-xs">Customer</Label>
+          <p className="text-xs font-medium">Customer</p>
           <CustomerSearch
             key={customer || 'empty'}
             defaultValue={customer || undefined}

@@ -605,7 +605,7 @@ export function TechJobForm({
 
       {customerId && (
         <div className="space-y-2">
-          <Label>Contact <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <p className="text-sm font-medium leading-none">Contact <span className="text-muted-foreground font-normal">(optional)</span></p>
           <div className="grid grid-cols-2 gap-2">
             <Input
               placeholder="First name"

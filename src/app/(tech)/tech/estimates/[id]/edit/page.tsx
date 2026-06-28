@@ -194,9 +194,9 @@ export default function TechEstimateEditPage() {
       <SectionTitle>Status</SectionTitle>
 
       <div className="space-y-2">
-        <Label>Status</Label>
+        <Label htmlFor="tech-edit-status">Status</Label>
         <Select value={cur.status} onValueChange={(v) => setStatus(v ?? undefined)}>
-          <SelectTrigger>
+          <SelectTrigger id="tech-edit-status">
             <SelectValue>
               <Badge variant={estimateStatusBadgeVariant(cur.status)}>
                 {estimateStatusLabel(cur.status)}
@@ -261,9 +261,9 @@ export default function TechEstimateEditPage() {
 
       {locations.length > 0 && (
         <div className="space-y-2">
-          <Label>Service location</Label>
+          <Label htmlFor="tech-edit-serviceLocation">Service location</Label>
           <Select value={cur.serviceLocationId ?? ''} onValueChange={(v) => setServiceLocationId(v || null)}>
-            <SelectTrigger className="text-base">
+            <SelectTrigger id="tech-edit-serviceLocation" className="text-base">
               <SelectValue placeholder="No location">
                 {cur.serviceLocationId
                   ? (() => {
@@ -297,7 +297,7 @@ export default function TechEstimateEditPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label>Arrival window</Label>
+          <p className="text-sm font-medium leading-none">Arrival window</p>
           <TimeWindowPicker
             startValue={cur.arrivalWindowStart}
             endValue={cur.arrivalWindowEnd}
@@ -323,7 +323,7 @@ export default function TechEstimateEditPage() {
       <SectionTitle>Sales Data</SectionTitle>
 
       <div className="space-y-2">
-        <Label>Opportunity rating</Label>
+        <p className="text-sm font-medium leading-none">Opportunity rating</p>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button

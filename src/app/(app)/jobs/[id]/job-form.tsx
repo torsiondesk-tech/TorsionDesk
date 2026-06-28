@@ -880,7 +880,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <h2 className="text-xl font-semibold">Details</h2>
 
             <div className="space-y-2">
-              <Label>Customer *</Label>
+              <p className="text-sm font-medium leading-none">Customer *</p>
               {customerMode === 'new' ? (
                 <div className="space-y-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-3">
                   <div className="flex items-center justify-between">
@@ -917,7 +917,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-4">
-              <Label htmlFor="contactId">Contact</Label>
+              <p className="text-sm font-medium leading-none">Contact</p>
               {customerMode === 'new' ? (
                 <div className="space-y-3">
                   <input type="hidden" name="newContactJson" value={JSON.stringify(inlineNewContact)} />
@@ -1062,16 +1062,18 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Birthday</Label>
+                            <Label htmlFor="dialog-birthday" className="text-xs">Birthday</Label>
                             <Input
+                              id="dialog-birthday"
                               type="date"
                               value={dialogBirthday}
                               onChange={(e) => setDialogBirthday(e.target.value)}
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Anniversary</Label>
+                            <Label htmlFor="dialog-anniversary" className="text-xs">Anniversary</Label>
                             <Input
+                              id="dialog-anniversary"
                               type="date"
                               value={dialogAnniversary}
                               onChange={(e) => setDialogAnniversary(e.target.value)}
@@ -1128,8 +1130,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-xs">First Name</Label>
+                          <Label htmlFor="contact-edit-firstName" className="text-xs">First Name</Label>
                           <Input
+                            id="contact-edit-firstName"
                             value={contactEdit.firstName}
                             onChange={(e) =>
                               updateContactField('firstName', e.target.value)
@@ -1139,8 +1142,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Last Name</Label>
+                          <Label htmlFor="contact-edit-lastName" className="text-xs">Last Name</Label>
                           <Input
+                            id="contact-edit-lastName"
                             value={contactEdit.lastName}
                             onChange={(e) =>
                               updateContactField('lastName', e.target.value)
@@ -1152,8 +1156,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                       </div>
 
                       <div className="space-y-1">
-                        <Label className="text-xs">Job Title</Label>
+                        <Label htmlFor="contact-edit-jobTitle" className="text-xs">Job Title</Label>
                         <Input
+                          id="contact-edit-jobTitle"
                           value={contactEdit.jobTitle}
                           onChange={(e) =>
                             updateContactField('jobTitle', e.target.value)
@@ -1388,7 +1393,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
               <Label htmlFor="serviceLocationId">Service Location</Label>
               {!customerId && customerMode !== 'new' ? (
                 <Select name="serviceLocationId" disabled>
-                  <SelectTrigger className="w-full opacity-50">
+                  <SelectTrigger id="serviceLocationId" className="w-full opacity-50">
                     <SelectValue placeholder="Select a customer first…" />
                   </SelectTrigger>
                 </Select>
@@ -1438,7 +1443,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           }
                         }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger id="serviceLocationId" className="w-full">
                           <SelectValue placeholder="Select location…">
                             {(() => {
                               if (!locationId) return null
@@ -1514,8 +1519,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                       {/* Row 1: Location Name + Gated */}
                       <div className="flex items-center gap-3">
                         <div className="flex-1 space-y-1">
-                          <Label className="text-xs">Location Name</Label>
+                          <Label htmlFor="newLocationName" className="text-xs">Location Name</Label>
                           <Input
+                            id="newLocationName"
                             name="newLocationName"
                             value={locationEditName}
                             onChange={(e) => setLocationEditName(e.target.value)}
@@ -1537,8 +1543,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                       {/* Row 2: Street Address + Ste/Unit/Apt */}
                       <div className="grid grid-cols-[1fr_auto] gap-2">
                         <div className="space-y-1">
-                          <Label className="text-xs">Street Address</Label>
+                          <Label htmlFor="newLocationAddress1" className="text-xs">Street Address</Label>
                           <AddressAutocomplete
+                            id="newLocationAddress1"
                             name="newLocationAddress1"
                             defaultValue={newLocationAddr.addressLine1}
                             placeholder="Street Address"
@@ -1546,8 +1553,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Unit</Label>
+                          <Label htmlFor="newLocationAddress2" className="text-xs">Unit</Label>
                           <Input
+                            id="newLocationAddress2"
                             name="newLocationAddress2"
                             value={newLocationAddr.addressLine2 ?? ''}
                             onChange={(e) => setNewLocationAddr((a) => ({ ...a, addressLine2: e.target.value }))}
@@ -1559,8 +1567,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                       {/* Row 3: City + State + ZIP */}
                       <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-xs">City</Label>
+                          <Label htmlFor="newLocationCity" className="text-xs">City</Label>
                           <Input
+                            id="newLocationCity"
                             name="newLocationCity"
                             value={newLocationAddr.city ?? ''}
                             onChange={(e) => setNewLocationAddr((a) => ({ ...a, city: e.target.value }))}
@@ -1568,8 +1577,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">State</Label>
+                          <Label htmlFor="newLocationState" className="text-xs">State</Label>
                           <Input
+                            id="newLocationState"
                             name="newLocationState"
                             value={newLocationAddr.state ?? ''}
                             onChange={(e) => setNewLocationAddr((a) => ({ ...a, state: e.target.value }))}
@@ -1577,8 +1587,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Zip</Label>
+                          <Label htmlFor="newLocationZip" className="text-xs">Zip</Label>
                           <Input
+                            id="newLocationZip"
                             name="newLocationZip"
                             value={newLocationAddr.postalCode ?? ''}
                             onChange={(e) => setNewLocationAddr((a) => ({ ...a, postalCode: e.target.value }))}
@@ -1658,7 +1669,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label htmlFor="categoryId">Job Category</Label>
               <Select name="categoryId" value={categoryId} onValueChange={(v) => { if (v !== undefined) setCategoryId(v ?? '') }}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="categoryId" className="w-full">
                   <span className="flex flex-1 text-left text-sm">
                     {categoryId
                       ? (referenceData.jobCategories.find((c) => c.id === categoryId)?.name ?? categoryId)
@@ -1711,7 +1722,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label htmlFor="jobSourceId">Job Source</Label>
               <Select name="jobSourceId" value={jobSourceId} onValueChange={(v) => { if (v !== undefined) setJobSourceId(v ?? '') }}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="jobSourceId" className="w-full">
                   <span className="flex flex-1 text-left text-sm">
                     {jobSourceId
                       ? (referenceData.jobSources.find((s) => s.id === jobSourceId)?.name ?? jobSourceId)
@@ -1751,7 +1762,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-2">
-              <Label>Tags</Label>
+              <p className="text-sm font-medium leading-none">Tags</p>
               <TagSelect
                 name="tagIds"
                 availableTags={referenceData.availableTags}
@@ -1765,7 +1776,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <h2 className="text-xl font-semibold">Job Info</h2>
 
             <div className="space-y-2">
-              <Label>Status</Label>
+              <p className="text-sm font-medium leading-none">Status</p>
               {mode === 'create' ? (
                 <Select name="status" defaultValue="unscheduled">
                   <SelectTrigger className="w-full">
@@ -1820,7 +1831,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-2">
-              <Label>Arrival Time Window</Label>
+              <p className="text-sm font-medium leading-none">Arrival Time Window</p>
               <TimeWindowPicker
                 startValue={arrivalStart}
                 endValue={arrivalEnd}
@@ -1864,7 +1875,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
               <Select name="priority" value={priority} onValueChange={(v) => { if (v) setPriority(v) }}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="priority" className="w-full">
                   <span className="flex flex-1 text-left text-sm">
                     {{ low: 'Low', normal: 'Normal', high: 'High', emergency: 'Emergency' }[priority] ?? priority}
                   </span>
@@ -1879,7 +1890,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-2">
-              <Label>Assigned Techs</Label>
+              <p className="text-sm font-medium leading-none">Assigned Techs</p>
               <TechSelect
                 members={referenceData.orgMembers.filter(
                   (m) => m.role === 'org:technician' || m.role === 'org:admin',
@@ -1929,7 +1940,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2">
               <Label htmlFor="billingType">Billing Type</Label>
               <Select name="billingType" value={billingType} onValueChange={(v) => { if (v) setBillingType(v) }}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="billingType" className="w-full">
                   <span className="flex flex-1 text-left text-sm">
                     {{ single_invoice: 'Single Invoice', progress_billing: 'Progress Billing', no_charge: 'No Charge' }[billingType] ?? billingType}
                   </span>
@@ -2016,7 +2027,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                 <div className="space-y-2">
                   <Label htmlFor="repeatFrequency">Frequency</Label>
                   <Select name="repeatFrequency" value={repeatFrequency} onValueChange={(v) => { if (v) setRepeatFrequency(v) }}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger id="repeatFrequency" className="w-full">
                       <span className="flex flex-1 text-left text-sm">
                         {repeatFrequency
                           ? ({ daily: 'Daily', weekly: 'Weekly', biweekly: 'Bi-weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' }[repeatFrequency] ?? repeatFrequency)
@@ -2053,7 +2064,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
         {mode === 'create' && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
-              <Label className="shrink-0 text-sm font-medium">Apply Template</Label>
+              <p className="shrink-0 text-sm font-medium">Apply Template</p>
               {templates.length > 0 ? (
                 <>
                   <Select

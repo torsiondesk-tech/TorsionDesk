@@ -763,7 +763,7 @@ function TemplateFormInner({
       {/* ── Line Items (job-page style inline add/edit) ── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Line Items</Label>
+          <p className="text-sm font-medium leading-none">Line Items</p>
           {!inlineAdd && (
             <div className="flex items-center gap-1">
               <Button type="button" variant="ghost" size="sm" onClick={() => startInlineAdd('product')}>
@@ -796,9 +796,9 @@ function TemplateFormInner({
                     <div className="space-y-2">
                       {isCatalog ? (
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                             {e.type === 'product' ? 'Product' : 'Service'} Search
-                          </Label>
+                          </p>
                           <SearchDropdown
                             kind={e.type as 'product' | 'service'}
                             query={inlineEditSearch.query}
@@ -841,8 +841,9 @@ function TemplateFormInner({
                       />
                       <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
+                          <Label htmlFor={`tmpl-qty-${i}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
                           <Input
+                            id={`tmpl-qty-${i}`}
                             type="number" min="0" step="1"
                             value={e.qty}
                             onChange={(ev) => setEditForm({ ...e, qty: ev.target.value })}
@@ -850,8 +851,9 @@ function TemplateFormInner({
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
+                          <Label htmlFor={`tmpl-rate-${i}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
                           <Input
+                            id={`tmpl-rate-${i}`}
                             type="number" min="0" step="1"
                             value={e.rate}
                             onChange={(ev) => setEditForm({ ...e, rate: ev.target.value })}
@@ -859,8 +861,9 @@ function TemplateFormInner({
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
+                          <Label htmlFor={`tmpl-cost-${i}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
                           <Input
+                            id={`tmpl-cost-${i}`}
                             type="number" min="0" step="1"
                             value={e.cost}
                             onChange={(ev) => setEditForm({ ...e, cost: ev.target.value })}
@@ -925,9 +928,9 @@ function TemplateFormInner({
                 <div className="space-y-2">
                   {inlineAdd.type === 'product' || inlineAdd.type === 'service' ? (
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                         {inlineAdd.type === 'product' ? 'Product' : 'Service'} Search
-                      </Label>
+                      </p>
                       <SearchDropdown
                         kind={inlineAdd.type as 'product' | 'service'}
                         query={inlineAddSearch.query}
@@ -967,8 +970,9 @@ function TemplateFormInner({
                   />
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
+                      <Label htmlFor="add-tmpl-qty" className="text-[10px] uppercase tracking-wide text-muted-foreground">Qty</Label>
                       <Input
+                        id="add-tmpl-qty"
                         type="number" min="0" step="1"
                         value={inlineAdd.qty}
                         onChange={(e) => setInlineAdd({ ...inlineAdd, qty: e.target.value })}
@@ -976,8 +980,9 @@ function TemplateFormInner({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
+                      <Label htmlFor="add-tmpl-rate" className="text-[10px] uppercase tracking-wide text-muted-foreground">Rate ($)</Label>
                       <Input
+                        id="add-tmpl-rate"
                         type="number" min="0" step="1"
                         value={inlineAdd.rate}
                         onChange={(e) => setInlineAdd({ ...inlineAdd, rate: e.target.value })}
@@ -985,8 +990,9 @@ function TemplateFormInner({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
+                      <Label htmlFor="add-tmpl-cost" className="text-[10px] uppercase tracking-wide text-muted-foreground">Cost ($)</Label>
                       <Input
+                        id="add-tmpl-cost"
                         type="number" min="0" step="1"
                         value={inlineAdd.cost}
                         onChange={(e) => setInlineAdd({ ...inlineAdd, cost: e.target.value })}
@@ -1039,7 +1045,7 @@ function TemplateFormInner({
       {/* Tasks */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Tasks</Label>
+          <p className="text-sm font-medium leading-none">Tasks</p>
           <Button type="button" variant="ghost" size="sm" onClick={addTask}>
             <Plus className="mr-1 size-3" /> Add Task
           </Button>

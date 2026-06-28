@@ -218,7 +218,7 @@ export function EstimateDetailShell({
 
               {scheduledDate && (
                 <div className="space-y-1.5">
-                  <Label>Arrival Window</Label>
+                  <p className="text-sm font-medium leading-none">Arrival Window</p>
                   <TimeWindowPicker
                     startValue={scheduledTimeStart}
                     endValue={scheduledTimeEnd}

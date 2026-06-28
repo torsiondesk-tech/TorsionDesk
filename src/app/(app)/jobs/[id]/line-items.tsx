@@ -542,7 +542,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
             <div className="space-y-2">
               {isCatalog ? (
                 <div>
-                  <Label className="text-xs">Title</Label>
+                  <p className="text-xs font-medium">Title</p>
                   <SearchDropdown
                     kind={e.type as 'product' | 'service'}
                     query={inlineEditSearch.query}
@@ -565,8 +565,9 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                 </div>
               ) : (
                 <div>
-                  <Label className="text-xs">Title</Label>
+                  <Label htmlFor={`line-title-${e.id}`} className="text-xs">Title</Label>
                   <Input
+                    id={`line-title-${e.id}`}
                     value={e.title}
                     onChange={(ev) => setInlineEdit({ ...e, title: ev.target.value })}
                     placeholder="Title"
@@ -574,8 +575,9 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                 </div>
               )}
               <div>
-                <Label className="text-xs">Description</Label>
+                <Label htmlFor={`line-desc-${e.id}`} className="text-xs">Description</Label>
                 <Textarea
+                  id={`line-desc-${e.id}`}
                   value={e.description}
                   onChange={(ev) => setInlineEdit({ ...e, description: ev.target.value })}
                   placeholder="Description"
@@ -586,8 +588,9 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
           </td>
           <td className="px-3 py-3">
             <div className="space-y-1">
-              <Label className="text-xs">Qty</Label>
+              <Label htmlFor={`line-qty-${e.id}`} className="text-xs">Qty</Label>
               <Input
+                id={`line-qty-${e.id}`}
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -600,8 +603,9 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
           </td>
           <td className="px-3 py-3">
             <div className="space-y-1">
-              <Label className="text-xs">Rate</Label>
+              <Label htmlFor={`line-rate-${e.id}`} className="text-xs">Rate</Label>
               <Input
+                id={`line-rate-${e.id}`}
                 value={e.rate}
                 onChange={(ev) => setInlineEdit({ ...e, rate: ev.target.value })}
                 className="w-full md:w-24"
@@ -620,8 +624,9 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
             <>
               <td className="px-3 py-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Cost</Label>
+                  <Label htmlFor={`line-cost-${e.id}`} className="text-xs">Cost</Label>
                   <Input
+                    id={`line-cost-${e.id}`}
                     value={e.cost}
                     onChange={(ev) => setInlineEdit({ ...e, cost: ev.target.value })}
                     className="w-full md:w-24"
@@ -987,7 +992,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
 
                 <TabsContent value="product" className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Search Catalog</Label>
+                    <p className="text-sm font-medium leading-none">Search Catalog</p>
                     <SearchDropdown
                       kind="product"
                       query={dialogSearch.query}
@@ -1024,7 +1029,7 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
 
                 <TabsContent value="service" className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Search Catalog</Label>
+                    <p className="text-sm font-medium leading-none">Search Catalog</p>
                     <SearchDropdown
                       kind="service"
                       query={dialogSearch.query}
@@ -1090,16 +1095,18 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
               {(dialogTab === 'product' || dialogTab === 'service') && (
                 <div className="grid gap-4 sm:grid-cols-2 pt-4">
                   <div className="space-y-2">
-                    <Label>Title</Label>
+                    <Label htmlFor="add-li-title">Title</Label>
                     <Input
+                      id="add-li-title"
                       value={addTitle}
                       onChange={(e) => setAddTitle(e.target.value)}
                       placeholder="Item name"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Description</Label>
+                    <Label htmlFor="add-li-desc">Description</Label>
                     <Textarea
+                      id="add-li-desc"
                       value={addDescription}
                       onChange={(e) => setAddDescription(e.target.value)}
                       placeholder="Optional details"
@@ -1107,8 +1114,9 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Qty / Hrs</Label>
+                    <Label htmlFor="add-li-qty">Qty / Hrs</Label>
                     <Input
+                      id="add-li-qty"
                       type="number"
                       inputMode="decimal"
                       min="0"
@@ -1119,34 +1127,36 @@ export function LineItems({ jobId, items, onChange, referenceData }: LineItemsPr
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Rate</Label>
+                    <Label htmlFor="add-li-rate">Rate</Label>
                     <Input
+                      id="add-li-rate"
                       value={addRate}
                       onChange={(e) => setAddRate(e.target.value)}
                       placeholder="0.00"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Cost</Label>
+                    <Label htmlFor="add-li-cost">Cost</Label>
                     <Input
+                      id="add-li-cost"
                       value={addCost}
                       onChange={(e) => setAddCost(e.target.value)}
                       placeholder="0.00"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Margin</Label>
+                    <p className="text-sm font-medium leading-none">Margin</p>
                     <div className="flex h-9 items-center rounded-md border border-input px-3 text-sm text-muted-foreground">
                       {computeMargin(addRate || '0', addCost || '0') ?? '—'}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Tax</Label>
+                    <Label htmlFor="add-li-tax">Tax</Label>
                     <Select
                       value={addTaxItemId ?? ''}
                       onValueChange={(v) => setAddTaxItemId(v || undefined)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="add-li-tax">
                         <SelectValue placeholder="No Tax">
                           {(() => {
                             if (!addTaxItemId) return null

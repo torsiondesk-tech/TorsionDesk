@@ -71,7 +71,7 @@ function EditTagForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Color</Label>
+        <p className="text-sm font-medium leading-none">Color</p>
         <div className="flex flex-wrap gap-2">
           {PRESET_COLORS.map((c) => (
             <label
@@ -176,7 +176,7 @@ export function TagRow({ initialTags }: { initialTags: TagWithUsage[] }) {
               </div>
 
               <div className="space-y-2">
-                <Label>Color</Label>
+                <p className="text-sm font-medium leading-none">Color</p>
                 <div className="flex flex-wrap gap-2">
                   {PRESET_COLORS.map((c) => (
                     <label

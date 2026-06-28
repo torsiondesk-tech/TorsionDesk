@@ -917,7 +917,7 @@ export function EstimateForm({
       {/* Contact */}
       {customerId && (
         <div className="space-y-2">
-          <Label>Contact</Label>
+          <p className="text-sm font-medium leading-none">Contact</p>
           {customerContacts.length > 0 && (
             <Select
               value={contactMode === 'existing' ? contactId ?? '' : '__new__'}
@@ -1013,7 +1013,7 @@ export function EstimateForm({
 
       {/* Service location */}
       <div className="space-y-2">
-        <Label>Service location</Label>
+        <p className="text-sm font-medium leading-none">Service location</p>
         {serviceLocationId && locationMode === 'view' ? (
           <div className="rounded-lg border p-3 space-y-2">
             {(() => {
@@ -1444,7 +1444,7 @@ export function EstimateForm({
           />
         </div>
         <div className="space-y-2">
-          <Label>Arrival window</Label>
+          <p className="text-sm font-medium leading-none">Arrival window</p>
           <TimeWindowPicker
             startValue={arrivalWindowStart}
             endValue={arrivalWindowEnd}
@@ -1456,7 +1456,7 @@ export function EstimateForm({
 
       {/* Assigned techs */}
       <div className="space-y-2">
-        <Label>Assigned techs</Label>
+        <p className="text-sm font-medium leading-none">Assigned techs</p>
         <div className="flex flex-wrap gap-2">
           {techMembers.map((m) => (
             <label
@@ -1481,7 +1481,7 @@ export function EstimateForm({
 
       {/* Tags */}
       <div className="space-y-2">
-        <Label>Tags</Label>
+        <p className="text-sm font-medium leading-none">Tags</p>
         <div className="flex flex-wrap gap-2">
           {tagOptions.map((t) => (
             <label
@@ -1536,7 +1536,7 @@ export function EstimateForm({
 
       {/* Opportunity rating */}
       <div className="space-y-2">
-        <Label>Opportunity rating</Label>
+        <p className="text-sm font-medium leading-none">Opportunity rating</p>
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button

@@ -150,7 +150,7 @@ export function CustomerForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="parentCustomerId">Parent Account</Label>
+                  <p className="text-sm font-medium leading-none">Parent Account</p>
                   <CustomerSearch
                     name="parentCustomerId"
                     defaultValue={initial?.parentCustomerId ?? undefined}
@@ -162,7 +162,7 @@ export function CustomerForm({
               {/* RIGHT COLUMN */}
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label>Tags</Label>
+                  <p className="text-sm font-medium leading-none">Tags</p>
                   <TagSelect
                     name="tagIds"
                     availableTags={availableTags}
@@ -171,7 +171,7 @@ export function CustomerForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Referral source</Label>
+                  <p className="text-sm font-medium leading-none">Referral source</p>
                   <ReferralSelect
                     name="referralSourceId"
                     options={referralOptions}
