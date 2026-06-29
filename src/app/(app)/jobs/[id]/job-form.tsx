@@ -1203,7 +1203,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                                 updateContactPhone(pi, 'type', val ?? '')
                               }
                             >
-                              <SelectTrigger className="h-9 w-[100px]">
+                              <SelectTrigger className="h-9 w-[100px]" aria-label={`Phone ${pi + 1} type`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1283,7 +1283,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                                 updateContactEmail(ei, 'type', val ?? '')
                               }
                             >
-                              <SelectTrigger className="h-9 w-[100px]">
+                              <SelectTrigger className="h-9 w-[100px]" aria-label={`Email ${ei + 1} type`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
