@@ -92,7 +92,7 @@ export function CustomerForm({
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="space-y-5">
+          <form action={formAction} autoComplete="off" className="space-y-5">
             {mode === 'edit' && initial?.id && (
               <input type="hidden" name="id" value={initial.id} />
             )}

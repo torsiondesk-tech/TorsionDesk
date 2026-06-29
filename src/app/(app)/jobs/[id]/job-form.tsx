@@ -831,7 +831,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
         </DialogContent>
       </Dialog>
 
-      <form action={formAction} className="space-y-6">
+      <form action={formAction} autoComplete="off" className="space-y-6">
         {mode === 'edit' && initial?.id && (
           <input type="hidden" name="id" value={initial.id} />
         )}

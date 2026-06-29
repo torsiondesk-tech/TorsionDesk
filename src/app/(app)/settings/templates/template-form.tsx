@@ -709,7 +709,7 @@ function TemplateFormInner({
     })
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} autoComplete="off" className="space-y-4">
       {initialTemplate ? <input type="hidden" name="id" value={initialTemplate.id} /> : null}
 
       <div className="space-y-2">

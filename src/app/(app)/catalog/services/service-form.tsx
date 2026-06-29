@@ -84,7 +84,7 @@ export function ServiceForm({
     <div className="mx-auto max-w-4xl animate-in fade-in-0 duration-300 space-y-8">
       <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
 
-      <form action={formAction} className="space-y-8">
+      <form action={formAction} autoComplete="off" className="space-y-8">
         {mode === 'edit' && initial?.id && (
           <input type="hidden" name="id" value={initial.id} />
         )}

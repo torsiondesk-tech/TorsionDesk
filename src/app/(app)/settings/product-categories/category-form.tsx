@@ -96,7 +96,7 @@ export function CategoryForm({
               <DialogTitle>Add Product Category</DialogTitle>
               <DialogDescription>Create a new category for products and services.</DialogDescription>
             </DialogHeader>
-            <form action={createAction} className="space-y-4">
+            <form action={createAction} autoComplete="off" className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="add-name">Name</Label>
                 <Input
@@ -191,7 +191,7 @@ export function CategoryForm({
             <DialogDescription>Update the name of this category.</DialogDescription>
           </DialogHeader>
           {editing ? (
-            <form action={updateAction} className="space-y-4">
+            <form action={updateAction} autoComplete="off" className="space-y-4">
               <input type="hidden" name="id" value={editing.id} />
               <div className="space-y-2">
                 <Label htmlFor="edit-name">Name</Label>
