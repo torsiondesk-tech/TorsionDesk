@@ -1016,7 +1016,7 @@ export function EstimateForm({
       {estimateTemplates.length > 0 && (
         <div className="flex items-center gap-2 rounded-md border p-3">
           <Select value={selectedTemplateId} onValueChange={(v) => setSelectedTemplateId(v ?? '')}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="w-64" aria-label="Apply a template">
               <SelectValue placeholder="Apply a template…">
                 {selectedTemplateId
                   ? estimateTemplates.find((t) => t.id === selectedTemplateId)?.name ?? selectedTemplateId
@@ -1892,7 +1892,7 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium leading-none">Status</p>
+            <Label htmlFor={mode === 'create' ? 'est-status' : undefined}>Status</Label>
             {mode === 'edit' && estimateId ? (
               <EstimateStatusDropdown
                 estimateId={estimateId}
@@ -1901,7 +1901,7 @@ export function EstimateForm({
               />
             ) : (
               <Select value={status} onValueChange={(v) => v && setStatus(v)}>
-                <SelectTrigger>
+                <SelectTrigger id="est-status">
                   <SelectValue>{estimateStatusLabel(status)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>

@@ -80,6 +80,7 @@ export function TechSelect({
 
       <Combobox>
         <ComboboxInput
+          aria-label="Search technicians"
           placeholder="Search techs…"
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}

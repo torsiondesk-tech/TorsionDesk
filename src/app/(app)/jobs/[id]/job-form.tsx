@@ -895,6 +895,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     </button>
                   </div>
                   <Input
+                    aria-label="New customer name"
                     name="newCustomerName"
                     value={newCustomerName}
                     onChange={(e) => setNewCustomerName(capitalizeWords(e.target.value))}
@@ -1780,10 +1781,10 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <h2 className="text-xl font-semibold">Job Info</h2>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium leading-none">Status</p>
+              <Label htmlFor={mode === 'create' ? 'jf-status' : undefined}>Status</Label>
               {mode === 'create' ? (
                 <Select name="status" defaultValue="unscheduled">
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="jf-status" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2075,7 +2076,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                     value={selectedTemplateId}
                     onValueChange={(val) => { setSelectedTemplateId(val ?? ''); setTemplateError(null) }}
                   >
-                    <SelectTrigger className="h-9 flex-1">
+                    <SelectTrigger className="h-9 flex-1" aria-label="Select job template">
                       <SelectValue placeholder="Select a template…">
                         {(value: string) => {
                           if (!value) return 'Select a template…'

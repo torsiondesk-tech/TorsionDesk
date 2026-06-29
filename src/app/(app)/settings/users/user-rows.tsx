@@ -265,10 +265,10 @@ export function MemberRow({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Role</label>
+            <label htmlFor="ur-role" className="text-xs text-muted-foreground">Role</label>
             <input type="hidden" name="role" value={selectedRole} />
             <Select value={selectedRole} disabled={isSelf} onValueChange={(val) => { if (val) setSelectedRole(val) }}>
-              <SelectTrigger className="h-8 w-full text-xs">
+              <SelectTrigger id="ur-role" className="h-8 w-full text-xs">
                 <SelectValue>{ROLE_OPTIONS.find((o) => o.value === selectedRole)?.label ?? selectedRole}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -281,8 +281,9 @@ export function MemberRow({
             </Select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Date of birth</label>
+            <label htmlFor="ur-dateOfBirth" className="text-xs text-muted-foreground">Date of birth</label>
             <Input
+              id="ur-dateOfBirth"
               name="dateOfBirth"
               type="date"
               value={form.dateOfBirth}
@@ -291,8 +292,9 @@ export function MemberRow({
             />
           </div>
           <div className="sm:col-span-2 space-y-1">
-            <label className="text-xs text-muted-foreground">Address</label>
+            <label htmlFor="ur-address" className="text-xs text-muted-foreground">Address</label>
             <Input
+              id="ur-address"
               name="address"
               value={form.address}
               onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}

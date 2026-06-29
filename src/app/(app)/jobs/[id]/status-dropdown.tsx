@@ -74,7 +74,7 @@ export function StatusDropdown({ jobId, currentStatus }: StatusDropdownProps) {
           onValueChange={handleChange}
           disabled={isPending}
         >
-          <SelectTrigger className="w-[220px]">
+          <SelectTrigger className="w-[220px]" aria-label="Change job status">
             <SelectValue placeholder="Change status…" />
           </SelectTrigger>
           <SelectContent>

@@ -115,6 +115,7 @@ export function ContactEditor({ value, onChange, idPrefix = 'ce' }: ContactEdito
           <div key={i} className="flex items-center gap-2">
             <Phone className="size-4 shrink-0 text-muted-foreground" />
             <Input
+              aria-label={`Phone number ${i + 1}`}
               type="tel"
               placeholder="(555) 000-0000"
               value={formatPhone(phone.number)}
@@ -122,13 +123,14 @@ export function ContactEditor({ value, onChange, idPrefix = 'ce' }: ContactEdito
               className="flex-1 min-w-0"
             />
             <Input
+              aria-label={`Phone ${i + 1} extension`}
               placeholder="Ext"
               value={phone.ext}
               onChange={(e) => setPhone(i, { ext: e.target.value.replace(/\D/g, '') })}
               className="w-16 shrink-0"
             />
             <Select value={phone.type} onValueChange={(v) => setPhone(i, { type: v as ContactPhone['type'] })}>
-              <SelectTrigger className="h-9 w-[90px] shrink-0">
+              <SelectTrigger className="h-9 w-[90px] shrink-0" aria-label={`Phone ${i + 1} type`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -164,6 +166,7 @@ export function ContactEditor({ value, onChange, idPrefix = 'ce' }: ContactEdito
           <div key={i} className="flex items-center gap-2">
             <Mail className="size-4 shrink-0 text-muted-foreground" />
             <Input
+              aria-label={`Email address ${i + 1}`}
               type="email"
               placeholder="name@company.com"
               value={email.address}
@@ -171,7 +174,7 @@ export function ContactEditor({ value, onChange, idPrefix = 'ce' }: ContactEdito
               className="max-w-[280px]"
             />
             <Select value={email.type} onValueChange={(v) => setEmail(i, { type: v as ContactEmail['type'] })}>
-              <SelectTrigger className="h-9 w-[100px]">
+              <SelectTrigger className="h-9 w-[100px]" aria-label={`Email ${i + 1} type`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
