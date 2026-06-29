@@ -748,6 +748,7 @@ export function CustomerDetailForm({
                             <div key={pi} className="flex items-center gap-2">
                               <Phone className="size-4 text-muted-foreground" />
                               <Input
+                                aria-label={`Contact ${ci + 1} phone number ${pi + 1}`}
                                 placeholder="555-0100"
                                 value={formatPhone(phone.number)}
                                 onChange={(e) =>
@@ -761,6 +762,7 @@ export function CustomerDetailForm({
                                 className="max-w-[175px]"
                               />
                               <Input
+                                aria-label={`Contact ${ci + 1} phone ${pi + 1} extension`}
                                 placeholder="Ext"
                                 value={phone.ext}
                                 onChange={(e) => updateContactPhone(ci, pi, 'ext', e.target.value.replace(/\D/g, ''))}
@@ -839,6 +841,7 @@ export function CustomerDetailForm({
                             <div key={ei} className="flex items-center gap-2">
                               <Mail className="size-4 text-muted-foreground" />
                               <Input
+                                aria-label={`Contact ${ci + 1} email address ${ei + 1}`}
                                 type="email"
                                 placeholder="name@company.com"
                                 value={email.address}

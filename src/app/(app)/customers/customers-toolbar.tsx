@@ -20,6 +20,7 @@ export function CustomersToolbar() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Input
+        aria-label="Search customers"
         placeholder="Search by name, phone, email, or address…"
         value={q ?? ''}
         onChange={(e) => {

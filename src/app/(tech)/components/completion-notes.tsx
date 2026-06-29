@@ -77,6 +77,7 @@ export function CompletionNotes({ orgId, jobId, initialNotes }: CompletionNotesP
   return (
     <div className="flex flex-col gap-4">
       <Textarea
+        aria-label="Completion notes"
         value={notes}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Add completion notes for the office..."

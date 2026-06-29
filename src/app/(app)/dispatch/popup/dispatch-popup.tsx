@@ -574,8 +574,9 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                           /* ── New address form ── */
                           <>
                             <div className="space-y-1">
-                              <Label className="text-xs">Location Name (optional)</Label>
+                              <Label htmlFor="dp-new-loc-name" className="text-xs">Location Name (optional)</Label>
                               <Input
+                                id="dp-new-loc-name"
                                 value={newLocName}
                                 onChange={(e) => setNewLocName(e.target.value)}
                                 placeholder="e.g. Main House, Warehouse…"
@@ -583,8 +584,9 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Street Address</Label>
+                              <Label htmlFor="dp-new-loc-addr1" className="text-xs">Street Address</Label>
                               <AddressAutocomplete
+                                id="dp-new-loc-addr1"
                                 defaultValue={newLocAddr.addressLine1}
                                 onAddressSelect={(parsed: ParsedAddress) =>
                                   setNewLocAddr((a) => ({
@@ -601,8 +603,9 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1">
-                                <Label className="text-xs">Unit / Suite</Label>
+                                <Label htmlFor="dp-new-loc-addr2" className="text-xs">Unit / Suite</Label>
                                 <Input
+                                  id="dp-new-loc-addr2"
                                   value={newLocAddr.addressLine2}
                                   onChange={(e) => setNewLocAddr((a) => ({ ...a, addressLine2: e.target.value }))}
                                   placeholder="Apt, Suite…"
@@ -610,8 +613,9 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">City</Label>
+                                <Label htmlFor="dp-new-loc-city" className="text-xs">City</Label>
                                 <Input
+                                  id="dp-new-loc-city"
                                   value={newLocAddr.city}
                                   onChange={(e) => setNewLocAddr((a) => ({ ...a, city: e.target.value }))}
                                   className="h-8 text-xs"
@@ -620,16 +624,18 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1">
-                                <Label className="text-xs">State</Label>
+                                <Label htmlFor="dp-new-loc-state" className="text-xs">State</Label>
                                 <Input
+                                  id="dp-new-loc-state"
                                   value={newLocAddr.state}
                                   onChange={(e) => setNewLocAddr((a) => ({ ...a, state: e.target.value }))}
                                   className="h-8 text-xs"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <Label className="text-xs">Zip</Label>
+                                <Label htmlFor="dp-new-loc-zip" className="text-xs">Zip</Label>
                                 <Input
+                                  id="dp-new-loc-zip"
                                   value={newLocAddr.postalCode}
                                   onChange={(e) => setNewLocAddr((a) => ({ ...a, postalCode: e.target.value }))}
                                   className="h-8 text-xs"
@@ -825,6 +831,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                     {editingPO ? (
                       <div className="mt-1 space-y-2">
                         <Input
+                          aria-label="PO number"
                           value={draftPO}
                           onChange={(e) => setDraftPO(e.target.value)}
                           className="h-8 text-xs"
@@ -941,6 +948,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                       <div className="mt-1 space-y-2">
                         <div className="flex items-center gap-2">
                           <Input
+                            aria-label="Start date"
                             type="date"
                             value={draftStartDate}
                             onChange={(e) => setDraftStartDate(e.target.value)}
@@ -950,6 +958,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                             <>
                               <span className="text-xs text-muted-foreground">–</span>
                               <Input
+                                aria-label="End date"
                                 type="date"
                                 value={draftEndDate}
                                 onChange={(e) => setDraftEndDate(e.target.value)}
@@ -1058,6 +1067,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                       <div className="mt-1 space-y-2">
                         <div className="flex items-center gap-2">
                           <Input
+                            aria-label="Estimated duration in hours"
                             type="number"
                             value={draftDuration}
                             onChange={(e) => setDraftDuration(e.target.value)}

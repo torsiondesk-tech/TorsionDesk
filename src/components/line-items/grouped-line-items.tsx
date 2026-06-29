@@ -380,6 +380,7 @@ function GroupSection({
               <GripVertical className="size-4 text-muted-foreground" />
               {isRenaming ? (
                 <Input
+                  aria-label="Group name"
                   value={group.name}
                   onChange={(e) => onRename(group.id, e.target.value)}
                   onBlur={() => setIsRenaming(false)}
@@ -765,6 +766,7 @@ function EditRow({
             <div>
               <Label className="text-xs">Title</Label>
               <Input
+                aria-label="Title"
                 value={draft.title ?? ''}
                 onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
                 placeholder="Title"
@@ -774,6 +776,7 @@ function EditRow({
           <div>
             <Label className="text-xs">Description</Label>
             <Textarea
+              aria-label="Description"
               value={draft.description}
               onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
               placeholder="Description"
@@ -786,6 +789,7 @@ function EditRow({
         <div className="space-y-1">
           <Label className="text-xs">Qty</Label>
           <Input
+            aria-label="Quantity"
             type="number"
             inputMode="decimal"
             min="0"
@@ -801,6 +805,7 @@ function EditRow({
         <div className="space-y-1">
           <Label className="text-xs">Rate</Label>
           <Input
+            aria-label="Rate"
             type="number"
             inputMode="decimal"
             min="0"
@@ -826,6 +831,7 @@ function EditRow({
             <div className="space-y-1">
               <Label className="text-xs">Cost</Label>
               <Input
+                aria-label="Cost"
                 value={draft.cost}
                 onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))}
                 placeholder="Cost"
@@ -970,6 +976,7 @@ function AddRow({
                 />
               ) : (
                 <Input
+                  aria-label="Title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={type === 'discount' ? 'Discount description' : 'Title'}
@@ -980,6 +987,7 @@ function AddRow({
           <div>
             <Label className="text-xs">Description</Label>
             <Textarea
+              aria-label="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description"
@@ -992,6 +1000,7 @@ function AddRow({
         <div className="space-y-1">
           <Label className="text-xs">Qty</Label>
           <Input
+            aria-label="Quantity"
             type="number"
             inputMode="decimal"
             min="0"
@@ -1008,6 +1017,7 @@ function AddRow({
         <div className="space-y-1">
           <Label className="text-xs">Rate</Label>
           <Input
+            aria-label="Rate"
             type="number"
             inputMode="decimal"
             min="0"
@@ -1033,6 +1043,7 @@ function AddRow({
             <div className="space-y-1">
               <Label className="text-xs">Cost</Label>
               <Input
+                aria-label="Cost"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
                 placeholder="Cost"

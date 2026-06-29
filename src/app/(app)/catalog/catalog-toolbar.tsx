@@ -29,6 +29,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Input
+        aria-label={isServices ? 'Search by name' : 'Search by name or SKU'}
         placeholder={isServices ? 'Search by name…' : 'Search by name or SKU…'}
         value={q ?? ''}
         onChange={(e) => {
@@ -40,6 +41,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
       />
 
       <select
+        aria-label="Filter by category"
         value={category ?? ''}
         onChange={(e) => {
           const v = e.target.value
@@ -61,6 +63,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
       {!isServices && (
         <>
           <Input
+            aria-label="Minimum price"
             placeholder="Min price"
             type="text"
             value={minPrice ?? ''}
@@ -75,6 +78,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
           />
 
           <Input
+            aria-label="Maximum price"
             placeholder="Max price"
             type="text"
             value={maxPrice ?? ''}
@@ -89,6 +93,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
           />
 
           <select
+            aria-label="Filter by inventory type"
             value={inventory ?? ''}
             onChange={(e) => {
               const v = e.target.value

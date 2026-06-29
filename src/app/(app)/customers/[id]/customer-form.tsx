@@ -249,7 +249,7 @@ export function CustomerForm({
                   <p className="text-sm font-medium text-muted-foreground">Service Location <span className="font-normal">(optional)</span></p>
                   {/* Row 1: Location Name + Gated */}
                   <div className="flex items-center gap-3">
-                    <Input name="locationName" placeholder="Location Name (e.g. Home or Office)" className="flex-1" />
+                    <Input aria-label="Location name" name="locationName" placeholder="Location Name (e.g. Home or Office)" className="flex-1" />
                     <label className="flex items-center gap-1.5 text-sm whitespace-nowrap cursor-pointer">
                       <input type="checkbox" name="locationGated" value="true" className="rounded" />
                       Gated Property
@@ -263,23 +263,26 @@ export function CustomerForm({
                       placeholder="Street Address"
                       onAddressSelect={(r) => setLocationAddr(r)}
                     />
-                    <Input name="locationAddress2" placeholder="Ste/Unit/Apt" className="w-32" />
+                    <Input aria-label="Suite/Unit/Apt" name="locationAddress2" placeholder="Ste/Unit/Apt" className="w-32" />
                   </div>
                   {/* Row 3: City / State / ZIP */}
                   <div className="grid grid-cols-3 gap-2">
                     <Input
+                      aria-label="City"
                       name="locationCity"
                       value={locationAddr.city ?? ''}
                       onChange={(e) => setLocationAddr((a) => ({ ...a, city: e.target.value }))}
                       placeholder="City"
                     />
                     <Input
+                      aria-label="State or province"
                       name="locationState"
                       value={locationAddr.state ?? ''}
                       onChange={(e) => setLocationAddr((a) => ({ ...a, state: e.target.value }))}
                       placeholder="State/Province"
                     />
                     <Input
+                      aria-label="ZIP or postal code"
                       name="locationZip"
                       value={locationAddr.postalCode ?? ''}
                       onChange={(e) => setLocationAddr((a) => ({ ...a, postalCode: e.target.value }))}

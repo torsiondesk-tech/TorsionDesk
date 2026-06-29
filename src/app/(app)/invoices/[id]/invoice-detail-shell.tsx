@@ -542,6 +542,7 @@ export function InvoiceDetailShell({
               <span>{fmtDate(invoice.invoiceDate)}</span>
             ) : (
               <Input
+                aria-label="Invoice date"
                 type="date"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
@@ -556,6 +557,7 @@ export function InvoiceDetailShell({
               <span>{fmtTerms(invoice.paymentTermsDays)}</span>
             ) : (
               <select
+                aria-label="Payment terms"
                 value={editTerms}
                 onChange={(e) => setEditTerms(e.target.value)}
                 className="h-6 rounded border border-input bg-background px-1 text-xs"
@@ -573,6 +575,7 @@ export function InvoiceDetailShell({
               <span>{invoice.sentBy ?? '—'}</span>
             ) : (
               <select
+                aria-label="Sent by"
                 value={editSentBy}
                 onChange={(e) => setEditSentBy(e.target.value)}
                 className="h-6 rounded border border-input bg-background px-1 text-xs"
@@ -590,6 +593,7 @@ export function InvoiceDetailShell({
               <span>{fmtDate(invoice.sentOn)}</span>
             ) : (
               <Input
+                aria-label="Sent on date"
                 type="date"
                 value={editSentOn}
                 onChange={(e) => setEditSentOn(e.target.value)}
@@ -695,6 +699,7 @@ export function InvoiceDetailShell({
           <p className="text-muted-foreground">{invoice.notes || '—'}</p>
         ) : (
           <textarea
+            aria-label="Customer message"
             value={editNotes}
             onChange={(e) => setEditNotes(e.target.value)}
             rows={3}
@@ -775,7 +780,7 @@ export function InvoiceDetailShell({
       {/* ── Payment Link ── */}
       {paymentLinkUrl ? (
         <div className="mt-4 flex items-center gap-2">
-          <Input value={paymentLinkUrl} readOnly className="flex-1 text-xs" />
+          <Input aria-label="Payment link URL" value={paymentLinkUrl} readOnly className="flex-1 text-xs" />
           <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1.5">
             <Copy className="size-3.5" />
             Copy Link

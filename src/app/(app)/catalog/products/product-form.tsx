@@ -301,6 +301,7 @@ export function ProductForm({
             {vendors.map((vendor, index) => (
               <div key={index} className="flex items-center gap-2">
                 <Input
+                  aria-label={`Vendor ${index + 1} name`}
                   placeholder="Vendor name"
                   value={vendor.name}
                   onChange={(e) =>
@@ -310,6 +311,7 @@ export function ProductForm({
                   className="flex-1"
                 />
                 <Input
+                  aria-label={`Vendor ${index + 1} purchase price`}
                   placeholder="Purchase price"
                   value={vendor.price}
                   onChange={(e) =>

@@ -218,8 +218,9 @@ export function MemberRow({
           <input type="hidden" name="userId" value={userId} />
           <input type="hidden" name="membershipId" value={id} />
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">First name</label>
+            <label htmlFor="ur-firstName" className="text-xs text-muted-foreground">First name</label>
             <Input
+              id="ur-firstName"
               name="firstName"
               value={form.firstName}
               onChange={(e) => setForm((f) => ({ ...f, firstName: capitalizeWords(e.target.value) }))}
@@ -229,8 +230,9 @@ export function MemberRow({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Last name</label>
+            <label htmlFor="ur-lastName" className="text-xs text-muted-foreground">Last name</label>
             <Input
+              id="ur-lastName"
               name="lastName"
               value={form.lastName}
               onChange={(e) => setForm((f) => ({ ...f, lastName: capitalizeWords(e.target.value) }))}
@@ -240,8 +242,9 @@ export function MemberRow({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Phone</label>
+            <label htmlFor="ur-phone" className="text-xs text-muted-foreground">Phone</label>
             <Input
+              id="ur-phone"
               name="phone"
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: formatPhoneInput(e.target.value) }))}
@@ -250,8 +253,9 @@ export function MemberRow({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Email</label>
+            <label htmlFor="ur-email" className="text-xs text-muted-foreground">Email</label>
             <Input
+              id="ur-email"
               name="email"
               type="email"
               value={form.email}

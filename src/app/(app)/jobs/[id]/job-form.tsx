@@ -794,6 +794,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <div className="space-y-2 rounded-lg border bg-card p-3">
               <div className="font-medium text-sm">Rename this customer</div>
               <Input
+                aria-label="New customer name"
                 value={renameInput}
                 onChange={(e) => setRenameInput(e.target.value)}
                 placeholder="New customer name"
