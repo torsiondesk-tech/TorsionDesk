@@ -730,6 +730,7 @@ function TemplateFormInner({
         <select
           id="tmpl-category"
           name="categoryId"
+          autoComplete="off"
           defaultValue={initialTemplate?.categoryId ?? ''}
           className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
         >

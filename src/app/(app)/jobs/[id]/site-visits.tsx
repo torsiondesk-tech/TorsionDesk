@@ -344,6 +344,7 @@ function VisitFormFields({
         <select
           id={initial ? 'edit-visit-status' : 'visit-status'}
           name="status"
+          autoComplete="off"
           defaultValue={initial?.status ?? ''}
           className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
         >

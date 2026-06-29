@@ -171,6 +171,7 @@ export function ProductForm({
               <select
                 id="categoryId"
                 name="categoryId"
+                autoComplete="off"
                 defaultValue={initial?.categoryId ?? ''}
                 className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
               >
