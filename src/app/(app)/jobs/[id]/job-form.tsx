@@ -1395,7 +1395,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-4">
-              <Label htmlFor={(!customerId && customerMode !== 'new') || (locationMode === 'existing' && !locationId) ? 'serviceLocationId' : undefined}>Service Location</Label>
+              {(!customerId && customerMode !== 'new') || (locationMode === 'existing' && !locationId)
+                ? <Label htmlFor="serviceLocationId">Service Location</Label>
+                : <p className="text-sm font-medium leading-none">Service Location</p>}
               {!customerId && customerMode !== 'new' ? (
                 <Select name="serviceLocationId" disabled>
                   <SelectTrigger id="serviceLocationId" className="w-full opacity-50">
@@ -1781,7 +1783,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             <h2 className="text-xl font-semibold">Job Info</h2>
 
             <div className="space-y-2">
-              <Label htmlFor={mode === 'create' ? 'jf-status' : undefined}>Status</Label>
+              {mode === 'create' ? <Label htmlFor="jf-status">Status</Label> : <p className="text-sm font-medium leading-none">Status</p>}
               {mode === 'create' ? (
                 <Select name="status" defaultValue="unscheduled">
                   <SelectTrigger id="jf-status" className="w-full">

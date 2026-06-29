@@ -235,6 +235,8 @@ export function GlobalSearch() {
             'placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-ring',
             'md:w-80 lg:w-96',
           )}
+          id="global-search"
+          name="q"
           aria-label="Search"
           aria-expanded={open}
           aria-haspopup="listbox"
