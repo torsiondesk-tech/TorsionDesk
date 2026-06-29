@@ -41,6 +41,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
       />
 
       <select
+        name="category"
         aria-label="Filter by category"
         value={category ?? ''}
         onChange={(e) => {
@@ -93,6 +94,7 @@ export function CatalogToolbar({ categories, mode = 'products' }: CatalogToolbar
           />
 
           <select
+            name="inventory"
             aria-label="Filter by inventory type"
             value={inventory ?? ''}
             onChange={(e) => {
