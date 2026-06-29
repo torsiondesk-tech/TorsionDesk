@@ -120,6 +120,7 @@ export function CustomerSearch({
     <div className="flex flex-col gap-1.5">
       <Combobox value={value ?? ''} onValueChange={handleSelect}>
         <ComboboxInput
+          aria-label="Search customers"
           placeholder="Search by name, phone, email, or address…"
           value={value ? label : query}
           onChange={handleInputChange}

@@ -56,9 +56,11 @@ const DEFAULT_TIME = fmtHM(8, '00')
 function TimeDropdowns({
   value,
   onChange,
+  label,
 }: {
   value: string
   onChange: (v: string) => void
+  label: string
 }) {
   const { h24, m } = parseHM(value)
   const { h12, ampm } = to12h(h24)
@@ -69,7 +71,7 @@ function TimeDropdowns({
         value={String(h12)}
         onValueChange={(v) => { if (v) onChange(fmtHM(to24h(parseInt(v), ampm), m)) }}
       >
-        <SelectTrigger className="w-14">
+        <SelectTrigger className="w-14" aria-label={`${label} hour`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -83,7 +85,7 @@ function TimeDropdowns({
         value={m}
         onValueChange={(v) => { if (v) onChange(fmtHM(h24, v)) }}
       >
-        <SelectTrigger className="w-16">
+        <SelectTrigger className="w-16" aria-label={`${label} minute`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -97,7 +99,7 @@ function TimeDropdowns({
         value={ampm}
         onValueChange={(v) => { if (v) onChange(fmtHM(to24h(h12, v as 'AM' | 'PM'), m)) }}
       >
-        <SelectTrigger className="w-16">
+        <SelectTrigger className="w-16" aria-label={`${label} AM or PM`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -138,9 +140,9 @@ export function TimeWindowPicker({
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex flex-wrap items-center gap-2">
-        <TimeDropdowns value={startValue} onChange={handleStartChange} />
+        <TimeDropdowns value={startValue} onChange={handleStartChange} label="Start time" />
         <span className="text-sm text-muted-foreground">→</span>
-        <TimeDropdowns value={endValue} onChange={handleEndChange} />
+        <TimeDropdowns value={endValue} onChange={handleEndChange} label="End time" />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
