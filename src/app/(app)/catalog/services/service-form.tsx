@@ -111,9 +111,9 @@ export function ServiceForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="svc-name">Name *</Label>
               <Input
-                id="name"
+                id="svc-name"
                 name="name"
                 defaultValue={initial?.name}
                 placeholder="Tune Up"

@@ -156,9 +156,9 @@ export function ProductForm({
           <h2 className="text-xl font-semibold">Basics</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="prod-name">Name *</Label>
               <Input
-                id="name"
+                id="prod-name"
                 name="name"
                 defaultValue={initial?.name}
                 placeholder="Extension Spring Set"
