@@ -1331,16 +1331,18 @@ export function EstimateForm({
                           />
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
-                              <Label className="text-xs">Birthday</Label>
+                              <Label htmlFor="ef-dialog-birthday" className="text-xs">Birthday</Label>
                               <Input
+                                id="ef-dialog-birthday"
                                 type="date"
                                 value={dialogBirthday}
                                 onChange={(e) => setDialogBirthday(e.target.value)}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Anniversary</Label>
+                              <Label htmlFor="ef-dialog-anniversary" className="text-xs">Anniversary</Label>
                               <Input
+                                id="ef-dialog-anniversary"
                                 type="date"
                                 value={dialogAnniversary}
                                 onChange={(e) => setDialogAnniversary(e.target.value)}
@@ -1391,8 +1393,9 @@ export function EstimateForm({
                       <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 p-3">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">First Name</Label>
+                            <Label htmlFor="ef-first-name" className="text-xs">First Name</Label>
                             <Input
+                              id="ef-first-name"
                               value={contactEdit.firstName}
                               onChange={(e) => updateContactField('firstName', e.target.value)}
                               autoCapitalize="words"
@@ -1400,8 +1403,9 @@ export function EstimateForm({
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Last Name</Label>
+                            <Label htmlFor="ef-last-name" className="text-xs">Last Name</Label>
                             <Input
+                              id="ef-last-name"
                               value={contactEdit.lastName}
                               onChange={(e) => updateContactField('lastName', e.target.value)}
                               autoCapitalize="words"
@@ -1411,8 +1415,9 @@ export function EstimateForm({
                         </div>
 
                         <div className="space-y-1">
-                          <Label className="text-xs">Job Title</Label>
+                          <Label htmlFor="ef-job-title" className="text-xs">Job Title</Label>
                           <Input
+                            id="ef-job-title"
                             value={contactEdit.jobTitle}
                             onChange={(e) => updateContactField('jobTitle', e.target.value)}
                             placeholder="e.g. Property Manager"
@@ -1687,8 +1692,9 @@ export function EstimateForm({
                         {/* Row 1: Location Name + Gated */}
                         <div className="flex items-center gap-3">
                           <div className="flex-1 space-y-1">
-                            <Label className="text-xs">Location Name</Label>
+                            <Label htmlFor="ef-loc-name" className="text-xs">Location Name</Label>
                             <Input
+                              id="ef-loc-name"
                               value={locationEditName}
                               onChange={(e) => setLocationEditName(e.target.value)}
                               placeholder="e.g. Home or Office"
@@ -1708,8 +1714,9 @@ export function EstimateForm({
                         {/* Row 2: Street Address + Unit */}
                         <div className="grid grid-cols-[1fr_auto] gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">Street Address</Label>
+                            <Label htmlFor="ef-loc-addr1" className="text-xs">Street Address</Label>
                             <AddressAutocomplete
+                              id="ef-loc-addr1"
                               key={locationFormKey}
                               defaultValue={newLocationAddr.addressLine1 ?? ''}
                               placeholder="Start typing an address…"
@@ -1722,8 +1729,9 @@ export function EstimateForm({
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Unit</Label>
+                            <Label htmlFor="ef-loc-addr2" className="text-xs">Unit</Label>
                             <Input
+                              id="ef-loc-addr2"
                               value={newLocationAddr.addressLine2 ?? ''}
                               onChange={(e) =>
                                 setNewLocationAddr((prev) => ({ ...prev, addressLine2: e.target.value }))
@@ -1736,24 +1744,27 @@ export function EstimateForm({
                         {/* Row 3: City + State + Zip */}
                         <div className="grid grid-cols-3 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">City</Label>
+                            <Label htmlFor="ef-loc-city" className="text-xs">City</Label>
                             <Input
+                              id="ef-loc-city"
                               value={newLocationAddr.city ?? ''}
                               onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, city: e.target.value }))}
                               placeholder="City"
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">State</Label>
+                            <Label htmlFor="ef-loc-state" className="text-xs">State</Label>
                             <Input
+                              id="ef-loc-state"
                               value={newLocationAddr.state ?? ''}
                               onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, state: e.target.value }))}
                               placeholder="State"
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Zip</Label>
+                            <Label htmlFor="ef-loc-zip" className="text-xs">Zip</Label>
                             <Input
+                              id="ef-loc-zip"
                               value={newLocationAddr.postalCode ?? ''}
                               onChange={(e) =>
                                 setNewLocationAddr((prev) => ({ ...prev, postalCode: e.target.value }))
@@ -1895,7 +1906,11 @@ export function EstimateForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={mode === 'create' ? 'est-status' : undefined}>Status</Label>
+            {mode === 'create' ? (
+              <Label htmlFor="est-status">Status</Label>
+            ) : (
+              <p className="text-sm font-medium leading-none">Status</p>
+            )}
             {mode === 'edit' && estimateId ? (
               <EstimateStatusDropdown
                 estimateId={estimateId}
