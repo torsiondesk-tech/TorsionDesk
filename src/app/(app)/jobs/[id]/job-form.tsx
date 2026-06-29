@@ -1395,7 +1395,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-4">
-              <Label htmlFor={locationMode === 'existing' && locationId ? undefined : 'serviceLocationId'}>Service Location</Label>
+              <Label htmlFor={(!customerId && customerMode !== 'new') || (locationMode === 'existing' && !locationId) ? 'serviceLocationId' : undefined}>Service Location</Label>
               {!customerId && customerMode !== 'new' ? (
                 <Select name="serviceLocationId" disabled>
                   <SelectTrigger id="serviceLocationId" className="w-full opacity-50">

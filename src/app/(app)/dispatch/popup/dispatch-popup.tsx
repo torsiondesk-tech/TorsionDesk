@@ -248,7 +248,7 @@ function StatusSelect({ jobId, currentStatus }: { jobId: string; currentStatus: 
       <StatusPill status={status} />
       {legal.length > 0 && (
         <Select value="" onValueChange={handleChange} disabled={isPending}>
-          <SelectTrigger className="w-full h-8 text-xs mt-1">
+          <SelectTrigger className="w-full h-8 text-xs mt-1" aria-label="Change status">
             <SelectValue placeholder="Change status…" />
           </SelectTrigger>
           <SelectContent>
@@ -497,7 +497,7 @@ export function DispatchPopup({ job, techs, open, onClose, popupData }: Dispatch
                                 }
                               }}
                             >
-                              <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectTrigger className="h-8 text-xs w-full" aria-label="Select service location">
                                 <SelectValue placeholder="Select location…">
                                   {(() => {
                                     if (!draftLocation) return null

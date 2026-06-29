@@ -1197,7 +1197,7 @@ export function EstimateForm({
                 <p className="text-sm font-medium leading-none">Contact</p>
                 {!customerId ? (
                   <Select disabled>
-                    <SelectTrigger className="w-full opacity-50">
+                    <SelectTrigger className="w-full opacity-50" aria-label="Select a customer first to choose a contact">
                       <SelectValue placeholder="Select a customer first…" />
                     </SelectTrigger>
                   </Select>
@@ -1428,6 +1428,7 @@ export function EstimateForm({
                             <div key={pi} className="flex items-center gap-2">
                               <Phone className="size-4 text-muted-foreground" />
                               <Input
+                                aria-label={`Phone number ${pi + 1}`}
                                 placeholder="555-0100"
                                 value={formatPhone(phone.number)}
                                 onChange={(e) =>
@@ -1436,6 +1437,7 @@ export function EstimateForm({
                                 className="max-w-[160px]"
                               />
                               <Input
+                                aria-label={`Phone ${pi + 1} extension`}
                                 placeholder="Ext"
                                 value={phone.ext}
                                 onChange={(e) => updateContactPhone(pi, 'ext', e.target.value.replace(/\D/g, ''))}
@@ -1445,7 +1447,7 @@ export function EstimateForm({
                                 value={phone.type}
                                 onValueChange={(val) => updateContactPhone(pi, 'type', val ?? '')}
                               >
-                                <SelectTrigger className="h-9 w-[100px]">
+                                <SelectTrigger className="h-9 w-[100px]" aria-label={`Phone ${pi + 1} type`}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1502,6 +1504,7 @@ export function EstimateForm({
                             <div key={ei} className="flex items-center gap-2">
                               <Mail className="size-4 text-muted-foreground" />
                               <Input
+                                aria-label={`Email address ${ei + 1}`}
                                 type="email"
                                 placeholder="name@company.com"
                                 value={email.address}
@@ -1514,7 +1517,7 @@ export function EstimateForm({
                                 value={email.type}
                                 onValueChange={(val) => updateContactEmail(ei, 'type', val ?? '')}
                               >
-                                <SelectTrigger className="h-9 w-[100px]">
+                                <SelectTrigger className="h-9 w-[100px]" aria-label={`Email ${ei + 1} type`}>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1609,7 +1612,7 @@ export function EstimateForm({
                 <p className="text-sm font-medium leading-none">Service Location</p>
                 {!customerId ? (
                   <Select disabled>
-                    <SelectTrigger className="w-full opacity-50">
+                    <SelectTrigger className="w-full opacity-50" aria-label="Select a customer first to choose a location">
                       <SelectValue placeholder="Select a customer first…" />
                     </SelectTrigger>
                   </Select>
@@ -1654,7 +1657,7 @@ export function EstimateForm({
                         }}
                         disabled={!customerId}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full" aria-label="Select service location">
                           <SelectValue placeholder="Select location…">
                             {serviceLocationId
                               ? (() => {

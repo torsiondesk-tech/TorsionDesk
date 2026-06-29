@@ -114,6 +114,7 @@ export function TagSelect({
 
       <Combobox>
         <ComboboxInput
+          aria-label="Add tags"
           placeholder="Add tags…"
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
