@@ -100,7 +100,7 @@ export function ServiceForm({
                 name="categoryId"
                 autoComplete="off"
                 defaultValue={initial?.categoryId ?? ''}
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                className="h-9 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground"
               >
                 <option value="">Select a category…</option>
                 {categories.map((c) => (

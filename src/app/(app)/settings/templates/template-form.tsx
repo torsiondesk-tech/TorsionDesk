@@ -732,7 +732,7 @@ function TemplateFormInner({
           name="categoryId"
           autoComplete="off"
           defaultValue={initialTemplate?.categoryId ?? ''}
-          className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+          className="h-9 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground"
         >
           <option value="">Select category…</option>
           {topCategories.map((parent) => (
@@ -817,7 +817,7 @@ function TemplateFormInner({
                         <select
                           value={e.type}
                           onChange={(ev) => setEditForm({ ...e, type: ev.target.value as TemplateFormLineItem['type'] })}
-                          className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs"
+                          className="h-8 rounded-md border border-input bg-background px-1.5 text-xs text-foreground"
                         >
                           <option value="product">Product</option>
                           <option value="service">Service</option>

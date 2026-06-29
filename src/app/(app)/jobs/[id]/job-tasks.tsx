@@ -389,7 +389,7 @@ export function JobTasks({ jobId, tasks: initialTasks, reminders: initialReminde
                 name="note"
                 placeholder="Reminder note…"
                 rows={2}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
               />
             </div>
             <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
