@@ -1177,6 +1177,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           <div key={pi} className="flex items-center gap-2">
                             <Phone className="size-4 text-muted-foreground" />
                             <Input
+                              aria-label={`Phone number ${pi + 1}`}
                               placeholder="555-0100"
                               value={formatPhone(phone.number)}
                               onChange={(e) =>
@@ -1189,6 +1190,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                               className="max-w-[160px]"
                             />
                             <Input
+                              aria-label={`Phone ${pi + 1} extension`}
                               placeholder="Ext"
                               value={phone.ext}
                               onChange={(e) => updateContactPhone(pi, 'ext', e.target.value.replace(/\D/g, ''))}
@@ -1261,6 +1263,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                           <div key={ei} className="flex items-center gap-2">
                             <Mail className="size-4 text-muted-foreground" />
                             <Input
+                              aria-label={`Email address ${ei + 1}`}
                               type="email"
                               placeholder="name@company.com"
                               value={email.address}
@@ -1391,7 +1394,7 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
             </div>
 
             <div className="space-y-4">
-              <Label htmlFor="serviceLocationId">Service Location</Label>
+              <Label htmlFor={locationMode === 'existing' && locationId ? undefined : 'serviceLocationId'}>Service Location</Label>
               {!customerId && customerMode !== 'new' ? (
                 <Select name="serviceLocationId" disabled>
                   <SelectTrigger id="serviceLocationId" className="w-full opacity-50">
