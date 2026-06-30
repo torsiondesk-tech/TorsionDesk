@@ -25,7 +25,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { ServiceLocationCard, isRedundantLocationName } from '@/components/service-location-card'
 import { CustomerSearch } from '@/components/customer-search'
 import { TagSelect, type TagOption } from '@/components/tag-select'
 import { TechSelect } from '@/components/tech-select'
@@ -37,7 +36,10 @@ import {
 import { StarPicker } from '@/components/line-items/star-picker'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
 import { TimeWindowPicker } from '@/components/ui/time-window-picker'
-import type { ParsedAddress } from '@/lib/places-actions'
+import { LocationPickerFields } from '@/components/location-picker-fields'
+import { ContactPickerFields } from '@/components/contact-picker-fields'
+import { useLocationPicker } from '@/hooks/use-location-picker'
+import { useContactPicker } from '@/hooks/use-contact-picker'
 import {
   createOfficeEstimateAction,
   updateEstimateAction,
@@ -47,19 +49,12 @@ import {
   getCustomerContacts,
   getCustomerLocations,
 } from '../actions'
-import {
-  getCustomerContactDetail,
-  createContactForJob,
-  createServiceLocation,
-  updateServiceLocation,
-} from '../../jobs/actions'
-import { setPrimaryContactAction, setPrimaryLocationAction } from '../../customers/actions'
 import { estimateStatusBadgeVariant, estimateStatusLabel } from '@/lib/estimates/status'
 import { EstimateStatusDropdown } from './estimate-status-dropdown'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
-import { toISODate, formatPhone, normalizePhone, capitalizeWords } from '@/lib/utils'
+import { toISODate, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
-import { FileDown, Mail, Send, Plus, Loader2, UserPlus, Star, Phone, Trash2 } from 'lucide-react'
+import { FileDown, Mail, Send, Loader2, UserPlus } from 'lucide-react'
 import { ContactEditor, type ContactEditorValue, emptyContact } from '@/components/contact-editor'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
@@ -148,8 +143,6 @@ export function EstimateForm({
   // ── Core form state ──
   const [customerId, setCustomerId] = React.useState<string | null>(initial?.estimate.customerId ?? null)
   const [customerName, setCustomerName] = React.useState<string>(initial?.customerName ?? '')
-  const [contactId, setContactId] = React.useState<string | null>(initial?.estimate.contactId ?? null)
-  const [serviceLocationId, setServiceLocationId] = React.useState<string | null>(initial?.estimate.serviceLocationId ?? null)
   const [categoryId, setCategoryId] = React.useState<string | null>(initial?.estimate.categoryId ?? null)
   const [description, setDescription] = React.useState(initial?.estimate.description ?? '')
   const [poNumber, setPoNumber] = React.useState(initial?.estimate.poNumber ?? '')
@@ -175,255 +168,68 @@ export function EstimateForm({
   const [tagIds, setTagIds] = React.useState<string[]>(initial?.tagIds ?? [])
   const [assigneeUserIds, setAssigneeUserIds] = React.useState<string[]>(initial?.assigneeUserIds ?? [])
 
-  // ── Dependent selects ──
-  const [contacts, setContacts] = React.useState<Array<{ id: string; firstName: string; lastName: string | null; phone: string | null }>>([])
-  const [locations, setLocations] = React.useState<
-    Array<{
-      id: string
-      name: string | null
-      addressLine1: string | null
-      addressLine2: string | null
-      city: string | null
-      state: string | null
-      postalCode: string | null
-      gated: boolean | null
-    }>
-  >([])
-  const [contactsLoading, setContactsLoading] = React.useState(false)
-  const [locationsLoading, setLocationsLoading] = React.useState(false)
-  const [primaryContactId, setPrimaryContactId] = React.useState<string | null>(null)
-  const [primaryLocationId, setPrimaryLocationId] = React.useState<string | null>(null)
-
-  // ── Inline contact/location creation/editing ──
+  // ── Picker hooks (location + contact for existing-customer path) ──
   const [contactMode, setContactMode] = React.useState<'existing' | 'new'>('existing')
-  const [contactPickerOpen, setContactPickerOpen] = React.useState(false)
-  const [contactPickerSelected, setContactPickerSelected] = React.useState<string>('')
-  const [newContactDialogOpen, setNewContactDialogOpen] = React.useState(false)
-  const [savingNewContactDialog, setSavingNewContactDialog] = React.useState(false)
-  const [newContactDialogError, setNewContactDialogError] = React.useState<string | null>(null)
-  const [dialogNewContact, setDialogNewContact] = React.useState<ContactEditorValue>(emptyContact())
-  const [dialogBirthday, setDialogBirthday] = React.useState('')
-  const [dialogAnniversary, setDialogAnniversary] = React.useState('')
-  const [locationMode, setLocationMode] = React.useState<'existing' | 'new' | 'edit'>('existing')
-  interface LocationAddrState extends Partial<ParsedAddress> {
-    addressLine2?: string
-  }
-  const [newLocationAddr, setNewLocationAddr] = React.useState<LocationAddrState>({})
-  const [locationEditName, setLocationEditName] = React.useState('')
-  const [locationGated, setLocationGated] = React.useState(false)
-  const [savingContact, setSavingContact] = React.useState(false)
-  const [savingLocation, setSavingLocation] = React.useState(false)
-  const [contactError, setContactError] = React.useState<string | null>(null)
-  const [locationError, setLocationError] = React.useState<string | null>(null)
-  const [locationFormKey, setLocationFormKey] = React.useState(0)
   const autoSelectRef = React.useRef(false)
 
-  // Full contact editing state (matches job form)
-  interface ContactEditState {
-    id: string
-    firstName: string
-    lastName: string
-    jobTitle: string
-    phones: Array<{ id?: string; number: string; ext: string; type: string; isPrimary: boolean }>
-    emails: Array<{ id?: string; address: string; type: string; isPrimary: boolean }>
-    smsConsent: boolean
-    billingContact: boolean
-    bookingContact: boolean
-  }
-
-  const emptyContactEdit = (): ContactEditState => ({
-    id: '',
-    firstName: '',
-    lastName: '',
-    jobTitle: '',
-    phones: [{ number: '', ext: '', type: 'cell', isPrimary: true }],
-    emails: [{ address: '', type: 'work', isPrimary: true }],
-    smsConsent: true,
-    billingContact: false,
-    bookingContact: false,
+  const locationPicker = useLocationPicker({
+    customerId,
+    initialLocationId: initial?.estimate.serviceLocationId,
+    initialPrimaryLocationId: null,
   })
 
-  const [contactEdit, setContactEdit] = React.useState<ContactEditState | null>(() => {
-    if (initial?.contact) {
-      const c = initial.contact
-      return {
-        id: c.id,
-        firstName: c.firstName,
-        lastName: c.lastName ?? '',
-        jobTitle: c.jobTitle ?? '',
-        phones:
-          c.phones.length > 0
-            ? c.phones.map((p) => ({
-                id: p.id,
-                number: p.number,
-                ext: (p as { ext?: string | null }).ext ?? '',
-                type: p.type,
-                isPrimary: p.isPrimary ?? false,
-              }))
-            : [{ number: '', ext: '', type: 'cell', isPrimary: true }],
-        emails:
-          c.emails.length > 0
-            ? c.emails.map((e) => ({
-                id: e.id,
-                address: e.address,
-                type: e.type,
-                isPrimary: e.isPrimary ?? false,
-              }))
-            : [{ address: '', type: 'work', isPrimary: true }],
-        smsConsent: c.smsConsent ?? false,
-        billingContact: c.billingContact ?? false,
-        bookingContact: c.bookingContact ?? false,
-      }
-    }
-    return null
-  })
-
-  // Fetch full contact detail when an existing contact is selected
-  React.useEffect(() => {
-    if (!contactId || contactMode === 'new') return
-    let cancelled = false
-    getCustomerContactDetail(contactId)
-      .then((detail) => {
-        if (!cancelled && detail) {
-          setContactEdit({
-            id: detail.id,
-            firstName: detail.firstName,
-            lastName: detail.lastName ?? '',
-            jobTitle: detail.jobTitle ?? '',
-            phones:
-              detail.phones.length > 0
-                ? detail.phones.map((p) => ({
-                    id: p.id,
-                    number: p.number,
-                    ext: p.ext ?? '',
-                    type: p.type,
-                    isPrimary: p.isPrimary ?? false,
-                  }))
-                : [{ number: '', ext: '', type: 'cell', isPrimary: true }],
-            emails:
-              detail.emails.length > 0
-                ? detail.emails.map((e) => ({
-                    id: e.id,
-                    address: e.address,
-                    type: e.type,
-                    isPrimary: e.isPrimary ?? false,
-                  }))
-                : [{ address: '', type: 'work', isPrimary: true }],
-            smsConsent: detail.smsConsent ?? false,
-            billingContact: detail.billingContact ?? false,
-            bookingContact: detail.bookingContact ?? false,
-          })
+  const contactPicker = useContactPicker({
+    customerId,
+    contactMode,
+    initialContact: initial?.contact
+      ? {
+          id: initial.contact.id,
+          firstName: initial.contact.firstName,
+          lastName: initial.contact.lastName ?? '',
+          jobTitle: initial.contact.jobTitle ?? '',
+          phones:
+            initial.contact.phones.length > 0
+              ? initial.contact.phones.map((p) => ({
+                  id: p.id,
+                  number: p.number,
+                  ext: (p as { ext?: string | null }).ext ?? '',
+                  type: p.type,
+                  isPrimary: p.isPrimary ?? false,
+                }))
+              : [{ number: '', ext: '', type: 'cell', isPrimary: true }],
+          emails:
+            initial.contact.emails.length > 0
+              ? initial.contact.emails.map((e) => ({
+                  id: e.id,
+                  address: e.address,
+                  type: e.type,
+                  isPrimary: e.isPrimary ?? false,
+                }))
+              : [{ address: '', type: 'work', isPrimary: true }],
+          smsConsent: initial.contact.smsConsent ?? false,
+          billingContact: initial.contact.billingContact ?? false,
+          bookingContact: initial.contact.bookingContact ?? false,
         }
-      })
-      .catch((err) => console.error('loadContactDetail', err))
-    return () => {
-      cancelled = true
-    }
-  }, [contactId, contactMode])
+      : null,
+    initialPrimaryContactId: null,
+  })
 
-  // Contact edit helpers
-  const updateContactField = (
-    field: keyof Omit<ContactEditState, 'phones' | 'emails'>,
-    value: unknown,
-  ) => {
-    let normalized = value
-    if ((field === 'firstName' || field === 'lastName') && typeof value === 'string') {
-      normalized = capitalizeWords(value)
-    }
-    setContactEdit((prev) => (prev ? { ...prev, [field]: normalized } : prev))
-  }
-
-  const updateContactPhone = (
-    pi: number,
-    field: 'number' | 'ext' | 'type' | 'isPrimary',
-    value: string | boolean,
-  ) => {
-    setContactEdit((prev) => {
-      if (!prev) return prev
-      const phones = [...prev.phones]
-      phones[pi] = { ...phones[pi], [field]: value }
-      return { ...prev, phones }
-    })
-  }
-
-  const addContactPhone = () => {
-    setContactEdit((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        phones: [...prev.phones, { number: '', ext: '', type: 'cell', isPrimary: false }],
-      }
-    })
-  }
-
-  const removeContactPhone = (pi: number) => {
-    setContactEdit((prev) => {
-      if (!prev) return prev
-      return { ...prev, phones: prev.phones.filter((_, i) => i !== pi) }
-    })
-  }
-
-  const updateContactEmail = (
-    ei: number,
-    field: 'address' | 'type' | 'isPrimary',
-    value: string | boolean,
-  ) => {
-    setContactEdit((prev) => {
-      if (!prev) return prev
-      const emails = [...prev.emails]
-      emails[ei] = { ...emails[ei], [field]: value }
-      return { ...prev, emails }
-    })
-  }
-
-  const addContactEmail = () => {
-    setContactEdit((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        emails: [...prev.emails, { address: '', type: 'work', isPrimary: false }],
-      }
-    })
-  }
-
-  const removeContactEmail = (ei: number) => {
-    setContactEdit((prev) => {
-      if (!prev) return prev
-      return { ...prev, emails: prev.emails.filter((_, i) => i !== ei) }
-    })
-  }
-
-  // Sync location edit form when an existing location is selected
+  // Seed contactId from initial on mount
   React.useEffect(() => {
-    if (!serviceLocationId || locationMode === 'new' || !locations.length) return
-    const loc = locations.find((l) => l.id === serviceLocationId)
-    if (!loc) return
-    setNewLocationAddr({
-      addressLine1: loc.addressLine1 ?? undefined,
-      addressLine2: loc.addressLine2 ?? undefined,
-      city: loc.city ?? undefined,
-      state: loc.state ?? undefined,
-      postalCode: loc.postalCode ?? undefined,
-    })
-    setLocationEditName(loc.name ?? '')
-    setLocationGated(loc.gated ?? false)
-    setLocationFormKey((k) => k + 1)
-  }, [serviceLocationId, locations, locationMode])
+    if (initial?.estimate.contactId) contactPicker.setContactId(initial.estimate.contactId)
+  // Only run on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
+  // Fetch contacts and locations when customer changes; push data into pickers via hydrate
   React.useEffect(() => {
     if (!customerId) {
-      setContacts([])
-      setLocations([])
-      setContactsLoading(false)
-      setLocationsLoading(false)
-      setPrimaryContactId(null)
-      setPrimaryLocationId(null)
+      contactPicker.hydrate([], null)
+      locationPicker.hydrate([], null)
       prevCustomerIdRef.current = customerId
       return
     }
     let cancelled = false
-    setContactsLoading(true)
-    setLocationsLoading(true)
     ;(async () => {
       try {
         const [{ contacts: c, primaryContactId: pcId }, { locations: l, primaryLocationId: plId }] = await Promise.all([
@@ -431,31 +237,26 @@ export function EstimateForm({
           getCustomerLocations(customerId),
         ])
         if (cancelled) return
-        setContacts(c)
-        setLocations(l)
-        setPrimaryContactId(pcId)
-        setPrimaryLocationId(plId)
+        contactPicker.hydrate(c, pcId)
+        locationPicker.hydrate(l, plId)
         if (autoSelectRef.current) {
           const autoContact = pcId ? c.find((x) => x.id === pcId) : c[0]
-          if (autoContact) setContactId(autoContact.id)
+          if (autoContact) contactPicker.setContactId(autoContact.id)
           const autoLocation = plId ? l.find((x) => x.id === plId) : l[0]
-          if (autoLocation) setServiceLocationId(autoLocation.id)
+          if (autoLocation) locationPicker.setLocationId(autoLocation.id)
           autoSelectRef.current = false
         }
       } catch (err) {
         if (cancelled) return
         toast.error(err instanceof Error ? err.message : 'Could not load customer details.')
-      } finally {
-        if (!cancelled) {
-          setContactsLoading(false)
-          setLocationsLoading(false)
-        }
       }
     })()
     prevCustomerIdRef.current = customerId
     return () => {
       cancelled = true
     }
+  // contactPicker and locationPicker are stable hook refs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId])
 
   const handleCustomerChange = React.useCallback((id: string | null) => {
@@ -463,45 +264,25 @@ export function EstimateForm({
       autoSelectRef.current = true
       setCustomerMode('existing')
       setCustomerId(id)
-      setContactId(null)
-      setServiceLocationId(null)
       setContactMode('existing')
-      setLocationMode('existing')
       setCustomerName('')
-      setLocationEditName('')
-      setLocationGated(false)
-      setNewLocationAddr({})
-      setLocationError(null)
-      setContactError(null)
-      setContactEdit(null)
+      contactPicker.resetForCustomerChange()
+      locationPicker.resetForCustomerChange()
     } else {
       setCustomerId(null)
-      setContactId(null)
-      setServiceLocationId(null)
-      setContacts([])
-      setLocations([])
       setContactMode('existing')
-      setLocationMode('existing')
-      setLocationEditName('')
-      setLocationGated(false)
-      setNewLocationAddr({})
-      setLocationError(null)
-      setContactError(null)
-      setContactEdit(null)
+      contactPicker.resetForCustomerChange()
+      locationPicker.resetForCustomerChange()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCreateNewCustomer = React.useCallback((name: string) => {
     setCustomerMode('new')
     setNewCustomerName(capitalizeWords(name))
     setCustomerId(null)
-    setContactId(null)
-    setServiceLocationId(null)
-    setContacts([])
-    setLocations([])
     setContactMode('new')
     setNewContactData(emptyContact())
-    setLocationMode('new')
     setNewLocationName('')
     setNewLocationAddress1('')
     setNewLocationAddress2('')
@@ -509,25 +290,17 @@ export function EstimateForm({
     setNewLocationState('')
     setNewLocationPostalCode('')
     setNewLocationGated(false)
-    setLocationEditName('')
-    setLocationGated(false)
-    setNewLocationAddr({})
-    setLocationError(null)
-    setContactError(null)
-    setContactEdit(emptyContactEdit())
+    contactPicker.resetForCustomerChange()
+    locationPicker.resetForCustomerChange()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleClearNewCustomer = React.useCallback(() => {
     setCustomerMode('existing')
     setNewCustomerName('')
     setCustomerId(null)
-    setContactId(null)
-    setServiceLocationId(null)
-    setContacts([])
-    setLocations([])
     setContactMode('existing')
     setNewContactData(emptyContact())
-    setLocationMode('existing')
     setNewLocationName('')
     setNewLocationAddress1('')
     setNewLocationAddress2('')
@@ -535,178 +308,10 @@ export function EstimateForm({
     setNewLocationState('')
     setNewLocationPostalCode('')
     setNewLocationGated(false)
-    setLocationEditName('')
-    setLocationGated(false)
-    setNewLocationAddr({})
-    setLocationError(null)
-    setContactError(null)
-    setContactEdit(null)
+    contactPicker.resetForCustomerChange()
+    locationPicker.resetForCustomerChange()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const handleSaveNewContact = async () => {
-    if (!customerId) {
-      setContactError('Select a customer first.')
-      return
-    }
-    if (!newContactData.firstName.trim() && !newContactData.lastName.trim()) {
-      setContactError('First or last name is required.')
-      return
-    }
-    setSavingContact(true)
-    setContactError(null)
-    try {
-      const result = await createContactForJob(customerId, {
-        firstName: newContactData.firstName.trim(),
-        lastName: newContactData.lastName.trim() || null,
-        jobTitle: newContactData.jobTitle.trim() || null,
-        billingContact: newContactData.billingContact,
-        bookingContact: newContactData.bookingContact,
-        smsConsent: newContactData.smsConsent,
-        phones: newContactData.phones
-          .filter((p) => p.number.trim())
-          .map((p) => ({ number: p.number, ext: p.ext || null, type: p.type, isPrimary: p.isPrimary })),
-        emails: newContactData.emails
-          .filter((e) => e.address.trim())
-          .map((e) => ({ address: e.address, type: e.type, isPrimary: e.isPrimary })),
-      })
-      if (result.error) {
-        setContactError(result.error)
-        return
-      }
-      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
-      setContacts(refreshed)
-      setPrimaryContactId(refreshedPrimary)
-      setContactId(result.id)
-      setContactMode('existing')
-      setNewContactData(emptyContact())
-      setContactEdit(null)
-    } catch (err) {
-      setContactError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSavingContact(false)
-    }
-  }
-
-  const handleSaveNewContactDialog = async () => {
-    if (!customerId) return
-    if (!dialogNewContact.firstName.trim() && !dialogNewContact.lastName.trim()) {
-      setNewContactDialogError('First or last name is required.')
-      return
-    }
-    setSavingNewContactDialog(true)
-    setNewContactDialogError(null)
-    try {
-      const result = await createContactForJob(customerId, {
-        firstName: dialogNewContact.firstName.trim(),
-        lastName: dialogNewContact.lastName.trim() || null,
-        jobTitle: dialogNewContact.jobTitle.trim() || null,
-        billingContact: dialogNewContact.billingContact,
-        bookingContact: dialogNewContact.bookingContact,
-        smsConsent: dialogNewContact.smsConsent,
-        birthday: dialogBirthday || null,
-        anniversary: dialogAnniversary || null,
-        phones: dialogNewContact.phones
-          .filter((p) => p.number.trim())
-          .map((p) => ({ number: p.number, ext: p.ext || null, type: p.type, isPrimary: p.isPrimary })),
-        emails: dialogNewContact.emails
-          .filter((e) => e.address.trim())
-          .map((e) => ({ address: e.address, type: e.type, isPrimary: e.isPrimary })),
-      })
-      if (result.error) {
-        setNewContactDialogError(result.error)
-        return
-      }
-      const { contacts: refreshed, primaryContactId: refreshedPrimary } = await getCustomerContacts(customerId)
-      setContacts(refreshed)
-      setPrimaryContactId(refreshedPrimary)
-      setContactId(result.id)
-      setNewContactDialogOpen(false)
-    } catch (err) {
-      setNewContactDialogError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSavingNewContactDialog(false)
-    }
-  }
-
-  const handleSaveNewLocation = async () => {
-    if (!customerId || customerMode === 'new') {
-      setLocationError('Select an existing customer first.')
-      return
-    }
-    if (!newLocationAddr.addressLine1?.trim()) {
-      setLocationError('Street address is required.')
-      return
-    }
-    setSavingLocation(true)
-    setLocationError(null)
-    try {
-      const result = await createServiceLocation(customerId, {
-        name: locationEditName.trim() || null,
-        addressLine1: newLocationAddr.addressLine1,
-        addressLine2: newLocationAddr.addressLine2 ?? null,
-        city: newLocationAddr.city ?? null,
-        state: newLocationAddr.state ?? null,
-        postalCode: newLocationAddr.postalCode ?? null,
-        gated: locationGated,
-      })
-      if (result.error) {
-        setLocationError(result.error)
-        return
-      }
-      const { locations: refreshed, primaryLocationId: refreshedPrimary } = await getCustomerLocations(customerId)
-      setLocations(refreshed)
-      setPrimaryLocationId(refreshedPrimary)
-      setServiceLocationId(result.id)
-      setLocationMode('existing')
-      setNewLocationAddr({})
-      setLocationEditName('')
-      setLocationGated(false)
-    } catch (err) {
-      setLocationError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSavingLocation(false)
-    }
-  }
-
-  const handleUpdateLocation = async () => {
-    if (!serviceLocationId) {
-      setLocationError('Select a location first.')
-      return
-    }
-    if (!newLocationAddr.addressLine1?.trim()) {
-      setLocationError('Street address is required.')
-      return
-    }
-    setSavingLocation(true)
-    setLocationError(null)
-    try {
-      const result = await updateServiceLocation(serviceLocationId, {
-        name: locationEditName.trim() || null,
-        addressLine1: newLocationAddr.addressLine1,
-        addressLine2: newLocationAddr.addressLine2 ?? null,
-        city: newLocationAddr.city ?? null,
-        state: newLocationAddr.state ?? null,
-        postalCode: newLocationAddr.postalCode ?? null,
-        gated: locationGated,
-      })
-      if (result.error) {
-        setLocationError(result.error)
-        return
-      }
-      if (customerId) {
-        const { locations: refreshed, primaryLocationId: refreshedPrimary } = await getCustomerLocations(customerId)
-        setLocations(refreshed)
-        setPrimaryLocationId(refreshedPrimary)
-      }
-      setLocationMode('existing')
-    } catch (err) {
-      setLocationError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSavingLocation(false)
-    }
-  }
-
-  /** Detect auto-filled or redundant location names that equal the address. */
 
   // ── Line items & groups ──
   const initialGroups: LineItemGroup[] =
@@ -806,22 +411,8 @@ export function EstimateForm({
     customerId: customerMode === 'existing' ? (customerId ?? '') : '',
     newCustomerName: customerMode === 'new' ? newCustomerName : '',
     newContactJson: customerMode === 'new' ? JSON.stringify(newContactData) : '',
-    contactUpdate:
-      customerMode === 'existing' && contactId && contactEdit
-        ? JSON.stringify({
-            id: contactEdit.id,
-            firstName: contactEdit.firstName,
-            lastName: contactEdit.lastName,
-            jobTitle: contactEdit.jobTitle,
-            phones: contactEdit.phones
-              .map((p) => ({ ...p, number: normalizePhone(p.number) }))
-              .filter((p) => p.number),
-            emails: contactEdit.emails.filter((e) => e.address.trim()),
-            smsConsent: contactEdit.smsConsent,
-            billingContact: contactEdit.billingContact,
-            bookingContact: contactEdit.bookingContact,
-          })
-        : '',
+    // contactUpdate includes phone normalization and filtering via the hook's toPayloadFields()
+    contactUpdate: customerMode === 'new' ? '' : contactPicker.toPayloadFields().contactUpdate,
     newLocationName: customerMode === 'new' ? newLocationName : '',
     newLocationAddress1: customerMode === 'new' ? newLocationAddress1 : '',
     newLocationAddress2: customerMode === 'new' ? newLocationAddress2 : '',
@@ -829,8 +420,8 @@ export function EstimateForm({
     newLocationState: customerMode === 'new' ? newLocationState : '',
     newLocationPostalCode: customerMode === 'new' ? newLocationPostalCode : '',
     newLocationGated: customerMode === 'new' ? newLocationGated : false,
-    contactId: customerMode === 'new' ? null : contactId,
-    serviceLocationId: customerMode === 'new' ? null : serviceLocationId,
+    contactId: customerMode === 'new' ? null : (contactPicker.contactId ?? null),
+    serviceLocationId: customerMode === 'new' ? null : (locationPicker.locationId ?? null),
     status,
     categoryId,
     description,
@@ -1081,8 +672,8 @@ export function EstimateForm({
                   onReplaceIntent={mode === 'edit' && !!customerId ? (char) => {
                     setCustomerName(char)
                     setCustomerId(null)
-                    setContactId(null)
-                    setServiceLocationId(null)
+                    contactPicker.resetForCustomerChange()
+                    locationPicker.resetForCustomerChange()
                   } : undefined}
                 />
                 {mode === 'create' && (
@@ -1192,619 +783,16 @@ export function EstimateForm({
             </div>
           ) : (
             <div className="space-y-5">
-              {/* ── Contact ── */}
+              {/* ── Contact ── (shared ContactPickerFields; see src/components/contact-picker-fields.tsx) */}
               <div className="space-y-2">
                 <p className="text-sm font-medium leading-none">Contact</p>
-                {!customerId ? (
-                  <Select disabled>
-                    <SelectTrigger className="w-full opacity-50" aria-label="Select a customer first to choose a contact">
-                      <SelectValue placeholder="Select a customer first…" />
-                    </SelectTrigger>
-                  </Select>
-                ) : (
-                  <>
-                    <input type="hidden" name="contactId" value={contactId ?? ''} />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!customerId}
-                        onClick={() => {
-                          setContactPickerSelected(contactId ?? '')
-                          setContactPickerOpen(true)
-                        }}
-                      >
-                        Select Contact
-                      </Button>
-                      {contactId && (
-                        <span className="text-sm font-medium">
-                          {contactEdit
-                            ? `${contactEdit.firstName}${contactEdit.lastName ? ' ' + contactEdit.lastName : ''}`
-                            : (() => {
-                                const c = contacts.find((c) => c.id === contactId)
-                                return c ? `${c.firstName}${c.lastName ? ' ' + c.lastName : ''}` : contactsLoading ? 'Loading…' : ''
-                              })()}
-                        </span>
-                      )}
-                    </div>
-
-                    <Dialog open={contactPickerOpen} onOpenChange={setContactPickerOpen}>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Select Contact</DialogTitle>
-                          <DialogDescription>Choose a contact for this estimate or add a new one.</DialogDescription>
-                        </DialogHeader>
-                        <div className="max-h-64 overflow-y-auto">
-                          {contacts.length === 0 ? (
-                            <p className="py-4 text-center text-sm text-muted-foreground">
-                              {contactsLoading ? 'Loading…' : 'No contacts for this customer.'}
-                            </p>
-                          ) : (
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b">
-                                  <th className="w-8 py-2" />
-                                  <th className="py-2 text-left font-semibold">Contact Name</th>
-                                  <th className="py-2 text-left font-semibold">Phone</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {contacts.map((c) => {
-                                  const label = `${c.firstName}${c.lastName ? ' ' + c.lastName : ''}`
-                                  return (
-                                    <tr
-                                      key={c.id}
-                                      className="cursor-pointer hover:bg-muted/50"
-                                      onClick={() => setContactPickerSelected(c.id)}
-                                    >
-                                      <td className="py-2 pr-2">
-                                        <input
-                                          type="radio"
-                                          name="estContactPickerRadio"
-                                          checked={contactPickerSelected === c.id}
-                                          onChange={() => setContactPickerSelected(c.id)}
-                                          className="accent-primary"
-                                        />
-                                      </td>
-                                      <td className="py-2 pr-4 font-medium text-amber-700">
-                                        {label}{c.id === primaryContactId ? ' (Primary)' : ''}
-                                      </td>
-                                      <td className="py-2 text-muted-foreground">
-                                        {c.phone ? formatPhone(c.phone) : '—'}
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                        <DialogFooter className="flex-row gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setContactPickerOpen(false)
-                              setDialogNewContact({ ...emptyContact(), billingContact: contacts.length === 0 })
-                              setDialogBirthday('')
-                              setDialogAnniversary('')
-                              setNewContactDialogError(null)
-                              setNewContactDialogOpen(true)
-                            }}
-                            className="mr-auto"
-                          >
-                            Add New Contact
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => setContactPickerOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              if (contactPickerSelected) setContactId(contactPickerSelected)
-                              setContactPickerOpen(false)
-                            }}
-                          >
-                            Select
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-
-                    {/* Add New Contact dialog */}
-                    <Dialog open={newContactDialogOpen} onOpenChange={setNewContactDialogOpen}>
-                      <DialogContent className="sm:max-w-xl">
-                        <DialogHeader>
-                          <DialogTitle>Add New Contact</DialogTitle>
-                          <DialogDescription>Create a new contact for this customer.</DialogDescription>
-                        </DialogHeader>
-                        <div className="max-h-[70vh] overflow-y-auto space-y-5 pr-2">
-                          <ContactEditor
-                            value={dialogNewContact}
-                            onChange={setDialogNewContact}
-                            idPrefix="est-dialog-nc"
-                          />
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label htmlFor="ef-dialog-birthday" className="text-xs">Birthday</Label>
-                              <Input
-                                id="ef-dialog-birthday"
-                                type="date"
-                                value={dialogBirthday}
-                                onChange={(e) => setDialogBirthday(e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label htmlFor="ef-dialog-anniversary" className="text-xs">Anniversary</Label>
-                              <Input
-                                id="ef-dialog-anniversary"
-                                type="date"
-                                value={dialogAnniversary}
-                                onChange={(e) => setDialogAnniversary(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          {newContactDialogError && (
-                            <p className="text-sm text-destructive">{newContactDialogError}</p>
-                          )}
-                        </div>
-                        <DialogFooter>
-                          <Button type="button" variant="ghost" onClick={() => setNewContactDialogOpen(false)}>
-                            Cancel
-                          </Button>
-                          <Button type="button" onClick={handleSaveNewContactDialog} disabled={savingNewContactDialog}>
-                            {savingNewContactDialog ? 'Saving…' : 'Save'}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-
-                    {contactId && customerId && (
-                      <div className="flex items-center gap-2 pt-0.5">
-                        {contactId === primaryContactId ? (
-                          <Badge className="gap-1 bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
-                            <Star className="size-3 fill-amber-500 text-amber-500" />
-                            Primary Contact
-                          </Badge>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 gap-1 text-xs"
-                            onClick={async () => {
-                              const result = await setPrimaryContactAction(customerId, contactId)
-                              if (result.success) setPrimaryContactId(contactId)
-                            }}
-                          >
-                            <Star className="size-3" />
-                            Set as Primary
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
-                    {contactEdit && contactId && (
-                      <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 p-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-first-name" className="text-xs">First Name</Label>
-                            <Input
-                              id="ef-first-name"
-                              value={contactEdit.firstName}
-                              onChange={(e) => updateContactField('firstName', e.target.value)}
-                              autoCapitalize="words"
-                              placeholder="First name"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-last-name" className="text-xs">Last Name</Label>
-                            <Input
-                              id="ef-last-name"
-                              value={contactEdit.lastName}
-                              onChange={(e) => updateContactField('lastName', e.target.value)}
-                              autoCapitalize="words"
-                              placeholder="Last name"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label htmlFor="ef-job-title" className="text-xs">Job Title</Label>
-                          <Input
-                            id="ef-job-title"
-                            value={contactEdit.jobTitle}
-                            onChange={(e) => updateContactField('jobTitle', e.target.value)}
-                            placeholder="e.g. Property Manager"
-                          />
-                        </div>
-
-                        {/* Phones */}
-                        <div className="space-y-2">
-                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Phone Numbers
-                          </div>
-                          {contactEdit.phones.map((phone, pi) => (
-                            <div key={pi} className="flex items-center gap-2">
-                              <Phone className="size-4 text-muted-foreground" />
-                              <Input
-                                aria-label={`Phone number ${pi + 1}`}
-                                placeholder="555-0100"
-                                value={formatPhone(phone.number)}
-                                onChange={(e) =>
-                                  updateContactPhone(pi, 'number', e.target.value.replace(/\D/g, ''))
-                                }
-                                className="max-w-[160px]"
-                              />
-                              <Input
-                                aria-label={`Phone ${pi + 1} extension`}
-                                placeholder="Ext"
-                                value={phone.ext}
-                                onChange={(e) => updateContactPhone(pi, 'ext', e.target.value.replace(/\D/g, ''))}
-                                className="w-16"
-                              />
-                              <Select
-                                value={phone.type}
-                                onValueChange={(val) => updateContactPhone(pi, 'type', val ?? '')}
-                              >
-                                <SelectTrigger className="h-9 w-[100px]" aria-label={`Phone ${pi + 1} type`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="cell">Cell</SelectItem>
-                                  <SelectItem value="home">Home</SelectItem>
-                                  <SelectItem value="work">Work</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <div className="flex items-center gap-1.5">
-                                <Checkbox
-                                  id={`phone-primary-${pi}`}
-                                  checked={phone.isPrimary}
-                                  onCheckedChange={(c) =>
-                                    updateContactPhone(pi, 'isPrimary', c === true)
-                                  }
-                                />
-                                <Label
-                                  htmlFor={`phone-primary-${pi}`}
-                                  className="cursor-pointer text-xs"
-                                >
-                                  Primary
-                                </Label>
-                              </div>
-                              {contactEdit.phones.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2 text-destructive"
-                                  onClick={() => removeContactPhone(pi)}
-                                >
-                                  <Trash2 className="size-3" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addContactPhone}
-                          >
-                            <Plus className="mr-1 size-3" />
-                            Add phone
-                          </Button>
-                        </div>
-
-                        {/* Emails */}
-                        <div className="space-y-2">
-                          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Email Addresses
-                          </div>
-                          {contactEdit.emails.map((email, ei) => (
-                            <div key={ei} className="flex items-center gap-2">
-                              <Mail className="size-4 text-muted-foreground" />
-                              <Input
-                                aria-label={`Email address ${ei + 1}`}
-                                type="email"
-                                placeholder="name@company.com"
-                                value={email.address}
-                                onChange={(e) =>
-                                  updateContactEmail(ei, 'address', e.target.value)
-                                }
-                                className="max-w-[240px]"
-                              />
-                              <Select
-                                value={email.type}
-                                onValueChange={(val) => updateContactEmail(ei, 'type', val ?? '')}
-                              >
-                                <SelectTrigger className="h-9 w-[100px]" aria-label={`Email ${ei + 1} type`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="work">Work</SelectItem>
-                                  <SelectItem value="personal">Personal</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <div className="flex items-center gap-1.5">
-                                <Checkbox
-                                  id={`email-primary-${ei}`}
-                                  checked={email.isPrimary}
-                                  onCheckedChange={(c) =>
-                                    updateContactEmail(ei, 'isPrimary', c === true)
-                                  }
-                                />
-                                <Label
-                                  htmlFor={`email-primary-${ei}`}
-                                  className="cursor-pointer text-xs"
-                                >
-                                  Primary
-                                </Label>
-                              </div>
-                              {contactEdit.emails.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2 text-destructive"
-                                  onClick={() => removeContactEmail(ei)}
-                                >
-                                  <Trash2 className="size-3" />
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addContactEmail}
-                          >
-                            <Plus className="mr-1 size-3" />
-                            Add email
-                          </Button>
-                        </div>
-
-                        {/* Flags */}
-                        <div className="flex flex-wrap items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="billing-contact"
-                              checked={contactEdit.billingContact}
-                              onCheckedChange={(c) =>
-                                updateContactField('billingContact', c === true)
-                              }
-                            />
-                            <Label htmlFor="billing-contact" className="cursor-pointer text-sm">
-                              Billing Contact
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="booking-contact"
-                              checked={contactEdit.bookingContact}
-                              onCheckedChange={(c) =>
-                                updateContactField('bookingContact', c === true)
-                              }
-                            />
-                            <Label htmlFor="booking-contact" className="cursor-pointer text-sm">
-                              Booking Contact
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="sms-consent"
-                              checked={contactEdit.smsConsent}
-                              onCheckedChange={(c) => updateContactField('smsConsent', c === true)}
-                            />
-                            <Label htmlFor="sms-consent" className="cursor-pointer text-sm">
-                              SMS Consent
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                <ContactPickerFields picker={contactPicker} customerId={customerId} idPrefix="est" />
               </div>
 
               {/* ── Service Location ── */}
               <div className="space-y-2">
                 <p className="text-sm font-medium leading-none">Service Location</p>
-                {!customerId ? (
-                  <Select disabled>
-                    <SelectTrigger className="w-full opacity-50" aria-label="Select a customer first to choose a location">
-                      <SelectValue placeholder="Select a customer first…" />
-                    </SelectTrigger>
-                  </Select>
-                ) : locationMode === 'existing' && serviceLocationId ? (
-                  <ServiceLocationCard
-                    location={locations.find((l) => l.id === serviceLocationId)}
-                    isPrimary={serviceLocationId === primaryLocationId}
-                    onSetPrimary={customerId ? async () => {
-                      const result = await setPrimaryLocationAction(customerId, serviceLocationId)
-                      if (result.success) setPrimaryLocationId(serviceLocationId)
-                    } : undefined}
-                    onEditAddress={() => setLocationMode('edit')}
-                    onChangeLocation={() => { setServiceLocationId(null); setLocationError(null) }}
-                    onNewAddress={() => {
-                      setLocationMode('new')
-                      setServiceLocationId(null)
-                      setNewLocationAddr({})
-                      setLocationEditName('')
-                      setLocationGated(false)
-                    }}
-                  />
-                ) : (
-                  <>
-                    {locationMode === 'existing' && (
-                      <Select
-                        value={serviceLocationId ?? ''}
-                        onValueChange={(val) => {
-                          const v = val ?? ''
-                          setLocationError(null)
-                          if (v === '__new__') {
-                            setLocationMode('new')
-                            setServiceLocationId(null)
-                            setNewLocationAddr({})
-                            setLocationEditName('')
-                            setLocationGated(false)
-                          } else if (v === '') {
-                            setServiceLocationId(null)
-                          } else {
-                            setLocationMode('existing')
-                            setServiceLocationId(v)
-                          }
-                        }}
-                        disabled={!customerId}
-                      >
-                        <SelectTrigger className="w-full" aria-label="Select service location">
-                          <SelectValue placeholder="Select location…">
-                            {serviceLocationId
-                              ? (() => {
-                                  const l = locations.find((x) => x.id === serviceLocationId)
-                                  if (l) return l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')
-                                  if (locationsLoading) return 'Loading…'
-                                  return serviceLocationId
-                                })()
-                              : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Select location…</SelectItem>
-                        {locations.map((l) => (
-                          <SelectItem key={l.id} value={l.id}>
-                            {l.name || [l.addressLine1, l.city, l.state].filter(Boolean).join(', ')}
-                            {l.id === primaryLocationId ? ' (Primary)' : ''}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="__new__">+ New address…</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    )}
-
-                    {(locationMode === 'new' || locationMode === 'edit') && (
-                      <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-                        {/* Row 1: Location Name + Gated */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 space-y-1">
-                            <Label htmlFor="ef-loc-name" className="text-xs">Location Name</Label>
-                            <Input
-                              id="ef-loc-name"
-                              value={locationEditName}
-                              onChange={(e) => setLocationEditName(e.target.value)}
-                              placeholder="e.g. Home or Office"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1.5 pt-5">
-                            <Checkbox
-                              id="location-gated"
-                              checked={locationGated}
-                              onCheckedChange={(c) => setLocationGated(c === true)}
-                            />
-                            <Label htmlFor="location-gated" className="cursor-pointer text-sm">
-                              Gated Property
-                            </Label>
-                          </div>
-                        </div>
-                        {/* Row 2: Street Address + Unit */}
-                        <div className="grid grid-cols-[1fr_auto] gap-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-loc-addr1" className="text-xs">Street Address</Label>
-                            <AddressAutocomplete
-                              id="ef-loc-addr1"
-                              key={locationFormKey}
-                              defaultValue={newLocationAddr.addressLine1 ?? ''}
-                              placeholder="Start typing an address…"
-                              onAddressSelect={(result) => {
-                                setNewLocationAddr((prev) => ({
-                                  ...result,
-                                  addressLine2: prev.addressLine2,
-                                }))
-                              }}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-loc-addr2" className="text-xs">Unit</Label>
-                            <Input
-                              id="ef-loc-addr2"
-                              value={newLocationAddr.addressLine2 ?? ''}
-                              onChange={(e) =>
-                                setNewLocationAddr((prev) => ({ ...prev, addressLine2: e.target.value }))
-                              }
-                              placeholder="Ste/Unit/Apt"
-                              className="w-32"
-                            />
-                          </div>
-                        </div>
-                        {/* Row 3: City + State + Zip */}
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-loc-city" className="text-xs">City</Label>
-                            <Input
-                              id="ef-loc-city"
-                              value={newLocationAddr.city ?? ''}
-                              onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, city: e.target.value }))}
-                              placeholder="City"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-loc-state" className="text-xs">State</Label>
-                            <Input
-                              id="ef-loc-state"
-                              value={newLocationAddr.state ?? ''}
-                              onChange={(e) => setNewLocationAddr((prev) => ({ ...prev, state: e.target.value }))}
-                              placeholder="State"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="ef-loc-zip" className="text-xs">Zip</Label>
-                            <Input
-                              id="ef-loc-zip"
-                              value={newLocationAddr.postalCode ?? ''}
-                              onChange={(e) =>
-                                setNewLocationAddr((prev) => ({ ...prev, postalCode: e.target.value }))
-                              }
-                              placeholder="Zip/Postal Code"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLocationMode('existing')
-                              setLocationError(null)
-                              if (!serviceLocationId) setNewLocationAddr({})
-                            }}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            ← Cancel
-                          </button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={savingLocation}
-                            onClick={locationMode === 'edit' ? handleUpdateLocation : handleSaveNewLocation}
-                          >
-                            {savingLocation
-                              ? 'Saving…'
-                              : locationMode === 'edit'
-                                ? 'Update Location'
-                                : 'Save Location'}
-                          </Button>
-                        </div>
-                        {locationError && (
-                          <p className="text-xs text-destructive">{locationError}</p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
+                <LocationPickerFields picker={locationPicker} customerId={customerId} idPrefix="est" />
               </div>
             </div>
           )}
