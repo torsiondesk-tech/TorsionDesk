@@ -54,7 +54,7 @@ import { EstimateStatusDropdown } from './estimate-status-dropdown'
 import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { toISODate, capitalizeWords } from '@/lib/utils'
 import { toast } from 'sonner'
-import { FileDown, Mail, Send, Loader2, UserPlus } from 'lucide-react'
+import { FileDown, Mail, Send, Loader2, UserPlus, Plus } from 'lucide-react'
 import { ContactEditor, type ContactEditorValue, emptyContact } from '@/components/contact-editor'
 import type { EstimateTemplate } from '@/lib/estimates/templates'
 import type { getEstimateAction } from '../actions'
@@ -1017,6 +1017,24 @@ export function EstimateForm({
           role={role}
           jobId={estimateId}
         />
+        {groups.length === 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => {
+              const defaultGroup: LineItemGroup = {
+                id: crypto.randomUUID(),
+                name: 'Group 1',
+                sortOrder: 0,
+              }
+              setGroups([defaultGroup])
+              setLineItems(lineItems.map((i) => ({ ...i, groupId: defaultGroup.id })))
+            }}
+          >
+            <Plus className="mr-1 size-4" /> Enable Line-Item Groups
+          </Button>
+        )}
 
         <div className="flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
