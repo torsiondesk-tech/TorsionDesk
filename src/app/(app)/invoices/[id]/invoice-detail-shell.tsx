@@ -193,7 +193,7 @@ export function InvoiceDetailShell({
     label: invoice.status.toUpperCase(),
   }
   const addressLines = buildAddressLines(serviceLocation)
-  const billingAddressLines = buildAddressLines(billingLocation ?? serviceLocation)
+  const billingAddressLines = buildAddressLines(billingLocation)
 
   const enterEdit = () => {
     setEditDate(invoice.invoiceDate ?? '')
