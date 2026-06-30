@@ -797,32 +797,25 @@ export function EstimateForm({
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="est-category">Category</Label>
-              <Select value={categoryId ?? ''} onValueChange={(v) => setCategoryId(v || null)}>
-                <SelectTrigger id="est-category">
-                  <SelectValue placeholder="Select category">
-                    {categoryId
-                      ? referenceData.jobCategories.find((c) => c.id === categoryId)?.name ?? categoryId
-                      : null}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No category</SelectItem>
-                  {referenceData.jobCategories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="est-poNumber">PO Number</Label>
-              <Input id="est-poNumber" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="PO #" />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="est-category">Category</Label>
+            <Select value={categoryId ?? ''} onValueChange={(v) => setCategoryId(v || null)}>
+              <SelectTrigger id="est-category" className="w-full">
+                <span className="flex flex-1 text-left text-sm">
+                  {categoryId
+                    ? referenceData.jobCategories.find((c) => c.id === categoryId)?.name ?? categoryId
+                    : <span className="text-muted-foreground">Select category…</span>}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No category</SelectItem>
+                {referenceData.jobCategories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -830,10 +823,15 @@ export function EstimateForm({
             <Textarea
               id="est-description"
               value={description}
-            onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the work or scope"
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="est-poNumber">PO #</Label>
+            <Input id="est-poNumber" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="Purchase order number" />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
