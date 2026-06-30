@@ -522,9 +522,7 @@ export function DispatchBoard({
             </div>
 
             <JobPool jobs={localPoolJobs} counts={counts} onJobClick={openPopup} />
-            {localPoolEstimates.length > 0 && (
-              <EstimatePool estimates={localPoolEstimates} onEstimateClick={openEstimatePopup} />
-            )}
+            <EstimatePool estimates={localPoolEstimates} onEstimateClick={openEstimatePopup} />
           </div>
 
           <DragOverlay>
