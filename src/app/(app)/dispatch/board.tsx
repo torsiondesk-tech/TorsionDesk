@@ -269,8 +269,9 @@ export function DispatchBoard({
         const target = over.id as string
         const isPoolEstimate = dragType === 'pool-estimate'
 
-        const prevEstimates = localEstimates
-        const prevPoolEstimates = localPoolEstimates
+        // Snapshot BEFORE optimistic updates so rollback restores exact pre-drag state.
+        const previousGridEstimates = localEstimates
+        const previousPoolEstimates = localPoolEstimates
 
         // Drop on estimate pool → unassign
         if (target === 'estimate-pool') {
@@ -281,8 +282,8 @@ export function DispatchBoard({
           startTransition(async () => {
             const result = await unassignEstimate({ estimateId: estimate.id })
             if (result.error) {
-              setLocalEstimates(prevEstimates)
-              setLocalPoolEstimates(prevPoolEstimates)
+              setLocalEstimates(previousGridEstimates)
+              setLocalPoolEstimates(previousPoolEstimates)
               toast.error(result.error)
             } else {
               router.refresh()
@@ -316,8 +317,8 @@ export function DispatchBoard({
             date,
           })
           if (result.error) {
-            setLocalEstimates(prevEstimates)
-            setLocalPoolEstimates(prevPoolEstimates)
+            setLocalEstimates(previousGridEstimates)
+            setLocalPoolEstimates(previousPoolEstimates)
             toast.error(result.error)
           } else {
             router.refresh()
