@@ -880,7 +880,7 @@ export function InvoiceDetailShell({
 
       {/* ── Line items lightbox ── */}
       <Dialog open={lineItemsOpen} onOpenChange={(open) => { if (!open) setLineItemsOpen(false) }}>
-        <DialogContent className="max-w-5xl w-full flex flex-col max-h-[92vh]">
+        <DialogContent className="sm:max-w-5xl flex flex-col max-h-[92vh] overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle>Edit Line Items</DialogTitle>
             <DialogDescription>
@@ -894,7 +894,7 @@ export function InvoiceDetailShell({
               Loading line items…
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
               <GroupedLineItems
                 groups={editGroups}
                 lineItems={editLineItems}
