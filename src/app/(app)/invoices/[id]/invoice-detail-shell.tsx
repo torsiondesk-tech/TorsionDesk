@@ -880,8 +880,8 @@ export function InvoiceDetailShell({
 
       {/* ── Line items lightbox ── */}
       <Dialog open={lineItemsOpen} onOpenChange={(open) => { if (!open) setLineItemsOpen(false) }}>
-        <DialogContent className="max-w-5xl w-full">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl w-full flex flex-col max-h-[92vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Edit Line Items</DialogTitle>
             <DialogDescription>
               Changes here update the job and recalculate the invoice total.
@@ -894,7 +894,7 @@ export function InvoiceDetailShell({
               Loading line items…
             </div>
           ) : (
-            <div className="max-h-[65vh] overflow-y-auto pr-1">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
               <GroupedLineItems
                 groups={editGroups}
                 lineItems={editLineItems}
@@ -927,7 +927,7 @@ export function InvoiceDetailShell({
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t pt-4">
             <Button type="button" variant="outline" onClick={() => setLineItemsOpen(false)}>
               Cancel
             </Button>
