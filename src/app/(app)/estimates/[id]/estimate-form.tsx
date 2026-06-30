@@ -1001,8 +1001,7 @@ export function EstimateForm({
       </div>
 
       {/* Line items */}
-      <div className="rounded-xl border bg-card p-6 space-y-6">
-        <h2 className="text-xl font-semibold">Line Items</h2>
+      <div className="space-y-6">
         <GroupedLineItems
           groups={groups}
           lineItems={lineItems}
