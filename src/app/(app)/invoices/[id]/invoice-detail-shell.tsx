@@ -81,6 +81,7 @@ interface InvoiceDetailShellProps {
   invoice: NonNullable<Awaited<ReturnType<typeof getInvoiceAction>>>
   customer: typeof customers.$inferSelect | null
   serviceLocation?: ServiceLocation | null
+  billingLocation?: ServiceLocation | null
   jobDetails?: JobDetails | null
 }
 
@@ -141,6 +142,7 @@ export function InvoiceDetailShell({
   invoice,
   customer,
   serviceLocation,
+  billingLocation,
   jobDetails,
 }: InvoiceDetailShellProps) {
   const router = useRouter()
@@ -191,6 +193,7 @@ export function InvoiceDetailShell({
     label: invoice.status.toUpperCase(),
   }
   const addressLines = buildAddressLines(serviceLocation)
+  const billingAddressLines = buildAddressLines(billingLocation ?? serviceLocation)
 
   const enterEdit = () => {
     setEditDate(invoice.invoiceDate ?? '')
@@ -272,7 +275,7 @@ export function InvoiceDetailShell({
 
   const handleBillToAddressSelect = async (locationId: string) => {
     const result = await updateInvoiceAction(invoice.tenantId, invoice.id, {
-      serviceLocationId: locationId,
+      billingLocationId: locationId,
     })
     if (result.error) {
       toast.error(result.error)
@@ -560,7 +563,7 @@ export function InvoiceDetailShell({
               {[invoice.contactFirstName, invoice.contactLastName].filter(Boolean).join(' ')}
             </p>
           )}
-          {addressLines.map((line, i) => (
+          {billingAddressLines.map((line, i) => (
             <p key={i} className="text-muted-foreground">{line}</p>
           ))}
           {mode === 'edit' && (

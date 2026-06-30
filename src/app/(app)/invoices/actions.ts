@@ -66,6 +66,7 @@ export interface InvoiceDetail {
   contactFirstName: string | null
   contactLastName: string | null
   serviceLocationId: string | null
+  billingLocationId: string | null
   invoiceDate: string | null
   dueDate: string | null
   paymentTermsDays: number | null
@@ -211,6 +212,7 @@ export async function createInvoiceFromJobAction(
             customerId: job.customerId,
             contactId: invoiceContactId,
             serviceLocationId: job.serviceLocationId ?? null,
+            billingLocationId: job.serviceLocationId ?? null,
             invoiceDate,
             dueDate,
             paymentTermsDays,
@@ -439,6 +441,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         contactFirstName: contacts.firstName,
         contactLastName: contacts.lastName,
         serviceLocationId: invoices.serviceLocationId,
+        billingLocationId: invoices.billingLocationId,
         invoiceDate: invoices.invoiceDate,
         dueDate: invoices.dueDate,
         paymentTermsDays: invoices.paymentTermsDays,
@@ -500,6 +503,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       contactFirstName: invoice.contactFirstName ?? null,
       contactLastName: invoice.contactLastName ?? null,
       serviceLocationId: invoice.serviceLocationId ?? null,
+      billingLocationId: invoice.billingLocationId ?? null,
       invoiceDate: toDateString(invoice.invoiceDate),
       dueDate: toDateString(invoice.dueDate),
       paymentTermsDays: invoice.paymentTermsDays,
@@ -598,6 +602,7 @@ export async function updateInvoiceAction(
     customerId?: string
     contactId?: string | null
     serviceLocationId?: string | null
+    billingLocationId?: string | null
   },
 ): Promise<{ error?: string }> {
   const { userId } = await auth()
@@ -612,6 +617,7 @@ export async function updateInvoiceAction(
           ...(data.customerId && { customerId: data.customerId }),
           ...(data.contactId !== undefined && { contactId: data.contactId }),
           ...(data.serviceLocationId !== undefined && { serviceLocationId: data.serviceLocationId }),
+          ...(data.billingLocationId !== undefined && { billingLocationId: data.billingLocationId }),
           paymentTermsDays: data.paymentTermsDays ?? null,
           notes: data.notes ?? null,
           sentBy: data.sentBy ?? null,

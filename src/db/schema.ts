@@ -1718,6 +1718,7 @@ export const invoices = pgTable(
     customerId: text('customer_id').notNull(),
     contactId: text('contact_id'),
     serviceLocationId: text('service_location_id'),
+    billingLocationId: text('billing_location_id'),
     invoiceDate: date('invoice_date').notNull().default(sql`CURRENT_DATE`),
     dueDate: date('due_date'),
     paymentTermsDays: integer('payment_terms_days').default(30),
@@ -1751,6 +1752,10 @@ export const invoices = pgTable(
     }).onDelete('set null'),
     foreignKey({
       columns: [t.tenantId, t.serviceLocationId],
+      foreignColumns: [serviceLocations.tenantId, serviceLocations.id],
+    }).onDelete('set null'),
+    foreignKey({
+      columns: [t.tenantId, t.billingLocationId],
       foreignColumns: [serviceLocations.tenantId, serviceLocations.id],
     }).onDelete('set null'),
     pgPolicy('invoices_tenant_isolation', {

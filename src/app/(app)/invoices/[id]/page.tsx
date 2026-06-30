@@ -58,9 +58,10 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
   const invoice = await getInvoiceAction(orgId, id)
   if (!invoice) notFound()
 
-  const [customer, serviceLocation, jobDetails] = await Promise.all([
+  const [customer, serviceLocation, billingLocation, jobDetails] = await Promise.all([
     getCustomerById(orgId, invoice.customerId),
     getServiceLocation(orgId, invoice.serviceLocationId),
+    getServiceLocation(orgId, invoice.billingLocationId),
     getJobDetails(orgId, invoice.jobId),
   ])
 
@@ -70,6 +71,7 @@ export default async function InvoiceDetailPage({ params }: InvoiceDetailPagePro
         invoice={invoice}
         customer={customer}
         serviceLocation={serviceLocation}
+        billingLocation={billingLocation}
         jobDetails={jobDetails}
       />
     </div>
