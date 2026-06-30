@@ -2196,3 +2196,148 @@ export async function deleteJobReminder(
     return { error: message }
   }
 }
+
+// ── Invoice line-items lightbox ───────────────────────────────────────────────
+
+export interface InvoiceLineItemRow {
+  id?: string
+  type: 'product' | 'service' | 'discount' | 'expense'
+  refId: string | null
+  title: string | null
+  description: string
+  qty: string
+  rate: string
+  cost: string
+  taxItemId: string | null
+  groupId: string | null
+}
+
+export interface InvoiceLineItemGroup {
+  id: string
+  name: string
+  sortOrder: number
+}
+
+export async function getJobLineItemsAction(
+  orgId: string,
+  jobId: string,
+): Promise<{
+  lineItems: InvoiceLineItemRow[]
+  lineItemGroups: InvoiceLineItemGroup[]
+  taxItems: Array<{ id: string; name: string; rate: string | null }>
+  productCategories: Array<{ id: string; name: string }>
+} | { error: string }> {
+  try {
+    const result = await withTenant(orgId, async (tx) => {
+      const [items, groups, taxRows] = await Promise.all([
+        tx
+          .select()
+          .from(jobLineItems)
+          .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, jobId))),
+        tx
+          .select()
+          .from(lineItemGroups)
+          .where(and(eq(lineItemGroups.tenantId, orgId), eq(lineItemGroups.jobId, jobId)))
+          .orderBy(lineItemGroups.sortOrder),
+        tx.select().from(taxItems).where(eq(taxItems.tenantId, orgId)),
+      ])
+      return { items, groups, taxRows }
+    })
+
+    const { listProductCategories } = await import('@/lib/catalog')
+    const prodCats = await listProductCategories(orgId)
+
+    return {
+      lineItems: result.items
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((li) => ({
+          id: li.id,
+          type: (li.type ?? 'product') as InvoiceLineItemRow['type'],
+          refId: li.refId ?? null,
+          title: li.title ?? null,
+          description: li.description ?? '',
+          qty: String(li.qty ?? '1'),
+          rate: String(li.rate ?? '0'),
+          cost: String(li.cost ?? '0'),
+          taxItemId: li.taxItemId ?? null,
+          groupId: li.groupId ?? null,
+        })),
+      lineItemGroups: result.groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        sortOrder: g.sortOrder ?? 0,
+      })),
+      taxItems: result.taxRows.map((t) => ({
+        id: t.id,
+        name: t.name,
+        rate: t.rate ?? null,
+      })),
+      productCategories: prodCats.map((c) => ({ id: c.id, name: c.name })),
+    }
+  } catch (err) {
+    return { error: extractErrorMessage(err) }
+  }
+}
+
+export async function replaceJobLineItemsAction(
+  orgId: string,
+  jobId: string,
+  lineItems: InvoiceLineItemRow[],
+  groups: InvoiceLineItemGroup[],
+): Promise<{ success?: boolean; error?: string }> {
+  const { orgId: authOrgId } = await auth()
+  if (!authOrgId || authOrgId !== orgId) return { error: 'Unauthorized' }
+
+  try {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .delete(jobLineItems)
+        .where(and(eq(jobLineItems.tenantId, orgId), eq(jobLineItems.jobId, jobId)))
+      await tx
+        .delete(lineItemGroups)
+        .where(and(eq(lineItemGroups.tenantId, orgId), eq(lineItemGroups.jobId, jobId)))
+
+      if (groups.length > 0) {
+        await tx.insert(lineItemGroups).values(
+          groups.map((g) => ({
+            tenantId: orgId,
+            jobId,
+            id: g.id,
+            name: g.name,
+            sortOrder: g.sortOrder,
+          })),
+        )
+      }
+
+      if (lineItems.length > 0) {
+        for (const item of lineItems) {
+          if (item.taxItemId) await guardTaxItem(tx, orgId, item.taxItemId)
+        }
+        await tx.insert(jobLineItems).values(
+          lineItems.map((item, i) => ({
+            tenantId: orgId,
+            jobId,
+            type: item.type,
+            refId: item.refId ?? null,
+            title: item.title ?? null,
+            description: item.description,
+            qty: item.qty,
+            rate: item.rate,
+            cost: item.cost,
+            taxItemId: item.taxItemId ?? null,
+            groupId: item.groupId ?? null,
+            sortOrder: i,
+          })),
+        )
+      }
+
+      await syncInvoiceLineItems(tx, orgId, jobId)
+    })
+
+    revalidatePath(`/jobs/${jobId}`)
+    revalidatePath(`/invoices`)
+    return { success: true }
+  } catch (err) {
+    return { error: extractErrorMessage(err) }
+  }
+}

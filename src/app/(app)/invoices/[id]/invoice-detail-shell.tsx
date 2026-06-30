@@ -42,6 +42,15 @@ import {
   updateInvoiceAction,
   type getInvoiceAction,
 } from '../actions'
+import {
+  getJobLineItemsAction,
+  replaceJobLineItemsAction,
+} from '@/app/(app)/jobs/actions'
+import {
+  GroupedLineItems,
+  type LineItemGroup,
+  type LineItemRow,
+} from '@/components/line-items/grouped-line-items'
 import type { customers } from '@/db/schema'
 
 interface ServiceLocation {
@@ -155,6 +164,17 @@ export function InvoiceDetailShell({
   const [locations, setLocations] = useState<LocationOption[]>([])
   const [addrLoading, setAddrLoading] = useState(false)
 
+  // Line items lightbox
+  const [lineItemsOpen, setLineItemsOpen] = useState(false)
+  const [lineItemsLoading, setLineItemsLoading] = useState(false)
+  const [lineItemsSaving, setLineItemsSaving] = useState(false)
+  const [editLineItems, setEditLineItems] = useState<LineItemRow[]>([])
+  const [editGroups, setEditGroups] = useState<LineItemGroup[]>([])
+  const [lineItemsRefData, setLineItemsRefData] = useState<{
+    taxItems: Array<{ id: string; name: string; rate: string | null }>
+    productCategories: Array<{ id: string; name: string }>
+  }>({ taxItems: [], productCategories: [] })
+
   // Edit form state — reset to current invoice values when entering edit mode
   const [editDate, setEditDate] = useState(invoice.invoiceDate ?? '')
   const [editTerms, setEditTerms] = useState(String(invoice.paymentTermsDays ?? 0))
@@ -179,6 +199,50 @@ export function InvoiceDetailShell({
     setEditSentBy(invoice.sentBy ?? '')
     setEditSentOn(invoice.sentOn ?? '')
     setMode('edit')
+  }
+
+  const openLineItemsDialog = async () => {
+    setLineItemsOpen(true)
+    setLineItemsLoading(true)
+    const result = await getJobLineItemsAction(invoice.tenantId, invoice.jobId)
+    if ('error' in result) {
+      toast.error(result.error)
+      setLineItemsOpen(false)
+    } else {
+      setEditLineItems(result.lineItems as LineItemRow[])
+      setEditGroups(result.lineItemGroups)
+      setLineItemsRefData({ taxItems: result.taxItems, productCategories: result.productCategories })
+    }
+    setLineItemsLoading(false)
+  }
+
+  const saveLineItems = async () => {
+    setLineItemsSaving(true)
+    const normalizedItems = editLineItems.map((i) => ({
+      ...i,
+      refId: i.refId ?? null,
+      title: i.title ?? null,
+      taxItemId: i.taxItemId ?? null,
+      groupId: i.groupId ?? null,
+    }))
+    const normalizedGroups = editGroups.map((g) => ({
+      ...g,
+      sortOrder: g.sortOrder ?? 0,
+    }))
+    const result = await replaceJobLineItemsAction(
+      invoice.tenantId,
+      invoice.jobId,
+      normalizedItems,
+      normalizedGroups,
+    )
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success('Line items saved.')
+      setLineItemsOpen(false)
+      router.refresh()
+    }
+    setLineItemsSaving(false)
   }
 
   const openCustDialog = async () => {
@@ -667,7 +731,16 @@ export function InvoiceDetailShell({
                   '—'
                 )}
               </td>
-              <td className="px-3 py-3 text-right tabular-nums">{fmtMoney(invoice.total)}</td>
+              <td className="px-3 py-3 text-right tabular-nums">
+                <button
+                  type="button"
+                  onClick={openLineItemsDialog}
+                  className="inline-flex items-center gap-1.5 hover:underline"
+                >
+                  {fmtMoney(invoice.total)}
+                  <span className="text-xs text-blue-600 font-normal">(edit)</span>
+                </button>
+              </td>
               <td className="px-3 py-3 text-right tabular-nums text-blue-600">$0.00</td>
               <td className="px-3 py-3 text-right tabular-nums text-blue-600">
                 {fmtMoney(invoice.balance)}
@@ -804,6 +877,71 @@ export function InvoiceDetailShell({
           </Button>
         </div>
       )}
+
+      {/* ── Line items lightbox ── */}
+      <Dialog open={lineItemsOpen} onOpenChange={(open) => { if (!open) setLineItemsOpen(false) }}>
+        <DialogContent className="max-w-5xl w-full">
+          <DialogHeader>
+            <DialogTitle>Edit Line Items</DialogTitle>
+            <DialogDescription>
+              Changes here update the job and recalculate the invoice total.
+            </DialogDescription>
+          </DialogHeader>
+
+          {lineItemsLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+              <Loader2 className="size-4 animate-spin mr-2" />
+              Loading line items…
+            </div>
+          ) : (
+            <div className="max-h-[65vh] overflow-y-auto pr-1">
+              <GroupedLineItems
+                groups={editGroups}
+                lineItems={editLineItems}
+                onChange={(groups, items) => {
+                  setEditGroups(groups)
+                  setEditLineItems(items)
+                }}
+                referenceData={lineItemsRefData}
+                jobId={invoice.jobId}
+              />
+              {editGroups.length === 0 && (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const id = crypto.randomUUID()
+                      const newGroup: LineItemGroup = { id, name: 'Group 1', sortOrder: 0 }
+                      setEditGroups([newGroup])
+                      setEditLineItems(
+                        editLineItems.map((i) => ({ ...i, groupId: id })),
+                      )
+                    }}
+                  >
+                    Enable Line-Item Groups
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setLineItemsOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={saveLineItems}
+              disabled={lineItemsSaving || lineItemsLoading}
+            >
+              {lineItemsSaving && <Loader2 className="mr-1 size-3.5 animate-spin" />}
+              Save Line Items
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Change Bill To Account dialog ── */}
       <Dialog open={custDialogOpen} onOpenChange={(open) => { if (!open) setCustDialogOpen(false) }}>
