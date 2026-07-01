@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useTransition, useState, useMemo } from 'react'
+import { useTransition, useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryStates, parseAsString } from 'nuqs'
 import {
@@ -124,6 +124,12 @@ export function InvoicesTable({ rows, orgId, status }: InvoicesTableProps) {
 
   const [deleting, setDeleting] = useState<InvoiceRow | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Poll every 30 s so email-opened icons update automatically after Resend webhooks fire
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 30_000)
+    return () => clearInterval(id)
+  }, [router])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()

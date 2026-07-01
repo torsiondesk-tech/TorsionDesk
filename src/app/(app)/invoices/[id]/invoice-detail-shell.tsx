@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -165,6 +165,12 @@ export function InvoiceDetailShell({
   const [addrDialogOpen, setAddrDialogOpen] = useState(false)
   const [locations, setLocations] = useState<LocationOption[]>([])
   const [addrLoading, setAddrLoading] = useState(false)
+
+  // Poll every 30 s so email-opened status updates automatically after Resend webhooks fire
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 30_000)
+    return () => clearInterval(id)
+  }, [router])
 
   // Line items lightbox
   const [lineItemsOpen, setLineItemsOpen] = useState(false)
