@@ -1,7 +1,7 @@
 import { Webhook } from 'svix'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/db/client'
-import { communicationLogs, invoices } from '@/db/schema'
+import { communicationLogs, invoices, customerEvents } from '@/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { withTenant } from '@/db/with-tenant'
 import { logger } from '@/lib/logger'
@@ -91,6 +91,24 @@ export async function handleResendWebhook(req: Request): Promise<Response> {
             .update(invoices)
             .set({ emailOpenedAt: now })
             .where(and(eq(invoices.tenantId, row.tenantId), eq(invoices.id, row.refId)))
+
+          // Log the open event in the customer activity feed.
+          const [inv] = await tx
+            .select({ customerId: invoices.customerId })
+            .from(invoices)
+            .where(and(eq(invoices.tenantId, row.tenantId), eq(invoices.id, row.refId)))
+            .limit(1)
+
+          if (inv?.customerId) {
+            await tx.insert(customerEvents).values({
+              tenantId: row.tenantId,
+              customerId: inv.customerId,
+              kind: 'email',
+              title: 'Email opened: Invoice send',
+              refId: row.refId,
+              actor: 'System',
+            })
+          }
         }
       }
     })
