@@ -12,6 +12,7 @@ export interface SendCommunicationInput {
   to: string
   subject?: string
   body?: string
+  customerId?: string
 }
 
 export interface SquarePaymentInput {

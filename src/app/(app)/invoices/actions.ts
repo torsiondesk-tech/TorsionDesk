@@ -604,11 +604,20 @@ export async function sendInvoiceAction(
     return { success: false, error: 'No email recipient found for this invoice.' }
   }
 
+  const customerId = await withTenant(orgId, async (tx) => {
+    const [row] = await tx
+      .select({ customerId: invoices.customerId })
+      .from(invoices)
+      .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoiceId)))
+    return row?.customerId ?? undefined
+  })
+
   const result = await sendCustomerCommunicationAction(orgId, {
     kind: 'invoice',
     refId: invoiceId,
     channel: 'email',
     to,
+    customerId,
   })
 
   return { success: result.success, error: result.error }

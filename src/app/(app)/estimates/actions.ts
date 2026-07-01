@@ -1446,11 +1446,20 @@ export async function sendEstimateAction(
     return { success: false, error: 'No email recipient found for this estimate.' }
   }
 
+  const customerId = await withTenant(orgId, async (tx) => {
+    const [row] = await tx
+      .select({ customerId: estimates.customerId })
+      .from(estimates)
+      .where(and(eq(estimates.tenantId, orgId), eq(estimates.id, estimateId)))
+    return row?.customerId ?? undefined
+  })
+
   const result = await sendCustomerCommunicationAction(orgId, {
     kind: 'estimate',
     refId: estimateId,
     channel: 'email',
     to,
+    customerId,
   })
 
   return { success: result.success, error: result.error }
