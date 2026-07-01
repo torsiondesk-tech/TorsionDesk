@@ -157,6 +157,10 @@ body {
 .tiptap-content .ProseMirror h2 { font-size: 1.1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
 .tiptap-content .ProseMirror h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
 .tiptap-content .ProseMirror blockquote { border-left: 3px solid hsl(var(--border)); padding-left: 0.75rem; margin: 0.25rem 0; color: hsl(var(--muted-foreground)); }
+.tiptap-content .ProseMirror a { color: hsl(var(--primary)); text-decoration: underline; cursor: pointer; }
+.tiptap-content .ProseMirror [style*="text-align: center"] { text-align: center; }
+.tiptap-content .ProseMirror [style*="text-align: right"] { text-align: right; }
+.tiptap-content .ProseMirror u { text-decoration: underline; }
 .tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: hsl(var(--muted-foreground));

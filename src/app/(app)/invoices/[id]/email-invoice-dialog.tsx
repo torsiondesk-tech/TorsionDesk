@@ -1,24 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import {
-  Bold,
-  Check,
-  ChevronDown,
-  Image,
-  Italic,
-  List,
-  ListOrdered,
-  Loader2,
-  Mail,
-  Redo,
-  Strikethrough,
-  Undo,
-  X,
-} from 'lucide-react'
+import { Check, ChevronDown, Image, Loader2, Mail, X } from 'lucide-react'
+import { RichTextEditor, type RichTextEditorHandle } from '@/components/rich-text-editor'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -73,37 +58,6 @@ type Tab = 'body' | 'pics' | 'docs'
 
 const DEFAULT_TEMPLATE_ID = '__default__'
 
-function ToolbarBtn({
-  onClick,
-  active,
-  title,
-  children,
-}: {
-  onClick: () => void
-  active: boolean
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onMouseDown={(e) => {
-        e.preventDefault()
-        onClick()
-      }}
-      title={title}
-      className={cn(
-        'rounded p-1.5 transition-colors',
-        active
-          ? 'bg-muted text-foreground'
-          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
 export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -119,6 +73,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
   const [contactsOpen, setContactsOpen] = useState(false)
   const [customerContacts, setCustomerContacts] = useState<ContactInfo[]>([])
   const toInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<RichTextEditorHandle>(null)
 
   // Template + Subject
   const [templates, setTemplates] = useState<CommunicationTemplate[]>([])
@@ -138,17 +93,6 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
   const [photosLoading, setPhotosLoading] = useState(false)
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
 
-  // Tiptap editor
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: '',
-    editorProps: {
-      attributes: {
-        class: 'outline-none',
-      },
-    },
-  })
-
   // Load defaults on open
   useEffect(() => {
     if (!open) return
@@ -159,7 +103,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
     setSelectedTemplateLabel('Invoice (Default)')
     setSubject('')
     setDefaultSubject('')
-    editor?.commands.clearContent()
+    editorRef.current?.clearContent()
     setBccMe(false)
     setAttachPdf(true)
     setActiveTab('body')
@@ -221,14 +165,14 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
     if (id === DEFAULT_TEMPLATE_ID) {
       setSelectedTemplateLabel('Invoice (Default)')
       setSubject(defaultSubject)
-      editor?.commands.clearContent()
+      editorRef.current?.clearContent()
       return
     }
     const tpl = templates.find((t) => t.id === id)
     if (tpl) {
       setSelectedTemplateLabel(tpl.name)
       if (tpl.subject) setSubject(tpl.subject)
-      editor?.commands.setContent(tpl.body ?? '')
+      editorRef.current?.setContent(tpl.body ?? '')
     }
   }
 
@@ -242,7 +186,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
     if (toChips.length === 0) return
     startTransition(async () => {
       const [primaryTo, ...extraTo] = toChips
-      const rawHtml = editor?.getHTML() ?? ''
+      const rawHtml = editorRef.current?.getHTML() ?? ''
       const hasBody = rawHtml && rawHtml !== '<p></p>' && rawHtml.trim() !== ''
 
       const result = await sendInvoiceAction(invoice.tenantId, invoice.id, {
@@ -422,68 +366,12 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
 
               {activeTab === 'body' && (
                 <div className="rounded-b-md rounded-tr-md border border-t-0">
-                  {/* Toolbar */}
-                  <div className="flex items-center gap-0.5 border-b px-2 py-1 bg-muted/30">
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().toggleBold().run()}
-                      active={editor?.isActive('bold') ?? false}
-                      title="Bold"
-                    >
-                      <Bold className="size-3.5" />
-                    </ToolbarBtn>
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().toggleItalic().run()}
-                      active={editor?.isActive('italic') ?? false}
-                      title="Italic"
-                    >
-                      <Italic className="size-3.5" />
-                    </ToolbarBtn>
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().toggleStrike().run()}
-                      active={editor?.isActive('strike') ?? false}
-                      title="Strikethrough"
-                    >
-                      <Strikethrough className="size-3.5" />
-                    </ToolbarBtn>
-                    <div className="w-px h-4 bg-border mx-0.5" />
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                      active={editor?.isActive('bulletList') ?? false}
-                      title="Bullet list"
-                    >
-                      <List className="size-3.5" />
-                    </ToolbarBtn>
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                      active={editor?.isActive('orderedList') ?? false}
-                      title="Ordered list"
-                    >
-                      <ListOrdered className="size-3.5" />
-                    </ToolbarBtn>
-                    <div className="w-px h-4 bg-border mx-0.5" />
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().undo().run()}
-                      active={false}
-                      title="Undo"
-                    >
-                      <Undo className="size-3.5" />
-                    </ToolbarBtn>
-                    <ToolbarBtn
-                      onClick={() => editor?.chain().focus().redo().run()}
-                      active={false}
-                      title="Redo"
-                    >
-                      <Redo className="size-3.5" />
-                    </ToolbarBtn>
-                    {selectedTemplateId === DEFAULT_TEMPLATE_ID && (
-                      <span className="ml-auto text-[11px] text-muted-foreground pr-1">
-                        Uses standard invoice layout when empty
-                      </span>
-                    )}
-                  </div>
-                  <div className="tiptap-content">
-                    <EditorContent editor={editor} />
-                  </div>
+                  <RichTextEditor ref={editorRef} minHeight="160px" />
+                  {selectedTemplateId === DEFAULT_TEMPLATE_ID && (
+                    <p className="px-3 pb-2 pt-1 text-[11px] text-muted-foreground">
+                      Leave empty to use the standard invoice email layout with PDF.
+                    </p>
+                  )}
                 </div>
               )}
 

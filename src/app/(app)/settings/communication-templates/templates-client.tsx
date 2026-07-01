@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/rich-text-editor'
 import {
   Dialog,
   DialogContent,
@@ -309,14 +309,12 @@ export function TemplatesClient({ orgId, initialTemplates }: Props) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="tpl-body" className="text-xs font-medium">Body</Label>
-              <Textarea
-                id="tpl-body"
+              <Label className="text-xs font-medium">Body</Label>
+              <RichTextEditor
+                key={editingId ?? 'new'}
                 value={form.body}
-                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                rows={7}
-                placeholder="Message body text…"
-                className="resize-none text-sm"
+                onChange={(html) => setForm((f) => ({ ...f, body: html }))}
+                minHeight="160px"
               />
             </div>
           </div>
