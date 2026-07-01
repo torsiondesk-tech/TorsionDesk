@@ -28,6 +28,7 @@ export interface RichTextEditorHandle {
   setContent: (html: string) => void
   clearContent: () => void
   getHTML: () => string
+  insertContent: (html: string) => void
 }
 
 // ── Props ──────────────────────────────────────────────────────────────────────
@@ -104,6 +105,9 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, Props>(
       setContent: (html: string) => editor?.commands.setContent(html ?? ''),
       clearContent: () => editor?.commands.clearContent(),
       getHTML: () => editor?.getHTML() ?? '',
+      insertContent: (html: string) => {
+        editor?.chain().focus().insertContent(html).run()
+      },
     }))
 
     const isActive = (name: string, attrs?: Record<string, unknown>) =>

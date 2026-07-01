@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { ChevronRight, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RichTextEditor } from '@/components/rich-text-editor'
+import { RichTextEditor, type RichTextEditorHandle } from '@/components/rich-text-editor'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -13,6 +13,7 @@ import {
   updateTemplateAction,
   deleteTemplateAction,
 } from './actions'
+import { TagPicker } from './tag-picker'
 import type { CommunicationTemplate } from './actions'
 
 // ── Sidebar tree structure ─────────────────────────────────────────────────────
@@ -66,6 +67,8 @@ export function TemplatesClient({ orgId, initialTemplates }: Props) {
   const [form, setForm] = useState<FormState>({
     name: '', category: 'invoice', channel: 'email', subject: '', body: '',
   })
+  const editorRef = useRef<RichTextEditorHandle>(null)
+  const subjectInputRef = useRef<HTMLInputElement>(null)
 
   function toggleExpanded(key: TypeKey) {
     setExpanded((prev) => {
@@ -95,6 +98,28 @@ export function TemplatesClient({ orgId, initialTemplates }: Props) {
 
   function handleCancel() {
     setTarget(null)
+  }
+
+  function insertBodyTag(tag: string) {
+    editorRef.current?.insertContent(tag)
+  }
+
+  function insertSubjectTag(tag: string) {
+    const input = subjectInputRef.current
+    if (!input) {
+      setForm((f) => ({ ...f, subject: f.subject + tag }))
+      return
+    }
+    const start = input.selectionStart ?? form.subject.length
+    const end = input.selectionEnd ?? start
+    const before = form.subject.slice(0, start)
+    const after = form.subject.slice(end)
+    const next = before + tag + after
+    setForm((f) => ({ ...f, subject: next }))
+    requestAnimationFrame(() => {
+      input.selectionStart = input.selectionEnd = start + tag.length
+      input.focus()
+    })
   }
 
   function handleSave() {
@@ -277,10 +302,19 @@ export function TemplatesClient({ orgId, initialTemplates }: Props) {
             {/* Subject (email only) */}
             {form.channel === 'email' && (
               <div className="space-y-1.5">
-                <Label htmlFor="tpl-subject" className="text-xs font-medium">
-                  When Emailed, Subject Line
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="tpl-subject" className="text-xs font-medium">
+                    When Emailed, Subject Line
+                  </Label>
+                  <TagPicker
+                    category={form.category as 'invoice' | 'estimate' | 'job' | 'general'}
+                    channel={form.channel as 'email' | 'sms'}
+                    mode="subject"
+                    onInsertTag={insertSubjectTag}
+                  />
+                </div>
                 <Input
+                  ref={subjectInputRef}
                   id="tpl-subject"
                   value={form.subject}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
@@ -291,8 +325,17 @@ export function TemplatesClient({ orgId, initialTemplates }: Props) {
 
             {/* Rich text body */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Body</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Body</Label>
+                <TagPicker
+                  category={form.category as 'invoice' | 'estimate' | 'job' | 'general'}
+                  channel={form.channel as 'email' | 'sms'}
+                  mode="body"
+                  onInsertTag={insertBodyTag}
+                />
+              </div>
               <RichTextEditor
+                ref={editorRef}
                 key={editorKey}
                 value={form.body}
                 onChange={(html) => setForm((f) => ({ ...f, body: html }))}

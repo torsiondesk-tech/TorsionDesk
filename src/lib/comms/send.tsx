@@ -19,6 +19,8 @@ import { logger } from '@/lib/logger'
 import { getResend } from './resend'
 import { getTwilio } from './twilio'
 import { triggerLookup, defaultSubjectFor, type TriggerType, type Channel } from './triggers'
+import { renderTemplate } from './template-render'
+import { buildContextForTrigger } from './template-tags-context'
 import { resolveEmailRecipient, resolveSmsRecipient, resolveTechEmail } from '@/app/(app)/communications/recipients'
 import { JobConfirmationEmail } from '@/lib/emails/job-confirmation'
 import { TechNotifyEmail } from '@/lib/emails/tech-notify'
@@ -57,7 +59,7 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-function buildHtmlWrapper(companyName: string, bodyHtml: string, footerText?: string | null): string {
+export function buildHtmlWrapper(companyName: string, bodyHtml: string, footerText?: string | null): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:24px">
 <div style="background-color:#ffffff;border-radius:8px;max-width:600px;margin:0 auto;padding:24px">
@@ -344,27 +346,44 @@ export async function sendCommunication(
         let html: string
         let subjectVars: Record<string, string | number | null> = {}
 
-        if (input.bodyHtml) {
+        let renderedSubject: string | undefined
+        const needsCustomRender = input.bodyHtml || input.body || input.subject
+
+        if (needsCustomRender) {
           const [company] = await tx
             .select({ companyName: tenants.companyName })
             .from(tenants)
             .where(eq(tenants.id, tenantId))
           const companyName = company?.companyName ?? "Infantino's Garage Door Service"
-          html = buildHtmlWrapper(companyName, input.bodyHtml, trigger?.footerText)
-          subjectVars = { companyName }
-        } else if (input.body) {
-          const [company] = await tx
-            .select({ companyName: tenants.companyName })
-            .from(tenants)
-            .where(eq(tenants.id, tenantId))
-          const companyName = company?.companyName ?? "Infantino's Garage Door Service"
-          html = await render(
-            <CustomBodyEmail
-              companyName={companyName}
-              body={input.body}
-              footerText={trigger.footerText}
-            />,
-          )
+          const ctx = await buildContextForTrigger(tx, tenantId, input.triggerType, input.refId)
+
+          if (input.bodyHtml) {
+            const renderedBody = renderTemplate(input.bodyHtml, ctx, 'html')
+            html = buildHtmlWrapper(companyName, renderedBody, trigger?.footerText)
+          } else if (input.body) {
+            const renderedBody = renderTemplate(input.body, ctx, 'text')
+            html = await render(
+              <CustomBodyEmail
+                companyName={companyName}
+                body={renderedBody}
+                footerText={trigger.footerText}
+              />,
+            )
+          } else {
+            const result = await buildEmailBody(
+              input.triggerType,
+              tenantId,
+              input.refId,
+              input.customerId,
+              trigger.footerText,
+              tx,
+            )
+            html = result.html
+          }
+
+          if (input.subject) {
+            renderedSubject = renderTemplate(input.subject, ctx, 'text')
+          }
           subjectVars = { companyName }
         } else {
           const result = await buildEmailBody(
@@ -379,7 +398,7 @@ export async function sendCommunication(
           subjectVars = result.subjectVars
         }
 
-        const subject = input.subject ?? trigger.subject ?? defaultSubjectFor(input.triggerType, subjectVars)
+        const subject = renderedSubject ?? input.subject ?? trigger.subject ?? defaultSubjectFor(input.triggerType, subjectVars)
         const pdfAttachment = input.noAttachment ? null : await renderPdfAttachment(input.triggerType, tenantId, input.refId)
         const allAttachments = [
           ...(pdfAttachment ? [pdfAttachment] : []),
@@ -402,7 +421,13 @@ export async function sendCommunication(
         }
         providerMessageId = result.data?.id
       } else {
-        const body = input.body ?? (await buildSmsBody(input.triggerType, tenantId, input.refId, tx))
+        let body: string
+        if (input.body) {
+          const ctx = await buildContextForTrigger(tx, tenantId, input.triggerType, input.refId)
+          body = renderTemplate(input.body, ctx, 'text')
+        } else {
+          body = await buildSmsBody(input.triggerType, tenantId, input.refId, tx)
+        }
         const twilio = await getTwilio()
         const result = await twilio.messages.create({
           body,

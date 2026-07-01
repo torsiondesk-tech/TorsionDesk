@@ -34,6 +34,7 @@ import {
   getJobPhotosForEmailAction,
   sendInvoiceAction,
 } from '../actions'
+import { previewTemplateAction } from './preview-template-action'
 import { listTemplatesAction } from '@/app/(app)/settings/communication-templates/actions'
 import type { CommunicationTemplate } from '@/app/(app)/settings/communication-templates/actions'
 
@@ -54,7 +55,7 @@ interface PhotoInfo {
   url: string
 }
 
-type Tab = 'body' | 'pics' | 'docs'
+type Tab = 'body' | 'pics' | 'docs' | 'preview'
 
 const DEFAULT_TEMPLATE_ID = '__default__'
 
@@ -93,6 +94,14 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
   const [photosLoading, setPhotosLoading] = useState(false)
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([])
 
+  // Preview
+  const [preview, setPreview] = useState<{
+    subject: string
+    bodyHtml: string
+    unknownTags: string[]
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+
   // Load defaults on open
   useEffect(() => {
     if (!open) return
@@ -110,6 +119,8 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
     setSelectedPhotoIds([])
     setPhotos(null)
     setJobId(null)
+    setPreview(null)
+    setPreviewLoading(false)
 
     Promise.all([
       getInvoiceEmailDefaults(invoice.tenantId, invoice.id),
@@ -137,6 +148,20 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
       .then(setPhotos)
       .finally(() => setPhotosLoading(false))
   }, [activeTab, photos, jobId, photosLoading, invoice.tenantId])
+
+  // Render preview when the Preview tab is active or content changes while previewing
+  useEffect(() => {
+    if (activeTab !== 'preview') return
+    setPreviewLoading(true)
+    const bodyHtml = editorRef.current?.getHTML() ?? ''
+    previewTemplateAction(invoice.tenantId, invoice.id, {
+      subject,
+      bodyHtml: bodyHtml && bodyHtml !== '<p></p>' ? bodyHtml : null,
+    })
+      .then(setPreview)
+      .catch(() => toast.error('Could not generate preview.'))
+      .finally(() => setPreviewLoading(false))
+  }, [activeTab, subject, invoice.tenantId, invoice.id])
 
   function addEmail(email: string) {
     const trimmed = email.trim().toLowerCase()
@@ -342,7 +367,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
             {/* ── Body / Pics / Docs tabs ────────────────────────────── */}
             <div className="space-y-0">
               <div className="flex border-b">
-                {(['body', 'pics', 'docs'] as Tab[]).map((tab) => (
+                {(['body', 'pics', 'docs', 'preview'] as Tab[]).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -354,7 +379,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
                         : 'border-transparent text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    {tab === 'body' ? 'Body' : tab === 'pics' ? 'Pics' : 'Docs'}
+                    {tab === 'body' ? 'Body' : tab === 'pics' ? 'Pics' : tab === 'docs' ? 'Docs' : 'Preview'}
                     {tab === 'pics' && selectedPhotoIds.length > 0 && (
                       <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-semibold w-4 h-4">
                         {selectedPhotoIds.length}
@@ -429,6 +454,35 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
               {activeTab === 'docs' && (
                 <div className="border border-t-0 rounded-b-md rounded-tr-md flex items-center justify-center h-40 text-muted-foreground">
                   <p className="text-sm">No documents on this job.</p>
+                </div>
+              )}
+
+              {activeTab === 'preview' && (
+                <div className="border border-t-0 rounded-b-md rounded-tr-md min-h-[160px] max-h-[320px] overflow-y-auto p-3 space-y-3">
+                  {previewLoading ? (
+                    <div className="flex items-center justify-center h-40">
+                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : preview ? (
+                    <>
+                      <div>
+                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Subject</p>
+                        <p className="text-sm">{preview.subject || '<em className="text-muted-foreground">No subject</em>'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Body</p>
+                        <div
+                          className="text-sm"
+                          dangerouslySetInnerHTML={{ __html: preview.bodyHtml }}
+                        />
+                      </div>
+                      {preview.unknownTags.length > 0 && (
+                        <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                          Unknown tags: {preview.unknownTags.join(', ')}
+                        </p>
+                      )}
+                    </>
+                  ) : null}
                 </div>
               )}
             </div>
