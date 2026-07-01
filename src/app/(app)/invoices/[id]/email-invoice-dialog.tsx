@@ -123,6 +123,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
   // Template + Subject
   const [templates, setTemplates] = useState<CommunicationTemplate[]>([])
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID)
+  const [selectedTemplateLabel, setSelectedTemplateLabel] = useState('Invoice (Default)')
   const [subject, setSubject] = useState('')
   const [defaultSubject, setDefaultSubject] = useState('')
 
@@ -155,6 +156,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
     setToChips([])
     setToInput('')
     setSelectedTemplateId(DEFAULT_TEMPLATE_ID)
+    setSelectedTemplateLabel('Invoice (Default)')
     setSubject('')
     setDefaultSubject('')
     editor?.commands.clearContent()
@@ -217,12 +219,14 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
     const id = templateId ?? DEFAULT_TEMPLATE_ID
     setSelectedTemplateId(id)
     if (id === DEFAULT_TEMPLATE_ID) {
+      setSelectedTemplateLabel('Invoice (Default)')
       setSubject(defaultSubject)
       editor?.commands.clearContent()
       return
     }
     const tpl = templates.find((t) => t.id === id)
     if (tpl) {
+      setSelectedTemplateLabel(tpl.name)
       if (tpl.subject) setSubject(tpl.subject)
       editor?.commands.setContent(tpl.body ?? '')
     }
@@ -263,7 +267,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
+      <DialogContent className="w-full max-w-xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Mail className="size-4" />
@@ -276,19 +280,14 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="overflow-y-auto flex-1 px-5 space-y-3 pb-2">
+          <div className="overflow-y-auto overflow-x-hidden flex-1 px-5 space-y-3 pb-2">
             {/* ── From + BCC ─────────────────────────────────────────── */}
             <div className="flex items-end gap-3">
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">From</Label>
-                <Select value="__from__" disabled>
-                  <SelectTrigger className="text-sm h-9">
-                    <SelectValue>{senderDisplay}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__from__">{senderDisplay}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex h-9 w-full items-center rounded-lg border border-input bg-muted/40 px-2.5 text-sm text-muted-foreground truncate opacity-70 select-none">
+                  {senderDisplay || '—'}
+                </div>
               </div>
               <label className="flex items-center gap-2 cursor-pointer mb-1.5 shrink-0">
                 <Checkbox checked={bccMe} onCheckedChange={(v) => setBccMe(!!v)} />
@@ -333,7 +332,7 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
                         setToInput('')
                       }
                     }}
-                    className="flex-1 min-w-36 text-sm outline-none bg-transparent placeholder:text-muted-foreground"
+                    className="flex-1 min-w-0 text-sm outline-none bg-transparent placeholder:text-muted-foreground"
                     placeholder={toChips.length === 0 ? 'customer@example.com' : ''}
                   />
                 </div>
@@ -371,8 +370,8 @@ export function EmailInvoiceDialog({ invoice, open, onOpenChange }: Props) {
             <div className="space-y-1">
               <Label className="text-xs font-medium">Template</Label>
               <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
+                <SelectTrigger className="w-full h-9">
+                  <span className="truncate text-sm">{selectedTemplateLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={DEFAULT_TEMPLATE_ID}>Invoice (Default)</SelectItem>
