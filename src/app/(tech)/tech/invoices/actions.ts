@@ -10,10 +10,13 @@ export interface SendCommunicationInput {
   refId: string
   channel: 'email' | 'sms'
   to: string
+  toExtra?: string[]
   bcc?: string
   subject?: string
   body?: string
+  bodyHtml?: string
   noAttachment?: boolean
+  extraAttachments?: Array<{ filename: string; content: string }>
   customerId?: string
   actor?: string
 }

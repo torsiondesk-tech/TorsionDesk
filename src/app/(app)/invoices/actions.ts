@@ -15,6 +15,7 @@ import {
   jobLineItems,
   customers,
   contacts,
+  contactEmails,
   customerEvents,
   jobStatusHistory,
   serviceLocations,
@@ -22,6 +23,7 @@ import {
   communicationTriggers,
   communicationSettings,
 } from '@/db/schema'
+import { getJobPhotoSignedUrls } from '@/lib/jobs/photos'
 import { nextInvoiceNo } from '@/lib/invoices/invoice-number'
 import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
 import { invoiceStatusLabel } from '@/lib/invoices/status'
@@ -585,16 +587,24 @@ export async function countInvoicesByStatus(orgId: string): Promise<{
   })
 }
 
+const FROM_EMAIL = 'contact@infantinosgaragedoor.com'
+
 export async function getInvoiceEmailDefaults(
   orgId: string,
   invoiceId: string,
-): Promise<{ to: string | null; subject: string; senderDisplay: string; currentUserEmail: string | null }> {
-  const [to, user, defaults] = await Promise.all([
+): Promise<{
+  to: string | null
+  subject: string
+  senderDisplay: string
+  fromEmail: string
+  jobId: string | null
+  customerContacts: Array<{ id: string; name: string; email: string }>
+}> {
+  const [to, defaults] = await Promise.all([
     resolveEmailRecipientAction(orgId, 'invoice', invoiceId),
-    currentUser(),
     withTenant(orgId, async (tx) => {
       const [inv] = await tx
-        .select({ invoiceNo: invoices.invoiceNo })
+        .select({ invoiceNo: invoices.invoiceNo, jobId: invoices.jobId, customerId: invoices.customerId })
         .from(invoices)
         .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoiceId)))
       const [tenant] = await tx
@@ -611,18 +621,54 @@ export async function getInvoiceEmailDefaults(
         trigger?.subject ??
         defaultSubjectFor('invoice_send', { companyName, invoiceNo: inv?.invoiceNo ?? null })
       const senderName = settings?.emailSenderName ?? companyName
-      return { subject, senderDisplay: `${senderName} <contact@infantinosgaragedoor.com>` }
+
+      let customerContacts: Array<{ id: string; name: string; email: string }> = []
+      if (inv?.customerId) {
+        const rows = await tx
+          .select({
+            id: contacts.id,
+            firstName: contacts.firstName,
+            lastName: contacts.lastName,
+            email: contactEmails.address,
+          })
+          .from(contacts)
+          .innerJoin(contactEmails, eq(contactEmails.contactId, contacts.id))
+          .where(and(eq(contacts.tenantId, orgId), eq(contacts.customerId, inv.customerId)))
+        customerContacts = rows.map((r) => ({
+          id: r.id,
+          name: [r.firstName, r.lastName].filter(Boolean).join(' '),
+          email: r.email,
+        }))
+      }
+
+      return {
+        subject,
+        senderDisplay: `${senderName} <${FROM_EMAIL}>`,
+        jobId: inv?.jobId ?? null,
+        customerContacts,
+      }
     }),
   ])
-
-  const currentUserEmail =
-    user?.emailAddresses?.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ?? null
 
   return {
     to,
     subject: defaults.subject,
     senderDisplay: defaults.senderDisplay,
-    currentUserEmail,
+    fromEmail: FROM_EMAIL,
+    jobId: defaults.jobId,
+    customerContacts: defaults.customerContacts,
+  }
+}
+
+export async function getJobPhotosForEmailAction(
+  orgId: string,
+  jobId: string,
+): Promise<Array<{ id: string; url: string }>> {
+  try {
+    const photos = await getJobPhotoSignedUrls(orgId, jobId)
+    return photos.map((p) => ({ id: p.id, url: p.url }))
+  } catch {
+    return []
   }
 }
 
@@ -631,10 +677,13 @@ export async function sendInvoiceAction(
   invoiceId: string,
   overrides?: {
     to?: string
+    toExtra?: string[]
     bcc?: string
     subject?: string
     body?: string
+    bodyHtml?: string
     attachPdf?: boolean
+    photoIds?: string[]
   },
 ): Promise<{ success: boolean; error?: string }> {
   const { userId } = await auth()
@@ -644,24 +693,52 @@ export async function sendInvoiceAction(
     return { success: false, error: 'No email recipient found for this invoice.' }
   }
 
-  const customerId = await withTenant(orgId, async (tx) => {
+  const invoiceData = await withTenant(orgId, async (tx) => {
     const [row] = await tx
-      .select({ customerId: invoices.customerId })
+      .select({ customerId: invoices.customerId, jobId: invoices.jobId })
       .from(invoices)
       .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoiceId)))
-    return row?.customerId ?? undefined
+    return row ?? null
   })
+
+  // Download and encode selected job photos as email attachments
+  let extraAttachments: Array<{ filename: string; content: string }> = []
+  if (overrides?.photoIds?.length && invoiceData?.jobId) {
+    try {
+      const allPhotos = await getJobPhotoSignedUrls(orgId, invoiceData.jobId)
+      const selected = allPhotos.filter((p) => overrides.photoIds!.includes(p.id)).slice(0, 5)
+      for (const photo of selected) {
+        try {
+          const res = await fetch(photo.url)
+          if (!res.ok) continue
+          const buf = Buffer.from(await res.arrayBuffer())
+          const ext = photo.url.includes('.png') ? 'png' : photo.url.includes('.webp') ? 'webp' : 'jpg'
+          extraAttachments.push({
+            filename: `photo-${photo.id.slice(0, 8)}.${ext}`,
+            content: buf.toString('base64'),
+          })
+        } catch {
+          // best-effort — skip photos that fail to download
+        }
+      }
+    } catch {
+      // ignore photo errors
+    }
+  }
 
   const result = await sendCustomerCommunicationAction(orgId, {
     kind: 'invoice',
     refId: invoiceId,
     channel: 'email',
     to,
+    toExtra: overrides?.toExtra,
     bcc: overrides?.bcc,
     subject: overrides?.subject,
     body: overrides?.body,
+    bodyHtml: overrides?.bodyHtml,
     noAttachment: overrides?.attachPdf === false,
-    customerId,
+    extraAttachments: extraAttachments.length ? extraAttachments : undefined,
+    customerId: invoiceData?.customerId ?? undefined,
     actor: userId ?? undefined,
   })
 

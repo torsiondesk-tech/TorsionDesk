@@ -137,3 +137,30 @@ body {
     @apply font-sans;
   }
 }
+
+/* Tiptap rich-text editor content styles */
+.tiptap-content .ProseMirror {
+  outline: none;
+  min-height: 140px;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.tiptap-content .ProseMirror p { margin: 0 0 0.25rem; }
+.tiptap-content .ProseMirror p:last-child { margin-bottom: 0; }
+.tiptap-content .ProseMirror strong { font-weight: 600; }
+.tiptap-content .ProseMirror em { font-style: italic; }
+.tiptap-content .ProseMirror ul { list-style: disc; margin: 0.25rem 0; padding-left: 1.25rem; }
+.tiptap-content .ProseMirror ol { list-style: decimal; margin: 0.25rem 0; padding-left: 1.25rem; }
+.tiptap-content .ProseMirror li { margin: 0.125rem 0; }
+.tiptap-content .ProseMirror h1 { font-size: 1.25rem; font-weight: 700; margin: 0.5rem 0 0.25rem; }
+.tiptap-content .ProseMirror h2 { font-size: 1.1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.tiptap-content .ProseMirror h3 { font-size: 1rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.tiptap-content .ProseMirror blockquote { border-left: 3px solid hsl(var(--border)); padding-left: 0.75rem; margin: 0.25rem 0; color: hsl(var(--muted-foreground)); }
+.tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  float: left;
+  height: 0;
+}

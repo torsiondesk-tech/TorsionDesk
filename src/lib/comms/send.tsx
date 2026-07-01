@@ -38,16 +38,34 @@ export interface InternalSendInput {
   refId: string
   customerId?: string
   to?: string
+  toExtra?: string[]
   bcc?: string
   subject?: string
   body?: string
+  bodyHtml?: string
   noAttachment?: boolean
+  extraAttachments?: Array<{ filename: string; content: string }>
   actor?: string
 }
 
 function senderFrom(emailSenderName: string | null | undefined): string {
   const name = emailSenderName ?? "Infantino's Garage Door Service"
   return `"${name}" <contact@infantinosgaragedoor.com>`
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function buildHtmlWrapper(companyName: string, bodyHtml: string, footerText?: string | null): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:24px">
+<div style="background-color:#ffffff;border-radius:8px;max-width:600px;margin:0 auto;padding:24px">
+  <p style="font-size:20px;font-weight:600;margin:0 0 16px;color:#0f172a">${escHtml(companyName)}</p>
+  <div style="font-size:14px;line-height:1.6;color:#1e293b">${bodyHtml}</div>
+  ${footerText ? `<p style="margin-top:24px;color:#64748b;font-size:12px;border-top:1px solid #e2e8f0;padding-top:16px">${escHtml(footerText)}</p>` : ''}
+</div>
+</body></html>`
 }
 
 async function buildEmailBody(
@@ -326,7 +344,15 @@ export async function sendCommunication(
         let html: string
         let subjectVars: Record<string, string | number | null> = {}
 
-        if (input.body) {
+        if (input.bodyHtml) {
+          const [company] = await tx
+            .select({ companyName: tenants.companyName })
+            .from(tenants)
+            .where(eq(tenants.id, tenantId))
+          const companyName = company?.companyName ?? "Infantino's Garage Door Service"
+          html = buildHtmlWrapper(companyName, input.bodyHtml, trigger?.footerText)
+          subjectVars = { companyName }
+        } else if (input.body) {
           const [company] = await tx
             .select({ companyName: tenants.companyName })
             .from(tenants)
@@ -354,15 +380,22 @@ export async function sendCommunication(
         }
 
         const subject = input.subject ?? trigger.subject ?? defaultSubjectFor(input.triggerType, subjectVars)
-        const attachment = input.noAttachment ? null : await renderPdfAttachment(input.triggerType, tenantId, input.refId)
+        const pdfAttachment = input.noAttachment ? null : await renderPdfAttachment(input.triggerType, tenantId, input.refId)
+        const allAttachments = [
+          ...(pdfAttachment ? [pdfAttachment] : []),
+          ...(input.extraAttachments ?? []),
+        ]
+        const toAddresses: string | string[] = input.toExtra?.length
+          ? [toAddress, ...input.toExtra]
+          : toAddress
         const resend = await getResend()
         const result = await resend.emails.send({
           from: senderFrom(settings?.emailSenderName),
-          to: toAddress,
+          to: toAddresses,
           ...(input.bcc ? { bcc: input.bcc } : {}),
           subject,
           html,
-          attachments: attachment ? [attachment] : undefined,
+          attachments: allAttachments.length ? allAttachments : undefined,
         })
         if (result.error) {
           throw new Error(result.error.message)
