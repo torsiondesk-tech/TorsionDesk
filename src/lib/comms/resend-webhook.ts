@@ -1,4 +1,5 @@
 import { Webhook } from 'svix'
+import { revalidatePath } from 'next/cache'
 import { db } from '@/db/client'
 import { communicationLogs } from '@/db/schema'
 import { eq } from 'drizzle-orm'
@@ -79,6 +80,8 @@ export async function handleResendWebhook(req: Request): Promise<Response> {
           .where(eq(communicationLogs.providerMessageId, messageId))
       }
     })
+
+    revalidatePath('/invoices')
 
     return new Response('OK', { status: 200 })
   } catch (err) {
