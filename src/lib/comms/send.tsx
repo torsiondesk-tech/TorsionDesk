@@ -25,6 +25,7 @@ import { TechNotifyEmail } from '@/lib/emails/tech-notify'
 import { EstimateSendEmail } from '@/lib/emails/estimate-send'
 import { InvoiceSendEmail } from '@/lib/emails/invoice-send'
 import { PaymentReceiptEmail } from '@/lib/emails/payment-receipt'
+import { CustomBodyEmail } from '@/lib/emails/custom-body'
 import { getInvoiceForPdf } from '@/lib/invoices/pdf-data'
 import { getEstimateForPdf } from '@/lib/estimates/pdf-data'
 import { InvoicePdfDocument } from '@/components/invoices/invoice-pdf'
@@ -37,8 +38,10 @@ export interface InternalSendInput {
   refId: string
   customerId?: string
   to?: string
+  bcc?: string
   subject?: string
   body?: string
+  noAttachment?: boolean
   actor?: string
 }
 
@@ -320,20 +323,43 @@ export async function sendCommunication(
       let providerMessageId: string | undefined
 
       if (input.channel === 'email') {
-        const { html, subjectVars } = await buildEmailBody(
-          input.triggerType,
-          tenantId,
-          input.refId,
-          input.customerId,
-          trigger.footerText,
-          tx,
-        )
+        let html: string
+        let subjectVars: Record<string, string | number | null> = {}
+
+        if (input.body) {
+          const [company] = await tx
+            .select({ companyName: tenants.companyName })
+            .from(tenants)
+            .where(eq(tenants.id, tenantId))
+          const companyName = company?.companyName ?? "Infantino's Garage Door Service"
+          html = await render(
+            <CustomBodyEmail
+              companyName={companyName}
+              body={input.body}
+              footerText={trigger.footerText}
+            />,
+          )
+          subjectVars = { companyName }
+        } else {
+          const result = await buildEmailBody(
+            input.triggerType,
+            tenantId,
+            input.refId,
+            input.customerId,
+            trigger.footerText,
+            tx,
+          )
+          html = result.html
+          subjectVars = result.subjectVars
+        }
+
         const subject = input.subject ?? trigger.subject ?? defaultSubjectFor(input.triggerType, subjectVars)
-        const attachment = await renderPdfAttachment(input.triggerType, tenantId, input.refId)
+        const attachment = input.noAttachment ? null : await renderPdfAttachment(input.triggerType, tenantId, input.refId)
         const resend = await getResend()
         const result = await resend.emails.send({
           from: senderFrom(settings?.emailSenderName),
           to: toAddress,
+          ...(input.bcc ? { bcc: input.bcc } : {}),
           subject,
           html,
           attachments: attachment ? [attachment] : undefined,

@@ -36,6 +36,7 @@ const TABS: SettingsTab[] = [
   { label: 'Templates', href: '/settings/templates' },
   { label: 'Email', href: '/settings/email' },
   { label: 'SMS', href: '/settings/sms' },
+  { label: 'Comm Templates', href: '/settings/communication-templates' },
   { label: 'Payment Methods', href: '/settings/payment-methods' },
   { label: 'Tax Items', href: '/settings/tax-items' },
   { label: 'Lookup Lists', href: '/settings/lookup-lists' },

@@ -23,8 +23,10 @@ export async function sendCustomerCommunicationAction(
       refKind: input.kind,
       refId: input.refId,
       to: input.to,
+      bcc: input.bcc,
       subject: input.subject,
       body: input.body,
+      noAttachment: input.noAttachment,
       customerId: input.customerId,
       actor: input.actor,
     }

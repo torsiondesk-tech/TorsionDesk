@@ -2029,3 +2029,35 @@ export const scheduledSms = pgTable(
 
 export type ScheduledSms = typeof scheduledSms.$inferSelect
 export type NewScheduledSms = typeof scheduledSms.$inferInsert
+
+// ── Communication Templates ─────────────────────────────────────────────────
+// Reusable message templates selectable when sending emails/SMS.
+// category: 'invoice' | 'estimate' | 'job' | 'general'
+// channel:  'email' | 'sms'
+export const communicationTemplates = pgTable(
+  'communication_templates',
+  {
+    id:        text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId:  text('tenant_id').notNull(),
+    name:      text('name').notNull(),
+    category:  text('category').notNull(),
+    channel:   text('channel').notNull().default('email'),
+    subject:   text('subject'),
+    body:      text('body'),
+    sortOrder: integer('sort_order').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => [
+    index('comm_templates_tenant_idx').on(t.tenantId),
+    pgPolicy('communication_templates_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type CommunicationTemplate = typeof communicationTemplates.$inferSelect
+export type NewCommunicationTemplate = typeof communicationTemplates.$inferInsert

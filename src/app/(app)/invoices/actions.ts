@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { eq, and, sql, desc, inArray, ne } from 'drizzle-orm'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { withTenant } from '@/db/with-tenant'
 import type { Tx } from '@/db/with-tenant'
 import {
@@ -19,6 +19,8 @@ import {
   jobStatusHistory,
   serviceLocations,
   tenants,
+  communicationTriggers,
+  communicationSettings,
 } from '@/db/schema'
 import { nextInvoiceNo } from '@/lib/invoices/invoice-number'
 import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
@@ -27,6 +29,7 @@ import { logger } from '@/lib/logger'
 import { toISODate } from '@/lib/utils'
 import { sendCustomerCommunicationAction } from '@/app/(app)/communications/actions'
 import { resolveEmailRecipientAction } from '@/app/(app)/communications/recipients'
+import { triggerLookup, defaultSubjectFor } from '@/lib/comms/triggers'
 
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) {
@@ -582,13 +585,61 @@ export async function countInvoicesByStatus(orgId: string): Promise<{
   })
 }
 
+export async function getInvoiceEmailDefaults(
+  orgId: string,
+  invoiceId: string,
+): Promise<{ to: string | null; subject: string; senderDisplay: string; currentUserEmail: string | null }> {
+  const [to, user, defaults] = await Promise.all([
+    resolveEmailRecipientAction(orgId, 'invoice', invoiceId),
+    currentUser(),
+    withTenant(orgId, async (tx) => {
+      const [inv] = await tx
+        .select({ invoiceNo: invoices.invoiceNo })
+        .from(invoices)
+        .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoiceId)))
+      const [tenant] = await tx
+        .select({ companyName: tenants.companyName })
+        .from(tenants)
+        .where(eq(tenants.id, orgId))
+      const [settings] = await tx
+        .select({ emailSenderName: communicationSettings.emailSenderName })
+        .from(communicationSettings)
+        .where(eq(communicationSettings.tenantId, orgId))
+      const trigger = await triggerLookup(tx, orgId, 'invoice_send', 'email')
+      const companyName = tenant?.companyName ?? "Infantino's Garage Door Service"
+      const subject =
+        trigger?.subject ??
+        defaultSubjectFor('invoice_send', { companyName, invoiceNo: inv?.invoiceNo ?? null })
+      const senderName = settings?.emailSenderName ?? companyName
+      return { subject, senderDisplay: `${senderName} <contact@infantinosgaragedoor.com>` }
+    }),
+  ])
+
+  const currentUserEmail =
+    user?.emailAddresses?.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress ?? null
+
+  return {
+    to,
+    subject: defaults.subject,
+    senderDisplay: defaults.senderDisplay,
+    currentUserEmail,
+  }
+}
+
 export async function sendInvoiceAction(
   orgId: string,
   invoiceId: string,
+  overrides?: {
+    to?: string
+    bcc?: string
+    subject?: string
+    body?: string
+    attachPdf?: boolean
+  },
 ): Promise<{ success: boolean; error?: string }> {
   const { userId } = await auth()
 
-  const to = await resolveEmailRecipientAction(orgId, 'invoice', invoiceId)
+  const to = overrides?.to ?? (await resolveEmailRecipientAction(orgId, 'invoice', invoiceId))
   if (!to) {
     return { success: false, error: 'No email recipient found for this invoice.' }
   }
@@ -606,6 +657,10 @@ export async function sendInvoiceAction(
     refId: invoiceId,
     channel: 'email',
     to,
+    bcc: overrides?.bcc,
+    subject: overrides?.subject,
+    body: overrides?.body,
+    noAttachment: overrides?.attachPdf === false,
     customerId,
     actor: userId ?? undefined,
   })

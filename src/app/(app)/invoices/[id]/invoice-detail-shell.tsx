@@ -38,7 +38,6 @@ import {
   generateStripePaymentLinkAction,
   listContactsAction,
   listLocationsAction,
-  sendInvoiceAction,
   updateInvoiceAction,
   type getInvoiceAction,
 } from '../actions'
@@ -52,6 +51,7 @@ import {
   type LineItemRow,
 } from '@/components/line-items/grouped-line-items'
 import type { customers } from '@/db/schema'
+import { EmailInvoiceDialog } from './email-invoice-dialog'
 
 interface ServiceLocation {
   addressLine1: string | null
@@ -160,6 +160,9 @@ export function InvoiceDetailShell({
   const [custContacts, setCustContacts] = useState<ContactOption[]>([])
   const [custAddresses, setCustAddresses] = useState<LocationOption[]>([])
   const [custLoading, setCustLoading] = useState(false)
+
+  // Email invoice dialog
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
 
   // Change Address dialog
   const [addrDialogOpen, setAddrDialogOpen] = useState(false)
@@ -336,18 +339,8 @@ export function InvoiceDetailShell({
     }
   }
 
-  const handleEmail = async () => {
-    try {
-      const result = await sendInvoiceAction(invoice.tenantId, invoice.id)
-      if (result.success) {
-        toast('Invoice email sent.')
-        router.refresh()
-      } else {
-        toast.error(result.error ?? 'Could not send invoice.')
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not send invoice.')
-    }
+  const handleEmail = () => {
+    setEmailDialogOpen(true)
   }
 
   const handleCopyLink = async () => {
@@ -1102,6 +1095,13 @@ export function InvoiceDetailShell({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Email Invoice dialog */}
+      <EmailInvoiceDialog
+        invoice={{ id: invoice.id, tenantId: invoice.tenantId, invoiceNo: invoice.invoiceNo }}
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+      />
     </div>
   )
 }
