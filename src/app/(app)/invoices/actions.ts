@@ -409,7 +409,7 @@ export async function listInvoicesAction(
         status,
         paymentTermsDays: r.paymentTermsDays ?? null,
         sentOn: r.sentOn instanceof Date ? r.sentOn.toISOString() : null,
-        emailOpenedAt: r.emailOpenedAt ? new Date(r.emailOpenedAt).toISOString().slice(0, 10) : null,
+        emailOpenedAt: r.emailOpenedAt ? r.emailOpenedAt.slice(0, 10) : null,
         createdAt:
           typeof r.createdAt === 'string'
             ? r.createdAt
@@ -525,7 +525,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       paymentLinkUrl: invoice.paymentLinkUrl ?? null,
       sentBy: invoice.sentBy ?? null,
       sentOn: invoice.sentOn instanceof Date ? invoice.sentOn.toISOString().slice(0, 10) : null,
-      emailOpenedAt: invoice.emailOpenedAt ? new Date(invoice.emailOpenedAt).toISOString().slice(0, 10) : null,
+      emailOpenedAt: invoice.emailOpenedAt ? invoice.emailOpenedAt.slice(0, 10) : null,
       total: (totalCents / 100).toFixed(2),
       balance: (balanceCents / 100).toFixed(2),
       status: invoiceStatusLabel(balanceCents, totalCents, due),
