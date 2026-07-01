@@ -348,7 +348,29 @@ Plans:
   4. A job's transition to "On The Way" sends the customer an SMS via Twilio (A2P 10DLC registered), and appointment reminder SMS is configurable per job.
   5. Outbound job/estimate/invoice emails and texts include the relevant PDF attachment, with the work order PDF optionally included on invoice emails.
 
-**Plans:** TBD
+**Plans:** 5 plans across 5 waves
+**UI hint:** yes
+
+Plans:
+**Wave 0**
+
+- [ ] 08-01-PLAN.md — Install 4 packages + trigger_type enum + 4 RLS tables (communication_triggers/logs/settings, scheduled_sms) + 12 RED comms tests + [BLOCKING] pnpm db:push
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 08-02-PLAN.md — Canonical send engine: getResend/getTwilio, triggers, consent-gated recipients, 5 React Email templates, sendCommunication core + in-process PDF attach, canonical sendCustomerCommunicationAction, /api/webhooks/resend (svix)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 08-03-PLAN.md — Job-event wiring: job_confirmation (create), tech_notify (assign), on_the_way SMS (transition, D-04), payment_receipt (Stripe webhook), replace sendInvoiceAction/sendEstimateAction stubs
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 08-04-PLAN.md — Appointment reminders: scheduled_sms scheduler + cancel/recompute, hourly CRON_SECRET-gated cron + vercel.json crons entry, per-job reminder-lead-time control (D-05)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 08-05-PLAN.md — Settings > Email + SMS panels + activate tabs, provisionTenant seed + existing-tenant backfill, INV-12 Email Opened derived from communication_logs (D-13)
 
 ### Phase 9: Reports
 
