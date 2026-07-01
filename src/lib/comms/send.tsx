@@ -39,6 +39,7 @@ export interface InternalSendInput {
   to?: string
   subject?: string
   body?: string
+  actor?: string
 }
 
 function senderFrom(emailSenderName: string | null | undefined): string {
@@ -371,7 +372,7 @@ export async function sendCommunication(
           kind: 'email',
           title: eventTitle(input.triggerType, input.channel),
           refId: input.refId,
-          actor: 'comms',
+          actor: input.actor ?? 'System',
         })
       }
 

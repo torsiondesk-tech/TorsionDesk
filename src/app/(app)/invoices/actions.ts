@@ -599,6 +599,8 @@ export async function sendInvoiceAction(
   orgId: string,
   invoiceId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const { userId } = await auth()
+
   const to = await resolveEmailRecipientAction(orgId, 'invoice', invoiceId)
   if (!to) {
     return { success: false, error: 'No email recipient found for this invoice.' }
@@ -618,6 +620,7 @@ export async function sendInvoiceAction(
     channel: 'email',
     to,
     customerId,
+    actor: userId ?? undefined,
   })
 
   return { success: result.success, error: result.error }

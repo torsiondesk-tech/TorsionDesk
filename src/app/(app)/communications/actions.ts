@@ -26,6 +26,7 @@ export async function sendCustomerCommunicationAction(
       subject: input.subject,
       body: input.body,
       customerId: input.customerId,
+      actor: input.actor,
     }
 
     const result = await sendCommunication(orgId, internal)

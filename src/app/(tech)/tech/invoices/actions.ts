@@ -13,6 +13,7 @@ export interface SendCommunicationInput {
   subject?: string
   body?: string
   customerId?: string
+  actor?: string
 }
 
 export interface SquarePaymentInput {

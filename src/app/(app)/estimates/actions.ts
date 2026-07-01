@@ -1441,6 +1441,8 @@ export async function sendEstimateAction(
   orgId: string,
   estimateId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const { userId } = await auth()
+
   const to = await resolveEmailRecipientAction(orgId, 'estimate', estimateId)
   if (!to) {
     return { success: false, error: 'No email recipient found for this estimate.' }
@@ -1460,6 +1462,7 @@ export async function sendEstimateAction(
     channel: 'email',
     to,
     customerId,
+    actor: userId ?? undefined,
   })
 
   return { success: result.success, error: result.error }
