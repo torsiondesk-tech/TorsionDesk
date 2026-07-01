@@ -623,6 +623,17 @@ export async function sendInvoiceAction(
     actor: userId ?? undefined,
   })
 
+  if (result.success) {
+    await withTenant(orgId, async (tx) => {
+      await tx
+        .update(invoices)
+        .set({ sentBy: 'Email', sentOn: new Date() })
+        .where(and(eq(invoices.tenantId, orgId), eq(invoices.id, invoiceId)))
+    })
+    revalidatePath(`/invoices/${invoiceId}`)
+    revalidatePath('/invoices')
+  }
+
   return { success: result.success, error: result.error }
 }
 
