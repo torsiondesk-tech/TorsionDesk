@@ -1,4 +1,5 @@
 import { eq, ilike, and, desc, asc, sql, max, count, inArray } from 'drizzle-orm'
+import { clerkClient } from '@clerk/nextjs/server'
 import { withTenant, type Tx } from '@/db/with-tenant'
 import { normalizePhone } from '@/lib/utils'
 import {
@@ -394,7 +395,7 @@ export async function getCustomerEvents(
   orgId: string,
   id: string,
 ): Promise<typeof customerEvents.$inferSelect[]> {
-  return withTenant(orgId, async (tx) => {
+  const rows = await withTenant(orgId, async (tx) => {
     return tx
       .select()
       .from(customerEvents)
@@ -403,6 +404,26 @@ export async function getCustomerEvents(
       )
       .orderBy(desc(customerEvents.occurredAt))
   })
+
+  // Resolve Clerk user IDs (user_...) to display names
+  const clerkIds = [...new Set(rows.map((r) => r.actor).filter((a): a is string => !!a && a.startsWith('user_')))]
+  if (clerkIds.length === 0) return rows
+  const client = await clerkClient()
+  const nameMap: Record<string, string> = {}
+  await Promise.all(
+    clerkIds.map(async (uid) => {
+      try {
+        const u = await client.users.getUser(uid)
+        nameMap[uid] = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.emailAddresses[0]?.emailAddress || uid
+      } catch {
+        // leave as-is if lookup fails
+      }
+    }),
+  )
+  return rows.map((r) => ({
+    ...r,
+    actor: r.actor && nameMap[r.actor] ? nameMap[r.actor] : r.actor,
+  }))
 }
 
 /** Fetch tags assigned to a customer. */
