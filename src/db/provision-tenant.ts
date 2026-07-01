@@ -1,5 +1,5 @@
 import { db } from './client'
-import { tenants } from './schema'
+import { tenants, communicationTriggers, communicationSettings } from './schema'
 
 /**
  * Provision a `tenants` row for a newly created Clerk organization (AUTH-01,
@@ -18,6 +18,18 @@ import { tenants } from './schema'
  * @returns `{ created: true }` if a new row was inserted, `{ created: false }` if
  *          the row already existed (replay).
  */
+const TRIGGER_DEFAULTS = [
+  { triggerType: 'job_confirmation', channel: 'email', enabled: true },
+  { triggerType: 'tech_notify', channel: 'email', enabled: true },
+  { triggerType: 'estimate_send', channel: 'email', enabled: true },
+  { triggerType: 'estimate_send', channel: 'sms', enabled: false },
+  { triggerType: 'invoice_send', channel: 'email', enabled: true },
+  { triggerType: 'invoice_send', channel: 'sms', enabled: false },
+  { triggerType: 'payment_receipt', channel: 'email', enabled: true },
+  { triggerType: 'on_the_way', channel: 'sms', enabled: true },
+  { triggerType: 'appointment_reminder', channel: 'sms', enabled: false },
+] as const
+
 export async function provisionTenant(
   orgId: string,
 ): Promise<{ created: boolean }> {
@@ -26,6 +38,18 @@ export async function provisionTenant(
     .values({ id: orgId })
     .onConflictDoNothing({ target: tenants.id })
     .returning({ id: tenants.id })
+
+  if (inserted.length > 0) {
+    await db
+      .insert(communicationTriggers)
+      .values(TRIGGER_DEFAULTS.map((d) => ({ tenantId: orgId, ...d })))
+      .onConflictDoNothing()
+
+    await db
+      .insert(communicationSettings)
+      .values({ tenantId: orgId })
+      .onConflictDoNothing()
+  }
 
   return { created: inserted.length > 0 }
 }

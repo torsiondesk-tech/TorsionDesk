@@ -10,6 +10,7 @@ import {
   listOrgMembers,
   listSalesReps,
 } from '../actions'
+import { getReminderLeadHoursForJob } from '@/app/(app)/communications/reminders'
 import { listTags } from '@/lib/tags'
 import { listProductCategories } from '@/lib/catalog'
 import { JobForm, type JobFormData } from './job-form'
@@ -117,7 +118,10 @@ function toTimeInputValue(d: Date | string | null): string | null {
   return `${h}:${min}`
 }
 
-function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData {
+function mapJobToFormData(
+  job: Awaited<ReturnType<typeof getJob>>,
+  reminderLeadHours: number | null,
+): JobFormData {
   if (!job) throw new Error('mapJobToFormData: job is null')
 
   return {
@@ -147,6 +151,7 @@ function mapJobToFormData(job: Awaited<ReturnType<typeof getJob>>): JobFormData 
     notesForTechs: job.notesForTechs,
     completionNotes: job.completionNotes,
     paymentTermsDays: job.paymentTermsDays ?? null,
+    reminderLeadHours,
     jobPaymentMethod: job.jobPaymentMethod ?? null,
     checkRefNo: job.checkRefNo ?? null,
     tagIds: job.tags.map((t) => t.id),
@@ -214,6 +219,7 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     salesReps,
     photoUrls,
     signatureUrls,
+    reminderLeadHours,
   ] = await Promise.all([
     listJobCategories(orgId),
     listJobSources(orgId),
@@ -224,9 +230,10 @@ export default async function JobDetailPage({ params, searchParams }: JobDetailP
     listSalesReps(orgId),
     getJobPhotoSignedUrls(orgId, id),
     getJobSignatureSignedUrls(orgId, id),
+    getReminderLeadHoursForJob(orgId, id),
   ])
 
-  const initial = mapJobToFormData(job)
+  const initial = mapJobToFormData(job, reminderLeadHours)
   const invoice = await getInvoiceForJob(orgId, id)
 
   return (

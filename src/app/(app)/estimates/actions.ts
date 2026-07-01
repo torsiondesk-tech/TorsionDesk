@@ -38,6 +38,8 @@ import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { estimateStatusLabel } from '@/lib/estimates/status'
 import { logger } from '@/lib/logger'
 import { normalizePhone, combineDateTime } from '@/lib/utils'
+import { sendCustomerCommunicationAction } from '@/app/(app)/communications/actions'
+import { resolveEmailRecipientAction } from '@/app/(app)/communications/recipients'
 import type { CachedEstimate } from '@/app/(tech)/lib/dexie'
 import {
   searchProductsAction as jobsSearchProductsAction,
@@ -1436,11 +1438,22 @@ export async function convertEstimateToJobAction(
 }
 
 export async function sendEstimateAction(
-  _orgId: string,
-  _estimateId: string,
-): Promise<{ success: boolean }> {
-  console.log('sendEstimateAction called — stub, Phase 8 will implement Resend send')
-  return { success: true }
+  orgId: string,
+  estimateId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const to = await resolveEmailRecipientAction(orgId, 'estimate', estimateId)
+  if (!to) {
+    return { success: false, error: 'No email recipient found for this estimate.' }
+  }
+
+  const result = await sendCustomerCommunicationAction(orgId, {
+    kind: 'estimate',
+    refId: estimateId,
+    channel: 'email',
+    to,
+  })
+
+  return { success: result.success, error: result.error }
 }
 
 const ESTIMATE_STATUSES = [

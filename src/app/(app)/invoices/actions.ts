@@ -19,12 +19,15 @@ import {
   jobStatusHistory,
   serviceLocations,
   tenants,
+  communicationLogs,
 } from '@/db/schema'
 import { nextInvoiceNo } from '@/lib/invoices/invoice-number'
 import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
 import { invoiceStatusLabel } from '@/lib/invoices/status'
 import { logger } from '@/lib/logger'
 import { toISODate } from '@/lib/utils'
+import { sendCustomerCommunicationAction } from '@/app/(app)/communications/actions'
+import { resolveEmailRecipientAction } from '@/app/(app)/communications/recipients'
 
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) {
@@ -178,8 +181,7 @@ export async function createInvoiceFromJobAction(
             .select({ defaultPaymentTermsDays: tenants.defaultPaymentTermsDays })
             .from(tenants)
             .where(eq(tenants.id, orgId))
-            .limit(1)
-          paymentTermsDays = tenantRow?.defaultPaymentTermsDays ?? 0
+            paymentTermsDays = tenantRow?.defaultPaymentTermsDays ?? 0
         }
 
         const dueDate = paymentTermsDays > 0
@@ -198,7 +200,6 @@ export async function createInvoiceFromJobAction(
               eq(contacts.billingContact, true),
             ),
           )
-          .limit(1)
         if (billingContactRow) invoiceContactId = billingContactRow.id
 
         // 4. Generate invoice number and insert the invoice row.
@@ -373,7 +374,13 @@ export async function listInvoicesAction(
         paymentLinkUrl: invoices.paymentLinkUrl,
         paymentTermsDays: invoices.paymentTermsDays,
         sentOn: invoices.sentOn,
-        emailOpenedAt: invoices.emailOpenedAt,
+        emailOpenedAt: sql<string | null>`
+          (SELECT MAX(${communicationLogs.openedAt})::text
+           FROM ${communicationLogs}
+           WHERE ${communicationLogs.tenantId} = ${invoices.tenantId}
+             AND ${communicationLogs.refId} = ${invoices.id}
+             AND ${communicationLogs.channel} = 'email')
+        `.as('email_opened_at'),
         createdAt: invoices.createdAt,
       })
       .from(invoices)
@@ -402,7 +409,7 @@ export async function listInvoicesAction(
         status,
         paymentTermsDays: r.paymentTermsDays ?? null,
         sentOn: r.sentOn instanceof Date ? r.sentOn.toISOString() : null,
-        emailOpenedAt: r.emailOpenedAt instanceof Date ? r.emailOpenedAt.toISOString() : null,
+        emailOpenedAt: r.emailOpenedAt ? new Date(r.emailOpenedAt).toISOString().slice(0, 10) : null,
         createdAt:
           typeof r.createdAt === 'string'
             ? r.createdAt
@@ -450,7 +457,13 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         paymentLinkUrl: invoices.paymentLinkUrl,
         sentBy: invoices.sentBy,
         sentOn: invoices.sentOn,
-        emailOpenedAt: invoices.emailOpenedAt,
+        emailOpenedAt: sql<string | null>`
+          (SELECT MAX(${communicationLogs.openedAt})::text
+           FROM ${communicationLogs}
+           WHERE ${communicationLogs.tenantId} = ${invoices.tenantId}
+             AND ${communicationLogs.refId} = ${invoices.id}
+             AND ${communicationLogs.channel} = 'email')
+        `.as('email_opened_at'),
         total: invoices.total,
         balance: balanceSubquery,
         createdAt: invoices.createdAt,
@@ -512,7 +525,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       paymentLinkUrl: invoice.paymentLinkUrl ?? null,
       sentBy: invoice.sentBy ?? null,
       sentOn: invoice.sentOn instanceof Date ? invoice.sentOn.toISOString().slice(0, 10) : null,
-      emailOpenedAt: invoice.emailOpenedAt instanceof Date ? invoice.emailOpenedAt.toISOString().slice(0, 10) : null,
+      emailOpenedAt: invoice.emailOpenedAt ? new Date(invoice.emailOpenedAt).toISOString().slice(0, 10) : null,
       total: (totalCents / 100).toFixed(2),
       balance: (balanceCents / 100).toFixed(2),
       status: invoiceStatusLabel(balanceCents, totalCents, due),
@@ -583,11 +596,22 @@ export async function countInvoicesByStatus(orgId: string): Promise<{
 }
 
 export async function sendInvoiceAction(
-  _orgId: string,
-  _invoiceId: string,
-): Promise<{ success: boolean }> {
-  console.log('sendInvoiceAction called — stub, Phase 8 will implement Resend send')
-  return { success: true }
+  orgId: string,
+  invoiceId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const to = await resolveEmailRecipientAction(orgId, 'invoice', invoiceId)
+  if (!to) {
+    return { success: false, error: 'No email recipient found for this invoice.' }
+  }
+
+  const result = await sendCustomerCommunicationAction(orgId, {
+    kind: 'invoice',
+    refId: invoiceId,
+    channel: 'email',
+    to,
+  })
+
+  return { success: result.success, error: result.error }
 }
 
 export async function updateInvoiceAction(

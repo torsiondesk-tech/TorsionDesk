@@ -332,8 +332,13 @@ export function InvoiceDetailShell({
 
   const handleEmail = async () => {
     try {
-      await sendInvoiceAction(invoice.tenantId, invoice.id)
-      toast('Email sending will be available in a later release. Download the PDF to send manually.')
+      const result = await sendInvoiceAction(invoice.tenantId, invoice.id)
+      if (result.success) {
+        toast('Invoice email sent.')
+        router.refresh()
+      } else {
+        toast.error(result.error ?? 'Could not send invoice.')
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not send invoice.')
     }
@@ -667,6 +672,11 @@ export function InvoiceDetailShell({
                 className="h-6 py-0 px-1 text-xs"
               />
             )}
+
+            <span className="text-muted-foreground font-medium whitespace-nowrap">Email Opened:</span>
+            <span className={invoice.emailOpenedAt ? 'text-emerald-600 font-medium' : ''}>
+              {invoice.emailOpenedAt ? fmtDate(invoice.emailOpenedAt) : '—'}
+            </span>
           </div>
         </div>
       </div>

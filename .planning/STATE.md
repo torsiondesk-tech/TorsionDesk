@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-06-25T19:00:00.000Z"
+status: Phase 8 complete — ready for /gsd-transition
+last_updated: "2026-06-30T22:55:00.000Z"
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 9
   total_plans: 47
-  completed_plans: 35
-  percent: 74
+  completed_plans: 38
+  percent: 82
 ---
 
 # TorsionDesk — Project State
@@ -19,17 +19,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10)
 
 **Core value:** A tech gets dispatched from the board, completes the job on their phone, creates the invoice and collects payment on site, and the customer has a paid invoice with a receipt in their inbox — without the owner touching anything twice.
-**Current focus:** Phase 08 — communications and notifications
+**Current focus:** Phase 08 complete — run `/gsd-transition` to close it.
 
 ## Current Phase
 
 **Phase 8: Communications and Notifications**
 
-- Status: Executing
+- Status: Completed (pending `/gsd-transition`)
+- Completed: 2026-06-30
 - Goal: The system automatically emails and texts the right people on job, estimate, invoice, and payment events, governed by per-trigger settings, from both the office and the PWA.
 - Requirements: COMM-01 through COMM-09
 - Depends on: Phase 3 (completed), Phase 6 (completed), Phase 7 (completed)
-- Cross-phase note: A shared `sendCustomerCommunicationAction` should power estimate/invoice sends from both office modules and the Phase 5 PWA so per-trigger settings and PDF attachments are applied consistently.
+- Cross-phase note: A shared `sendCustomerCommunicationAction` powers estimate/invoice sends from both office modules and the Phase 5 PWA so per-trigger settings and PDF attachments are applied consistently.
+- Notes: |
+  Wave 0 installed the Phase 8 schema, React Email, Twilio, and Resend. Wave 1 built the canonical send engine (`sendCommunication`) with Resend webhook delivery/open tracking, in-process PDF attachments, and non-blocking `after()` side effects. Wave 2 wired job/estimate/invoice/payment events to the engine. Wave 3 added appointment reminders and an hourly cron dispatcher. Wave 4 delivered Settings > Email/SMS panels, lazy tenant backfill, and the INV-12 `Email Opened` rewire to derive from `communication_logs`.
+
+## Phase 8 Plans
+
+- [x] 08-01-PLAN.md — Wave 0: schema + packages + RED tests + [BLOCKING] db:push
+- [x] 08-02-PLAN.md — Wave 1: canonical send engine + Resend webhook
+- [x] 08-03-PLAN.md — Wave 2: job/estimate/invoice/payment event wiring
+- [x] 08-04-PLAN.md — Wave 3: appointment reminders and hourly cron
+- [x] 08-05-PLAN.md — Wave 4: Settings UI + backfill + INV-12 rewire
 
 ## Phase 4 Plans
 
@@ -59,12 +70,12 @@ Phase 4  [██████████] Completed  ← 2026-06-15
 Phase 5  [██████████] Completed  ← 2026-06-21
 Phase 6  [██████████] Completed  ← 2026-06-24
 Phase 7  [██████████] Completed  ← 2026-06-25
-Phase 8  [          ] Executing    ← current
+Phase 8  [██████████] Completed  ← 2026-06-30
 Phase 9  [          ] Not started
 Phase 10 [          ] Not started
 ```
 
-7 / 11 phases complete · 95 / 109 requirements delivered
+9 / 11 phases complete · 104 / 109 requirements delivered
 
 ## Completed Phases
 
@@ -151,6 +162,17 @@ Phase 10 [          ] Not started
 
 - Requirements delivered: INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08, INV-09, INV-10, INV-11, INV-12, INV-13, INV-14
 
+### Phase 8: Communications and Notifications
+
+- Status: Completed
+- Completed: 2026-06-30
+- Plans executed: 5 / 5 (08-01 through 08-05)
+- Verification: Full test suite 228/228 passed; production build clean.
+- Notes: |
+  Full communications stack: Resend + Twilio, React Email templates, in-process PDF attachments, per-trigger settings in Settings > Email/SMS, Resend webhook open/delivery tracking into `communication_logs`, hourly appointment-reminder cron, and INV-12 invoice "Email Opened" derived from `communication_logs`.
+
+- Requirements delivered: COMM-01, COMM-02, COMM-03, COMM-04, COMM-05, COMM-06, COMM-07, COMM-08, COMM-09
+
 ## Phase 7 Plans
 
 - [x] 07-01-PLAN.md — Wave 0: RED tests (9 files) + schema (5 new tables) + helpers + pnpm add stripe square + [BLOCKING] schema push to Supabase
@@ -223,13 +245,16 @@ Key takeaways:
 
 ## Session Continuity
 
-**Last action:** Phase 07-06 (Invoicing and Payments Gap Closure) completed 2026-06-25. Ledger integrity hardened: cross-customer allocation rejection, balance-capped allocations, Stripe cross-event dedup, soft-void payments, voided invoice filtering, Past Due badge fix, wiring defects resolved.
-**Next action:** Plan and execute Phase 08 — Communications and Notifications (COMM-01 through COMM-09). Shared `sendCustomerCommunicationAction` should power estimate/invoice sends from both office modules and the Phase 5 PWA.
+**Last action:** Phase 8 executed 2026-06-30. All 5 plans (08-01 through 08-05) completed, verified with `vitest run` (228 passed) and `next build` clean.
+**Next action:** Run `/gsd-transition` to close Phase 8 and advance to Phase 9 (Reports).
 **Resume files:**
 
-- `.planning/ROADMAP.md` — Phase 8 requirements (COMM-01–COMM-09)
-- `.planning/phases/07-invoicing-and-payments/07-06-SUMMARY.md` — Gap closure summary
+- `.planning/phases/08-communications-and-notifications/08-01-PLAN.md` — Wave 0: packages + schema + RED tests + [BLOCKING] db:push
+- `.planning/phases/08-communications-and-notifications/08-02-PLAN.md` — Wave 1: canonical send engine + Resend webhook
+- `.planning/phases/08-communications-and-notifications/08-03-PLAN.md` — Wave 2: job-event wiring
+- `.planning/phases/08-communications-and-notifications/08-04-PLAN.md` — Wave 3: appointment reminder cron
+- `.planning/phases/08-communications-and-notifications/08-05-PLAN.md` — Wave 4: Settings UI + backfill + INV-12
 
 ---
 *State initialized: 2026-06-10*
-*Updated: 2026-06-25 — Phase 07-05 complete, Phase 7 complete, ready for Phase 8*
+*Updated: 2026-06-30 — Phase 8 context gathered, ready to plan*

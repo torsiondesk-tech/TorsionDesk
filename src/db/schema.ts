@@ -1908,3 +1908,124 @@ export const paymentAllocations = pgTable(
 
 export type PaymentAllocation = typeof paymentAllocations.$inferSelect
 export type NewPaymentAllocation = typeof paymentAllocations.$inferInsert
+
+// ── Phase 8: Communications and Notifications ───────────────────────────────
+
+export const triggerType = pgEnum('trigger_type', [
+  'job_confirmation',
+  'tech_notify',
+  'estimate_send',
+  'invoice_send',
+  'payment_receipt',
+  'on_the_way',
+  'appointment_reminder',
+])
+
+export const communicationTriggers = pgTable(
+  'communication_triggers',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    triggerType: triggerType('trigger_type').notNull(),
+    channel: text('channel').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    subject: text('subject'),
+    footerText: text('footer_text'),
+  },
+  (t) => [
+    unique('comm_triggers_unique').on(t.tenantId, t.triggerType, t.channel),
+    pgPolicy('communication_triggers_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type CommunicationTrigger = typeof communicationTriggers.$inferSelect
+export type NewCommunicationTrigger = typeof communicationTriggers.$inferInsert
+
+export const communicationLogs = pgTable(
+  'communication_logs',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    customerId: text('customer_id'),
+    refKind: text('ref_kind'),
+    refId: text('ref_id'),
+    triggerType: triggerType('trigger_type'),
+    channel: text('channel').notNull(),
+    toAddress: text('to_address'),
+    status: text('status').notNull(),
+    providerMessageId: text('provider_message_id'),
+    errorMessage: text('error_message'),
+    sentAt: timestamp('sent_at').defaultNow(),
+    deliveredAt: timestamp('delivered_at'),
+    openedAt: timestamp('opened_at'),
+  },
+  (t) => [
+    index('comm_logs_provider_msg_idx').on(t.providerMessageId),
+    index('comm_logs_ref_idx').on(t.refKind, t.refId),
+    pgPolicy('communication_logs_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type CommunicationLog = typeof communicationLogs.$inferSelect
+export type NewCommunicationLog = typeof communicationLogs.$inferInsert
+
+export const communicationSettings = pgTable(
+  'communication_settings',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    emailSenderName: text('email_sender_name'),
+    smsPhoneNumber: text('sms_phone_number'),
+  },
+  (t) => [
+    unique('comm_settings_tenant_unique').on(t.tenantId),
+    pgPolicy('communication_settings_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type CommunicationSetting = typeof communicationSettings.$inferSelect
+export type NewCommunicationSetting = typeof communicationSettings.$inferInsert
+
+export const scheduledSms = pgTable(
+  'scheduled_sms',
+  {
+    id: text('id').primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: text('tenant_id').notNull(),
+    jobId: text('job_id').notNull(),
+    contactId: text('contact_id'),
+    phone: text('phone').notNull(),
+    messageBody: text('message_body').notNull(),
+    fireAt: timestamp('fire_at').notNull(),
+    sentAt: timestamp('sent_at'),
+    cancelledAt: timestamp('cancelled_at'),
+    errorMessage: text('error_message'),
+  },
+  (t) => [
+    index('scheduled_sms_due_idx').on(t.fireAt),
+    index('scheduled_sms_job_idx').on(t.jobId),
+    pgPolicy('scheduled_sms_tenant_isolation', {
+      for: 'all',
+      to: 'authenticated',
+      using: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+      withCheck: sql`${t.tenantId} = current_setting('app.current_tenant_id', true)`,
+    }),
+  ],
+).enableRLS()
+
+export type ScheduledSms = typeof scheduledSms.$inferSelect
+export type NewScheduledSms = typeof scheduledSms.$inferInsert

@@ -8,6 +8,9 @@ const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const webhookHelper = fileURLToPath(
   new URL('./src/lib/clerk-webhook.ts', import.meta.url),
 )
+const serverOnlyStub = fileURLToPath(
+  new URL('./tests/mocks/server-only.ts', import.meta.url),
+)
 
 export default defineConfig({
   plugins: [react()],
@@ -24,6 +27,9 @@ export default defineConfig({
         find: /^@\/app\/api\/webhooks\/clerk\/route$/,
         replacement: webhookHelper,
       },
+      // Next.js `server-only` marker throws when imported in a non-server
+      // environment. Stub it out for tests so server-only modules load safely.
+      { find: /^server-only$/, replacement: serverOnlyStub },
       { find: /^@\//, replacement: `${srcDir}/` },
     ],
   },

@@ -37,6 +37,11 @@ import { transitionJobStatus } from '@/lib/jobs/transition-job-status'
 import { logger } from '@/lib/logger'
 import { normalizePhone, combineDateTime } from '@/lib/utils'
 import { broadcastJobEvent } from '@/lib/jobs/broadcast'
+import { sendCommunication } from '@/lib/comms/send'
+import {
+  scheduleAppointmentReminder,
+  cancelAppointmentReminders,
+} from '@/app/(app)/communications/reminders'
 
 /**
  * ── Phone handling policy ──────────────────────────────────────────────────
@@ -197,6 +202,10 @@ const createJobSchema = z.object({
   completionNotes: emptyToUndefined,
   paymentTermsDays: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+    z.number().int().min(0).nullable().optional(),
+  ),
+  reminderLeadHours: z.preprocess(
+    (v) => (v === '' || v == null ? null : Number(v)),
     z.number().int().min(0).nullable().optional(),
   ),
   jobPaymentMethod: emptyToNull,
@@ -686,6 +695,25 @@ export async function createJob(
       revalidatePath('/jobs')
       revalidatePath(`/jobs/${id}`)
       revalidatePath(`/customers/${resolvedCustomerId}`)
+
+      after(() =>
+        sendCommunication(orgId, {
+          triggerType: 'job_confirmation',
+          channel: 'email',
+          refKind: 'job',
+          refId: id,
+          customerId: resolvedCustomerId,
+        }).catch((e) => logger.error('job_confirmation send', e)),
+      )
+
+      if (data.reminderLeadHours) {
+        after(() => {
+          scheduleAppointmentReminder(orgId, id, data.reminderLeadHours).catch((e) =>
+            logger.error('schedule reminder', e),
+          )
+        })
+      }
+
       return { success: true, id }
     } catch (err) {
       const pgErr = err as { code?: string; cause?: { code?: string } }
@@ -1044,6 +1072,28 @@ export async function updateJob(
 
   after(() => broadcastJobEvent(orgId, 'job-updated', { jobId: data.id }).catch(() => {}))
 
+  if (assigneeUserIds.length > 0) {
+    after(() =>
+      sendCommunication(orgId, {
+        triggerType: 'tech_notify',
+        channel: 'email',
+        refKind: 'job',
+        refId: data.id,
+        customerId: data.customerId,
+      }).catch((e) => logger.error('tech_notify send', e)),
+    )
+  }
+
+  if (data.status === 'cancelled') {
+    after(() => cancelAppointmentReminders(orgId, data.id).catch((e) => logger.error('cancel reminders', e)))
+  } else if (data.reminderLeadHours !== undefined) {
+    after(() => {
+      scheduleAppointmentReminder(orgId, data.id, data.reminderLeadHours).catch((e) =>
+        logger.error('schedule reminder', e),
+      )
+    })
+  }
+
   return { success: true, id: data.id }
 }
 
@@ -1062,6 +1112,22 @@ export async function transitionJobStatusAction(
     await transitionJobStatus(jobId, toStatus, userId)
     revalidatePath(`/jobs/${jobId}`)
     after(() => broadcastJobEvent(orgId, 'job-status-changed', { jobId, toStatus }).catch(() => {}))
+
+    if (toStatus === 'on_the_way') {
+      after(() =>
+        sendCommunication(orgId, {
+          triggerType: 'on_the_way',
+          channel: 'sms',
+          refKind: 'job',
+          refId: jobId,
+        }).catch((e) => logger.error('on_the_way sms', e)),
+      )
+    }
+
+    if (toStatus === 'cancelled') {
+      after(() => cancelAppointmentReminders(orgId, jobId).catch((e) => logger.error('cancel reminders', e)))
+    }
+
     return { success: true }
   } catch (err) {
     const message = extractErrorMessage(err)

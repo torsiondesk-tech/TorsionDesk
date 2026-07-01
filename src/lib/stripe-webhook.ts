@@ -1,8 +1,10 @@
 import { eq, and, sql } from 'drizzle-orm'
+import { after } from 'next/server'
 import { withTenant } from '@/db/with-tenant'
 import { payments, paymentAllocations, invoices, customers, customerEvents } from '@/db/schema'
 import { nextPaymentNo } from '@/lib/invoices/invoice-number'
 import { logger } from '@/lib/logger'
+import { sendCommunication } from '@/lib/comms/send'
 import type Stripe from 'stripe'
 
 function getStripeSecret(): string {
@@ -67,8 +69,7 @@ async function recordStripePayment(
       .select({ id: payments.id })
       .from(payments)
       .where(and(eq(payments.tenantId, tenantId), eq(payments.stripeEventId, event.id)))
-      .limit(1)
-
+      
     if (existing.length > 0) {
       return
     }
@@ -86,8 +87,7 @@ async function recordStripePayment(
             eq(payments.transactionToken, info.stripePaymentIntentId),
           ),
         )
-        .limit(1)
-
+        
       if (existingByToken.length > 0) {
         return
       }
@@ -99,8 +99,7 @@ async function recordStripePayment(
         .select({ customerId: invoices.customerId })
         .from(invoices)
         .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, info.invoiceId)))
-        .limit(1)
-      customerId = invoiceCustomer?.customerId ?? null
+              customerId = invoiceCustomer?.customerId ?? null
     }
 
     if (!customerId) {
@@ -129,8 +128,7 @@ async function recordStripePayment(
         .select({ total: invoices.total })
         .from(invoices)
         .where(and(eq(invoices.tenantId, tenantId), eq(invoices.id, info.invoiceId)))
-        .limit(1)
-
+        
       let allocCents = info.amountCents
       if (invRow) {
         const [sumRow] = await tx
@@ -160,6 +158,22 @@ async function recordStripePayment(
       refId: payment.id,
       actor: 'stripe_webhook',
     })
+
+    const firePaymentReceipt = () =>
+      sendCommunication(tenantId, {
+        triggerType: 'payment_receipt',
+        channel: 'email',
+        refKind: 'invoice',
+        refId: payment.id,
+        customerId,
+      }).catch((e) => logger.error('payment_receipt send', e))
+
+    try {
+      after(firePaymentReceipt)
+    } catch {
+      // Not running inside a Next.js request scope (e.g. unit tests) — run inline.
+      firePaymentReceipt()
+    }
   })
 }
 

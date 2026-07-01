@@ -87,6 +87,7 @@ export interface JobFormData {
   arrivalWindowStart?: string | null
   arrivalWindowEnd?: string | null
   estimatedDuration?: number | null
+  reminderLeadHours?: number | null
   multiDay?: boolean
   requiresFollowUp?: boolean
   isRepeating?: boolean
@@ -209,6 +210,9 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
 
   // Enum selects (controlled so labels display correctly before popup opens)
   const [priority, setPriority] = useState(initial?.priority ?? 'normal')
+  const [reminderLeadHours, setReminderLeadHours] = useState(
+    initial?.reminderLeadHours != null ? String(initial.reminderLeadHours) : '',
+  )
   const [billingType, setBillingType] = useState(initial?.billingType ?? 'single_invoice')
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? '')
   const [jobSourceId, setJobSourceId] = useState(initial?.jobSourceId ?? '')
@@ -352,6 +356,11 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
     setArrivalStart(initial?.arrivalWindowStart ?? '')
     setArrivalEnd(initial?.arrivalWindowEnd ?? '')
   }, [initial?.arrivalWindowStart, initial?.arrivalWindowEnd])
+
+  // Sync reminder lead time after router.refresh()
+  useEffect(() => {
+    setReminderLeadHours(initial?.reminderLeadHours != null ? String(initial.reminderLeadHours) : '')
+  }, [initial?.reminderLeadHours])
 
   // Fetch contacts and locations when customer changes; push data into pickers via hydrate
   useEffect(() => {
@@ -942,6 +951,31 @@ export function JobForm({ mode, orgId, initial, referenceData, primaryLocationId
                 defaultValue={initial?.estimatedDuration ?? ''}
                 placeholder="e.g. 120"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reminderLeadHours">Appointment Reminder</Label>
+              <Select
+                name="reminderLeadHours"
+                value={reminderLeadHours}
+                onValueChange={(v) => setReminderLeadHours(v ?? '')}
+              >
+                <SelectTrigger id="reminderLeadHours" className="w-full">
+                  <span className="flex flex-1 text-left text-sm">
+                    {reminderLeadHours === ''
+                      ? 'No SMS reminder'
+                      : `${reminderLeadHours} hour${reminderLeadHours === '1' ? '' : 's'} before start`}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No SMS reminder</SelectItem>
+                  <SelectItem value="1">1 hour before start</SelectItem>
+                  <SelectItem value="2">2 hours before start</SelectItem>
+                  <SelectItem value="4">4 hours before start</SelectItem>
+                  <SelectItem value="24">24 hours before start</SelectItem>
+                  <SelectItem value="48">48 hours before start</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <input
