@@ -1,8 +1,8 @@
 import { Webhook } from 'svix'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/db/client'
-import { communicationLogs } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { communicationLogs, invoices } from '@/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { withTenant } from '@/db/with-tenant'
 import { logger } from '@/lib/logger'
 
@@ -57,7 +57,12 @@ export async function handleResendWebhook(req: Request): Promise<Response> {
 
   try {
     const [row] = await db
-      .select({ tenantId: communicationLogs.tenantId })
+      .select({
+        tenantId: communicationLogs.tenantId,
+        refKind: communicationLogs.refKind,
+        refId: communicationLogs.refId,
+        triggerType: communicationLogs.triggerType,
+      })
       .from(communicationLogs)
       .where(eq(communicationLogs.providerMessageId, messageId))
       .limit(1)
@@ -78,10 +83,22 @@ export async function handleResendWebhook(req: Request): Promise<Response> {
           .update(communicationLogs)
           .set({ openedAt: now })
           .where(eq(communicationLogs.providerMessageId, messageId))
+
+        // Directly stamp invoices.email_opened_at so the invoice list/detail
+        // can read it without a correlated subquery into communication_logs.
+        if (row.triggerType === 'invoice_send' && row.refKind === 'invoice' && row.refId) {
+          await tx
+            .update(invoices)
+            .set({ emailOpenedAt: now })
+            .where(and(eq(invoices.tenantId, row.tenantId), eq(invoices.id, row.refId)))
+        }
       }
     })
 
     revalidatePath('/invoices')
+    if (row.refId && row.refKind === 'invoice') {
+      revalidatePath(`/invoices/${row.refId}`)
+    }
 
     return new Response('OK', { status: 200 })
   } catch (err) {

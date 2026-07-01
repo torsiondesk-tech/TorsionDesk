@@ -19,7 +19,6 @@ import {
   jobStatusHistory,
   serviceLocations,
   tenants,
-  communicationLogs,
 } from '@/db/schema'
 import { nextInvoiceNo } from '@/lib/invoices/invoice-number'
 import { computeInvoiceTotals, type InvoiceLineItemInput } from '@/lib/invoices/totals'
@@ -374,13 +373,7 @@ export async function listInvoicesAction(
         paymentLinkUrl: invoices.paymentLinkUrl,
         paymentTermsDays: invoices.paymentTermsDays,
         sentOn: invoices.sentOn,
-        emailOpenedAt: sql<string | null>`
-          (SELECT MAX(${communicationLogs.openedAt})::text
-           FROM ${communicationLogs}
-           WHERE ${communicationLogs.tenantId} = ${invoices.tenantId}
-             AND ${communicationLogs.refId} = ${invoices.id}
-             AND ${communicationLogs.channel} = 'email')
-        `.as('email_opened_at'),
+        emailOpenedAt: invoices.emailOpenedAt,
         createdAt: invoices.createdAt,
       })
       .from(invoices)
@@ -409,7 +402,7 @@ export async function listInvoicesAction(
         status,
         paymentTermsDays: r.paymentTermsDays ?? null,
         sentOn: r.sentOn instanceof Date ? r.sentOn.toISOString() : null,
-        emailOpenedAt: r.emailOpenedAt ? r.emailOpenedAt.slice(0, 10) : null,
+        emailOpenedAt: r.emailOpenedAt instanceof Date ? r.emailOpenedAt.toISOString().slice(0, 10) : null,
         createdAt:
           typeof r.createdAt === 'string'
             ? r.createdAt
@@ -457,13 +450,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
         paymentLinkUrl: invoices.paymentLinkUrl,
         sentBy: invoices.sentBy,
         sentOn: invoices.sentOn,
-        emailOpenedAt: sql<string | null>`
-          (SELECT MAX(${communicationLogs.openedAt})::text
-           FROM ${communicationLogs}
-           WHERE ${communicationLogs.tenantId} = ${invoices.tenantId}
-             AND ${communicationLogs.refId} = ${invoices.id}
-             AND ${communicationLogs.channel} = 'email')
-        `.as('email_opened_at'),
+        emailOpenedAt: invoices.emailOpenedAt,
         total: invoices.total,
         balance: balanceSubquery,
         createdAt: invoices.createdAt,
@@ -525,7 +512,7 @@ export async function getInvoiceAction(orgId: string, id: string): Promise<Invoi
       paymentLinkUrl: invoice.paymentLinkUrl ?? null,
       sentBy: invoice.sentBy ?? null,
       sentOn: invoice.sentOn instanceof Date ? invoice.sentOn.toISOString().slice(0, 10) : null,
-      emailOpenedAt: invoice.emailOpenedAt ? invoice.emailOpenedAt.slice(0, 10) : null,
+      emailOpenedAt: invoice.emailOpenedAt instanceof Date ? invoice.emailOpenedAt.toISOString().slice(0, 10) : null,
       total: (totalCents / 100).toFixed(2),
       balance: (balanceCents / 100).toFixed(2),
       status: invoiceStatusLabel(balanceCents, totalCents, due),
